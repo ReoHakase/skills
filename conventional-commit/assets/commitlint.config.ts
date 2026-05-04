@@ -15,8 +15,7 @@ const config: UserConfig = {
     "header-max-length": [2, "always", 100],
     "subject-case": [0],
   },
-  helpUrl:
-    "https://github.com/ReoHakase/skills/blob/main/conventional-commit/SKILL.md",
+  helpUrl: "https://github.com/ReoHakase/skills/blob/main/conventional-commit/SKILL.md",
 };
 
 export default config;

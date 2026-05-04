@@ -24,8 +24,8 @@ agent-skills/
 
 ## Skills
 
-| Skill | Area | Use case |
-|---|---|---|
+| Skill                 | Area           | Use case                                                                                              |
+| --------------------- | -------------- | ----------------------------------------------------------------------------------------------------- |
 | `conventional-commit` | Git / Workflow | Conventional Commits と Gitmoji を前提に、staged changes を適切に分割して commit message を組み立てる |
 
 ## Install
