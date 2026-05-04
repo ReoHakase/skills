@@ -53,6 +53,7 @@ Examples:
 
 - Scoped: `feat(web/ui): ✨ add numeric date picker (#482)`
 - No scope: `docs: 📝 add CONTRIBUTING Gitmoji table (#702)`
+- Repo-wide / initial: `feat: ✨ bootstrap published APM skill repository`
 - Breaking: `feat(api)!: 💥 rename argument (#888)`
 
 Omit empty **`()`** when there is no scope. Omit **`!`** when the change is non-breaking.
@@ -210,6 +211,7 @@ If prod code changed too, prefer ✅ and mention snapshot updates in the body.
 - **First segment**: package or top-level area (`web`, `mcp`, `lib`, `domain`). Omit npm **`@scope/`** if the repo convention strips it.
 - **Second segment**: recurring subdomain only (`ui`, `api`, `auth`, `db`, `page`, `deps`, `release`).
 - **Avoid a third segment**—push detail into subject/body.
+- For **repo-wide changes**, **initial commits**, or **formatting/tooling sweeps** that are not meaningfully owned by one package or sub-area, **omit the scope entirely**. Prefer `feat: ...`, `chore: ...`, or `style: ...` over artificial scopes like `repo` or `global`.
 - **Split commits** instead of multi-scope monsters so `git revert` stays surgical.
 
 **Heuristic**: adopt two-part scopes when at least **two** of these are true: you want `git log --grep`, the slice repeats across PRs, revert should be narrow.
