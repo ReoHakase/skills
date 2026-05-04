@@ -3,7 +3,7 @@ pre-commit:
   commands:
     oxfmt:
       glob: "*.{js,mjs,cjs,ts,mts,cts,tsx,jsx,json,jsonc,json5,yml,yaml,toml,md,mdx}"
-      run: bunx oxfmt --write --no-error-on-unmatched-pattern {staged_files}
+      run: bun oxfmt --write --no-error-on-unmatched-pattern {staged_files}
       stage_fixed: true
       skip:
         - merge
@@ -12,4 +12,4 @@ pre-commit:
 commit-msg:
   commands:
     commitlint:
-      run: bunx commitlint --edit {1}
+      run: bun commitlint --edit {1}
