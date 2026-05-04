@@ -245,6 +245,8 @@ Optional **💥** in the subject reinforces the signal for humans; tooling still
 `@commitlint/config-conventional` expects a lowercase subject; a **leading emoji** often violates **`subject-case`** or related defaults.
 
 - **Read the repo’s `commitlint.config.*`** before committing.
+- A matching sample config is bundled at `assets/commitlint.config.ts`; copy it when the repo uses this skill's `type(scope): <emoji> <subject>` header shape.
+- For `commitlint-rs`, a matching sample config is bundled at `assets/.commitlintrc.yaml`; use it when the repo enforces the Rust CLI instead of the Node `commitlint` package.
 - Typical fixes: customize **`headerPattern`**, relax **`subject-case`**, or adopt a **Gitmoji-aware preset/plugin** if the repo standardizes on one.
 - Subject suffix **`(#123)`** is usually fine unless a custom **`issue-pattern`** forbids it.
 

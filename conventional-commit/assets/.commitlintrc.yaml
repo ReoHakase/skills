@@ -1,0 +1,27 @@
+rules:
+  type-empty:
+    level: error
+  type:
+    level: error
+    options:
+      - feat
+      - fix
+      - perf
+      - refactor
+      - docs
+      - style
+      - test
+      - build
+      - ci
+      - chore
+      - revert
+  description-empty:
+    level: error
+  description-format:
+    level: error
+    format: '^([a-z0-9]|[^\x00-\x7F]+ [a-z0-9]).*[^.]$'
+  description-max-length:
+    level: error
+    length: 72
+  subject-empty:
+    level: error
