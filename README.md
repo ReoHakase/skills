@@ -15,6 +15,8 @@ agent-skills/
 ├── apm.yml
 ├── apm.lock.yaml
 ├── README.md
+├── agentskills-authoring/
+│   └── SKILL.md
 ├── conventional-commit/
 │   └── SKILL.md
 ├── package.json
@@ -24,11 +26,18 @@ agent-skills/
 
 ## Skills
 
-| Skill                 | Area           | Use case                                                                                              |
-| --------------------- | -------------- | ----------------------------------------------------------------------------------------------------- |
-| `conventional-commit` | Git / Workflow | Conventional Commits と Gitmoji を前提に、staged changes を適切に分割して commit message を組み立てる |
+| Skill                   | Area           | Use case                                                                                              |
+| ----------------------- | -------------- | ----------------------------------------------------------------------------------------------------- |
+| `agentskills-authoring` | Agent Skills   | agentskills.io 準拠で SKILL.md・description・progressive disclosure・評価ループを設計・レビューする   |
+| `conventional-commit`   | Git / Workflow | Conventional Commits と Gitmoji を前提に、staged changes を適切に分割して commit message を組み立てる |
 
 ## Install
+
+### `agentskills-authoring`
+
+```bash
+apm install ReoHakase/skills/agentskills-authoring
+```
 
 ### `conventional-commit`
 
