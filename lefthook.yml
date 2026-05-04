@@ -8,6 +8,13 @@ pre-commit:
       skip:
         - merge
         - rebase
+    apm-audit-skill:
+      glob: "*/*"
+      run: apm audit --verbose --strip --file {staged_files}
+      stage_fixed: true
+      skip:
+        - merge
+        - rebase
 
 commit-msg:
   commands:
