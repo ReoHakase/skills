@@ -1,11 +1,17 @@
 ---
 name: conventional-commit
 description: >-
-  End-to-end workflow for splitting staged work into Conventional Commits with
-  Gitmoji in the subject, English prose, scopes, GitHub issue refs, and commit
-  bodies written like concise agent-assisted commits (compact
-  paragraphs, backticks on literals, no Context/Changes headings). Covers gh issue
-  sync, dry-run vs real commits, commitlint and Changesets. Standalone.
+  Use this skill whenever the user asks to commit, create commits, split staged
+  changes, write commit messages, fix commitlint failures, or choose Conventional
+  Commit types/scopes. It enforces Conventional Commits with exactly one Gitmoji,
+  mandatory English body prose, optional GitHub `(#issue)` refs, no
+  Context-style body labels, and Agent Skills / APM `feat` vs `docs` decisions.
+  Covers `gh` issue sync, dry-run vs real commits, commitlint config, Changesets,
+  and changelog tooling. Standalone.
+compatibility: >-
+  GitHub CLI (`gh`) optional for branch-based issue lookup. Bundled samples
+  include Node `commitlint` (`assets/commitlint.config.ts`) and commitlint-rs
+  (`assets/.commitlintrc.yaml`).
 ---
 
 # Conventional commit authoring (Conventional Commits + Gitmoji)
@@ -18,6 +24,13 @@ Standalone guide for **staging, splitting, and committing** with messages that a
 - Splitting work by **scope** / component so each commit is easy to revert and grep
 - Repos using **commitlint**, **Changesets**, **release-please**, or **git-cliff**
 - Issue-driven branches where the subject must carry **`(#123)`**
+- **Agent Skills / APM** layouts (root-level `<skill-name>/SKILL.md`): picking **`feat` vs `docs` vs `fix`** without wavering—see [Agent Skills repositories (feat vs docs)](#agent-skills-repositories-feat-vs-docs)
+
+## When not to use
+
+- **Trivial one-line commits** where the user already pasted the exact final header and only needs `git commit -m` (the full split workflow does not pay for its overhead).
+- **Pure preference** rewrites (“sounds nicer”) with no reliability or changelog impact—treat instruction-quality iteration elsewhere; this skill is for **commit shape and hygiene**, not subjective style debates alone.
+- Environments where you **cannot** stage, split, or run git hooks and the user only wanted a **dry message**—honor that and skip the multi-step workflow.
 
 ---
 
@@ -44,7 +57,7 @@ Operate on **staged** changes unless the user asks otherwise.
 ```
 <type>[(scope)][!]: <gitmoji> <subject> [(#<issue>)]
 
-<body — Markdown OK>
+<body — Markdown OK; required>
 
 <footer — trailers only>
 ```
@@ -58,6 +71,7 @@ Examples:
 
 Omit empty **`()`** when there is no scope. Omit **`!`** when the change is non-breaking.
 
+- **Body is required** for every non-`wip` commit, even tiny edits.
 - **Blank line** between subject / body / footer.
 - **Gitmoji**: exactly **one** primary emoji from [gitmoji.dev](https://gitmoji.dev/), placed **immediately after** the colon and space, **before** the English subject.
 - **`(#<issue>)`**: include when the team ties work to GitHub issues—especially if **`git branch --show-current`** embeds that number (`123-topic`, `feat/456-x`, etc.). Omit only when there is no issue; never invent ids.
@@ -92,7 +106,7 @@ Omit empty **`()`** when there is no scope. Omit **`!`** when the change is non-
 
 **Length**
 
-- Scale to the change: **tiny edits** may omit the body or use **one sentence**; multi-file behavior changes use **two–four tight paragraphs** (similar breadth to a focused `fix(ci)` or `feat(api)` that touches several files).
+- Scale to the change: **tiny edits** use **one sentence**; multi-file behavior changes use **two–four tight paragraphs** (similar breadth to a focused `fix(ci)` or `feat(api)` that touches several files).
 
 **Large migrations (upstream breakage, pins, lockfiles)**
 
@@ -151,23 +165,39 @@ Pick **by kind of change**, not by “importance”. Avoid masking a `fix`/`feat
 | `chore`    | Often omitted            |
 | `revert`   | Yes                      |
 
+### Agent Skills repositories (feat vs docs)
+
+Repos that publish **installable skills** (for example **root-level** `<skill-name>/SKILL.md` and APM consumption) confuse **`feat` vs `docs`** because Markdown looks like “documentation.” Use this **default** to stop flip-flopping:
+
+| Situation                                                                                                                                                                   | type                                                                                       | Rationale                                                                                                                                                                                                                     |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **New** `<skill-name>/` directory (or equivalent first-time skill package)                                                                                                  | `feat`                                                                                     | You shipped a **new installable unit** / new consumer-facing capability in the registry. Scope with the skill id when the repo convention does (`feat(foo-bar): ✨ …`).                                                       |
+| **`SKILL.md` / `references/` / `scripts/` / bundled assets** change **what agents do or read** (new section, new trigger wording, new required step, new script agents run) | `feat` (additive / expanded behavior) or `fix` (corrects wrong or misleading instructions) | These files are **executable instructions**, not marketing copy—treat instruction changes like product behavior. Use **`fix`** when the old text could cause incorrect runs; use **`feat`** when you add or widen capability. |
+| **README**, root **install docs**, or **meta only** (no change to any `SKILL.md` / skill assets)                                                                            | `docs`                                                                                     | Publishing/consumer discovery text without altering skill behavior.                                                                                                                                                           |
+| **Typo / formatting / table alignment** in `SKILL.md` with **no intended semantic change** to instructions                                                                  | `docs`                                                                                     | Truly editorial; if there is any chance behavior shifts, use `feat` or `fix` instead.                                                                                                                                         |
+| Repo **tooling only** (`lefthook`, CI, `apm.yml` scaffolding) with **no skill instruction edits**                                                                           | `chore`, `ci`, or `build` (pick by kind)                                                   | Keeps skill commits grep-clean.                                                                                                                                                                                               |
+
+**Decision test:** if an **`apm install …/skill-name`** checkout would **behave differently** for an agent after the change, the commit is **not** `docs`.
+
+**Changelog tools:** `release-please`, **git-cliff**, and Changesets still read git history or fragments you configure—**subjects stay conventional**. Those tools do **not** change the **`feat` vs `docs`** split above; they add release metadata elsewhere.
+
 ---
 
 ## Type ↔ primary Gitmoji
 
-| type       | Primary Gitmoji                                         | Use when                                         | Prefer another type when                            |
-| ---------- | ------------------------------------------------------- | ------------------------------------------------ | --------------------------------------------------- |
-| `feat`     | ✨ (⚠️ deprecations; 🔥 removals that deserve emphasis) | New user-facing capability or clear user value   | Removal-only compat break → removal row below       |
-| `fix`      | 🐛 (🚑 hotfix; 🔒 security-sensitive fixes)             | Bug fixes, incorrect behavior, regression repair | Pure internal tidy → `refactor`                     |
-| `docs`     | 📝                                                      | README, guides, comments only                    | Code or config also moves → matching `feat`/`fix`/… |
-| `style`    | 🎨                                                      | Formatting, whitespace, non-functional polish    | Risk of behavior change → `refactor` or `fix`       |
-| `refactor` | ♻️ (🗑️ dead-code cleanup)                               | Same behavior, clearer structure                 | Goal is speed → `perf`                              |
-| `perf`     | ⚡                                                      | Latency, memory, I/O wins                        | Structure-only → `refactor`                         |
-| `test`     | ✅ (🖼️ snapshot-only updates)                           | Adding / tightening tests                        | Prod code fix → `fix`                               |
-| `build`    | 📦 (combine with ➕➖⬆️📌 for deps)                     | Tooling, bundler, compiler deps                  | Product logic → appropriate type                    |
-| `ci`       | 👷 (🔖 release automation)                              | Pipelines, caches, matrices                      | Local-only build tweak → `build`                    |
-| `chore`    | 🔧                                                      | Meta/scripts with no runtime effect              | Touches behavior → real type                        |
-| `revert`   | ⏪️                                                      | Reverting a prior commit / PR                    | Prefer forward fix → `fix`                          |
+| type       | Primary Gitmoji                                         | Use when                                                                                                                            | Prefer another type when                                                    |
+| ---------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `feat`     | ✨ (⚠️ deprecations; 🔥 removals that deserve emphasis) | New user-facing capability or clear user value                                                                                      | Removal-only compat break → removal row below                               |
+| `fix`      | 🐛 (🚑 hotfix; 🔒 security-sensitive fixes)             | Bug fixes, incorrect behavior, regression repair                                                                                    | Pure internal tidy → `refactor`                                             |
+| `docs`     | 📝                                                      | README, guides, comments only; **see [Agent Skills (feat vs docs)](#agent-skills-repositories-feat-vs-docs) when `SKILL.md` moves** | Code, config, or **instruction-behavior** changes → matching `feat`/`fix`/… |
+| `style`    | 🎨                                                      | Formatting, whitespace, non-functional polish                                                                                       | Risk of behavior change → `refactor` or `fix`                               |
+| `refactor` | ♻️ (🗑️ dead-code cleanup)                               | Same behavior, clearer structure                                                                                                    | Goal is speed → `perf`                                                      |
+| `perf`     | ⚡                                                      | Latency, memory, I/O wins                                                                                                           | Structure-only → `refactor`                                                 |
+| `test`     | ✅ (🖼️ snapshot-only updates)                           | Adding / tightening tests                                                                                                           | Prod code fix → `fix`                                                       |
+| `build`    | 📦 (combine with ➕➖⬆️📌 for deps)                     | Tooling, bundler, compiler deps                                                                                                     | Product logic → appropriate type                                            |
+| `ci`       | 👷 (🔖 release automation)                              | Pipelines, caches, matrices                                                                                                         | Local-only build tweak → `build`                                            |
+| `chore`    | 🔧                                                      | Meta/scripts with no runtime effect                                                                                                 | Touches behavior → real type                                                |
+| `revert`   | ⏪️                                                      | Reverting a prior commit / PR                                                                                                       | Prefer forward fix → `fix`                                                  |
 
 ---
 
@@ -248,7 +278,15 @@ Optional **💥** in the subject reinforces the signal for humans; tooling still
 
 - **Read the repo’s `commitlint.config.*`** before committing.
 - A matching sample config is bundled at `assets/commitlint.config.ts`; copy it when the repo uses this skill's `type(scope): <emoji> <subject>` header shape.
-- For `commitlint-rs`, a matching sample config is bundled at `assets/.commitlintrc.yaml`; use it when the repo enforces the Rust CLI instead of the Node `commitlint` package.
+- Recommended Node config behavior:
+  - **Body required** via a custom `body-required` rule with a message that points agents to `conventional-commit/SKILL.md`.
+  - **Gitmoji required** via a custom `gitmoji-required` rule that checks for an emoji immediately after `type(scope):`.
+  - **`wip` bypass** via `ignores: [(message) => /^wip\b/i.test(message)]`.
+  - **Skill hint** via `helpUrl` plus custom rule messages.
+- Recommended commitlint-rs config behavior:
+  - **Body required** via `body-empty: { level: error }`.
+  - **Gitmoji required** as a YAML approximation via `description-format` requiring a non-ASCII prefix immediately after `type(scope):`.
+  - **`wip` bypass** and **skill hint text** must live in the surrounding hook/wrapper because commitlint-rs YAML does not support Node-style `ignores`, custom rule messages, or `helpUrl`.
 - Typical fixes: customize **`headerPattern`**, relax **`subject-case`**, or adopt a **Gitmoji-aware preset/plugin** if the repo standardizes on one.
 - Subject suffix **`(#123)`** is usually fine unless a custom **`issue-pattern`** forbids it.
 
@@ -267,6 +305,8 @@ Changesets reads **`.changeset/*.md`**, not git subjects. **Gitmoji in commits d
 
 Always add a **changeset** for user-visible package changes—even with polished commits. Mirror **major** bumps with **`!`** + **`BREAKING CHANGE:`** in git.
 
+**release-please / git-cliff**: configure them to **consume conventional commits** or your cliff presets; they do **not** replace the [feat vs docs rules for skills](#agent-skills-repositories-feat-vs-docs)—they only **emit** or **parse** versions and notes from whatever history you feed them.
+
 ---
 
 ## Quick checklist
@@ -275,11 +315,12 @@ Always add a **changeset** for user-visible package changes—even with polished
 - [ ] Split commits by scope/concern; restage between commits if needed.
 - [ ] **`type(scope)!:`** correct; Gitmoji matches intent.
 - [ ] English imperative subject; **`(#NNN)`** when applicable.
-- [ ] Body matches **Body (English)** (paragraphs, backticks); no `Context/Changes/Impact` headings unless requested; **large migrations** may use multi-paragraph narrative + optional `Notes:` bullets.
+- [ ] Body is present and matches **Body (English)** (paragraphs, backticks); no `Context/Changes/Impact` headings unless requested; **large migrations** may use multi-paragraph narrative + optional `Notes:` bullets.
 - [ ] Footer **`Fixes`/`Closes`/`BREAKING CHANGE:`** as needed.
 - [ ] **All messages printed** before the first **`git commit`** when authoring multiple commits.
 - [ ] **commitlint** / local hooks satisfied (Gitmoji may need custom rules).
 - [ ] **Changesets** added for publishable package changes.
+- [ ] **Agent Skills repos**: `feat` vs `docs` for skill dirs follows [Agent Skills repositories (feat vs docs)](#agent-skills-repositories-feat-vs-docs) unless the change is clearly README-only.
 
 ---
 
@@ -363,7 +404,7 @@ Fixes #999
 ```text
 <type>(<scope>): <gitmoji> <subject> (#<issue>)
 
-<body optional>
+<body required>
 
 <footer optional>
 ```
