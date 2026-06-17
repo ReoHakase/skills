@@ -57,25 +57,7 @@ gh issue develop 123 \
 
 # PR作成
 
-scriptを使う場合は、完成済みのPR本文を先に作り、検証してから作成する。
-
-```bash
-scripts/validate-pr-body.sh pr.md
-
-scripts/create-pr-from-issue.sh \
-  OWNER/REPO \
-  123 \
-  "123/feat-ui-search-cards" \
-  main \
-  "検索結果カードで一致シーンの無音プレビューを表示する" \
-  pr.md \
-  PROJECT_NUMBER \
-  PROJECT_OWNER \
-  Codex \
-  "GPT 5.5 (xhigh)"
-```
-
-直接 `gh` を使う場合:
+完成済みのPR本文を先に作り、具体的なSummary、Scope、Verification、Risk、Review Focus、closing keywordがあることを確認してから作成する。
 
 ```bash
 gh pr create \
@@ -112,4 +94,4 @@ MCPは次に使う。
 - PR review結果の要約。
 - CI失敗原因の整理。
 
-再現可能な操作はscriptまたはgh CLIへ落とす。
+再現可能な操作はgh CLIへ落とす。

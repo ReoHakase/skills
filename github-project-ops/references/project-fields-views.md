@@ -16,11 +16,11 @@ Issue/PRタイトルにtypeやscopeを入れない。TypeとScopeはProject fiel
 
 Type、Source、Status、Priority、Size、Complexity、Risk、Agent TierはProject fieldをSSoTにする。GitHub labelへは複製しない。
 
-分類、状態、起票元、優先度、見積もり、agent割り当てはすべてProject fieldで表す。新しいGitHub labelは定義せず、Issue作成scriptもlabelを付けない。
+分類、状態、起票元、優先度、見積もり、agent割り当てはすべてProject fieldで表す。新しいGitHub labelは定義しない。
 
 Project fieldのfilterでIssueは絞り込めるため、labelをportable fallbackとして持たない。比較やsortでは `P2-high` の `2` のようにProject field optionの数値prefixを読む。
 
-既存Project fieldのoption名は自動移行しない。`bootstrap-project-fields.sh` は既存fieldをskipするため、形容詞なしの旧optionから `P2-high` のような新optionへの変更はProject側で手動移行する。
+既存Project fieldのoption名は自動移行しない。形容詞なしの旧optionから `P2-high` のような新optionへの変更はProject側で手動移行する。
 
 既存repositoryに残っているlabelは自動削除しない。不要なlabelはrepository側で手動整理する。
 
@@ -135,7 +135,7 @@ GitHub Projects単体では厳密なVelocity chartは弱い。次の近似を使
 - Cycle time: Started AtからMerged Atまで
 - Review time: PR作成からmergeまで
 
-`report-project-health.sh` で簡易集計する。
+GitHub Projectsのview、export、またはその場で必要な `gh project item-list` / `gh api graphql` 集計を使う。
 
 # Sprintを導入するか
 

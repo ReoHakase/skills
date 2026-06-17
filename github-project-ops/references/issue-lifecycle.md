@@ -105,10 +105,7 @@ agentまたは人間が作業開始できる状態。
 ```markdown
 作業開始。
 
-- Assignee: @owner
-- Agent Tier: agent:standard
-- Agent Harness: Codex
-- Branch: 123/feat-ui-search-cards
+担当者、agent情報、branchはProject fieldに記録済み。
 ```
 
 # In Review

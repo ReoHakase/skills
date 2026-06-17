@@ -38,7 +38,3 @@ Blocked by:
 Blocking:
 
 - #...
-
-# Agent指定
-
-Agent Tier: agent:standard

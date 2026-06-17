@@ -25,7 +25,3 @@ part境界上の時刻が前partの末尾として扱われることがある。
 # 確認手順
 
 - [ ] 該当unit testが通る
-
-# Agent指定
-
-Agent Tier: agent:standard

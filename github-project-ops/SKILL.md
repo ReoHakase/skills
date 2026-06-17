@@ -31,7 +31,7 @@ SSoTはGitHub上のProject、Issue、PRである。
 - 実装差分はPRで表す。
 - main統合はmerge queueで表す。
 
-`.github/` とskill内のexamples/scriptsは初期化、検証、再現、教育のために使う。GitHub上の動的状態を上書きするために使わない。
+`.github/` とskill内のexamples/referencesは、検証、再現、教育のために使う。GitHub上の動的状態を上書きするために使わない。
 
 ## 変更前に発見する値
 
@@ -122,7 +122,7 @@ GitHub MCPは対話的な確認、探索、状況整理、自然言語での操�
 
 gh CLIの高水準コマンドで足りない場合だけ、`gh api` または `gh api graphql` を使う。
 
-生のcurl POSTは使わない。script内でもGitHub API呼び出しは `gh api` に寄せる。
+生のcurl POSTは使わない。GitHub API呼び出しは `gh api` に寄せる。
 
 # Reference routing
 
@@ -165,6 +165,8 @@ gh CLIの高水準コマンドで足りない場合だけ、`gh api` または `
 Issue時点では具体的なモデル名まで確定させない。Backlog/Triaged/ReadyではAgent Tierだけでよい。作業開始時にAgent HarnessとAgent ModelをProject fieldへ記録する。
 
 このskillではGitHub labelを使わない。Type、Source、Status、Priority、Size、Complexity、Risk、Agent TierはProject fieldをSSoTにする。
+
+Project fieldにあるmetadataはIssue本文、PR本文、作業開始コメントへ書かない。本文には実現内容、背景、受け入れ条件、確認手順、実装メモだけを書く。
 
 # Typeの定義
 
@@ -265,7 +267,7 @@ branchable issueは次を満たす。
 
 # PR body
 
-PR本文には具体的なagentモデル名を書かない。Agent HarnessとAgent ModelはProject fieldへ記録する。
+PR本文にはProject fieldのmetadataや具体的なagentモデル名を書かない。Agent HarnessとAgent ModelはProject fieldへ記録する。
 
 PR本文に必須の要素:
 
@@ -277,20 +279,8 @@ PR本文に必須の要素:
 - Review Focus
 - `Closes #<issue-number>` または同等のclosing keyword
 
-必須sectionが存在していても、`-`、`- [ ]`、`done`、`確認済み` のようなplaceholderだけなら不十分。PR作成前に `validate-pr-body.sh` を通し、第三者が確認できる具体的な変更点、確認手順、risk、review focusを書く。
+必須sectionが存在していても、`-`、`- [ ]`、`done`、`確認済み` のようなplaceholderだけなら不十分。PR作成前に、第三者が確認できる具体的な変更点、確認手順、risk、review focusが書かれているか確認する。
 
-# 使用するscript
+# 配布物
 
-再現可能な操作には `scripts/` を使う。
-
-- 初期化: `bootstrap-project-fields.sh`, `configure-repo-merge-methods.sh`
-- backlog起票: `create-issues-from-backlog.sh`
-- Project field更新: `set-project-field-by-url.sh`
-- 作業開始: `start-issue-work.sh`
-- linked branch作成: `create-linked-branch.sh`
-- PR作成: `create-pr-from-issue.sh`
-- merge queue準備確認: `check-merge-queue-readiness.sh`
-- 本文検証: `validate-issue-body.sh`, `validate-pr-body.sh`
-- Project状態集計: `report-project-health.sh`
-
-scriptはshellで書き、gh CLI、gh api、jqだけを前提にする。
+このskillはshell scriptを配らない。GitHubの実操作は、GitHub MCPで実状態を確認してから `gh` / `gh api` の明示コマンドで行う。

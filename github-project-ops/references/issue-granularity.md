@@ -66,9 +66,10 @@ bug Issueには必ず再現条件を書く。
 
 ログ、チャット、お問い合わせからIssueを起こす場合は、最初はStatusをInboxにする。
 
+SourceはProject fieldに入れる。Issue本文にはSourceなどのProject field assignmentを書かない。
+
 Issue本文に必ず書く:
 
-- Source: debug-log / chat / inquiry / ci / agentなど
 - 原文または要約
 - 影響しているユーザーまたは機能
 - 再現性

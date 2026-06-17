@@ -2,6 +2,8 @@
 
 # Issue body
 
+Project fieldにあるmetadataは本文へ書かない。Type、Scope、Status、Priority、Size、Complexity、Risk、Agent Tier、Agent Harness、Agent Model、Reviewer Owner、Branch、Source、Target Date、Started At、Merged AtはProject fieldだけに記録する。
+
 ```markdown
 # 概要
 
@@ -45,22 +47,11 @@ Blocking:
 # 実装メモ
 
 変更予定箇所、interface、注意点を書く。
-
-# Agent指定
-
-Agent Tier: agent:standard
-
-作業開始時にProject fieldへ記録するもの:
-
-- Agent Harness
-- Agent Model
-- Reviewer Owner
-- Branch
 ```
 
 # PR body
 
-PR本文に具体モデル名を書かない。Project fieldへ記録する。
+PR本文にProject fieldのmetadataや具体モデル名を書かない。Project fieldへ記録する。
 
 ```markdown
 ## Summary
@@ -102,10 +93,7 @@ Closes #123
 ```markdown
 作業開始。
 
-- Assignee: @owner
-- Agent Tier: agent:standard
-- Agent Harness: Codex
-- Branch: 123/feat-ui-search-cards
+担当者、agent情報、branchはProject fieldに記録済み。
 ```
 
 # Blocked comment
