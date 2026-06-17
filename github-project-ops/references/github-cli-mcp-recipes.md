@@ -14,10 +14,7 @@ gh auth refresh -s project
 gh issue create \
   --repo OWNER/REPO \
   --title "検索結果カードで一致シーンの無音プレビューを表示する" \
-  --body-file issue.md \
-  --label "type:feat" \
-  --label "priority:2" \
-  --label "agent:standard"
+  --body-file issue.md
 ```
 
 # sub-issue作成
@@ -59,6 +56,26 @@ gh issue develop 123 \
 ```
 
 # PR作成
+
+scriptを使う場合は、完成済みのPR本文を先に作り、検証してから作成する。
+
+```bash
+scripts/validate-pr-body.sh pr.md
+
+scripts/create-pr-from-issue.sh \
+  OWNER/REPO \
+  123 \
+  "123/feat-ui-search-cards" \
+  main \
+  "検索結果カードで一致シーンの無音プレビューを表示する" \
+  pr.md \
+  PROJECT_NUMBER \
+  PROJECT_OWNER \
+  Codex \
+  "GPT 5.5 (xhigh)"
+```
+
+直接 `gh` を使う場合:
 
 ```bash
 gh pr create \

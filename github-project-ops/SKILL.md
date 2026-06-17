@@ -33,6 +33,21 @@ SSoTはGitHub上のProject、Issue、PRである。
 
 `.github/` とskill内のexamples/scriptsは初期化、検証、再現、教育のために使う。GitHub上の動的状態を上書きするために使わない。
 
+## 変更前に発見する値
+
+Issue、PR、Project itemを変更する前に、GitHub上の実状態を読む。推測で埋めてよいのは計画案や下書きだけで、実行コマンドに渡す値は確認済みの値にする。
+
+最低限確認する値:
+
+- `OWNER/REPO`
+- Project number / owner
+- Issue number、PR number、Issue/PR URL
+- parent / sub-issue / blocked by / blocking
+- Status、Type、Scope、Priority、Size、Complexity、Risk、Agent Tier
+- Assignee、Reviewer Owner、Agent Harness、Agent Model、Branch
+
+不明な値は `<PROJECT_NUMBER>` のようなplaceholderとして明示し、実行前にGitHub MCP、`gh issue view`、`gh pr view`、`gh project item-list`、`gh api` のいずれかで確認する。Issue本文やPR本文の具体化に必要な受け入れ条件、非スコープ、確認手順が足りない場合は、推測で確定せず、draftとして分けるか追加確認する。
+
 ## 1 issue = 1 branch = 1 PR
 
 - 1つのbranchable issueは1つのbranchを持つ。
@@ -95,7 +110,6 @@ GitHub MCPは対話的な確認、探索、状況整理、自然言語での操�
 
 再現可能な操作はgh CLIで行う。
 
-- label同期
 - Project field作成
 - Issue作成
 - sub-issue設定
@@ -110,6 +124,21 @@ gh CLIの高水準コマンドで足りない場合だけ、`gh api` または `
 
 生のcurl POSTは使わない。script内でもGitHub API呼び出しは `gh api` に寄せる。
 
+# Reference routing
+
+必要なreferenceだけを読む。
+
+| Task                                                                        | Read                                      |
+| --------------------------------------------------------------------------- | ----------------------------------------- |
+| WBS分解、critical path短縮、sub-issueと依存関係設計                         | `references/wbs-and-dependency-policy.md` |
+| branchable issueの粒度判断、epic/spike/bug/debug-log起票                    | `references/issue-granularity.md`         |
+| Status遷移、Ready/In Progress/In Review/Blocked判断                         | `references/issue-lifecycle.md`           |
+| Priority / Size / Complexity / Risk / Agent Tier判定                        | `references/estimation-and-agent-tier.md` |
+| Project fields、views、no-label policy、Ready Pool、Blocked Queue、Velocity | `references/project-fields-views.md`      |
+| Issue body / PR body / work start / blocked comment作成                     | `references/message-templates.md`         |
+| `gh` / GitHub MCP / dependency / linked branch / PR / auto-merge操作        | `references/github-cli-mcp-recipes.md`    |
+| merge commit、merge queue、auto-merge、`merge_group` CI                     | `references/merge-queue-policy.md`        |
+
 # Project fields
 
 推奨Project fieldsは次。
@@ -119,10 +148,10 @@ gh CLIの高水準コマンドで足りない場合だけ、`gh api` または `
 | Status         | Single select | Inbox, Triaged, Ready, In Progress, In Review, Blocked, Done, Canceled              |
 | Type           | Single select | epic, feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, spike |
 | Scope          | Text          | ui, api, db, infraなど。repoごとに自由定義                                          |
-| Priority       | Single select | P0, P1, P2, P3                                                                      |
-| Size           | Single select | S0, S1, S2, S3                                                                      |
-| Complexity     | Single select | C0, C1, C2, C3                                                                      |
-| Risk           | Single select | R0, R1, R2, R3                                                                      |
+| Priority       | Single select | P0-optional, P1-normal, P2-high, P3-critical                                        |
+| Size           | Single select | S0-tiny, S1-small, S2-medium, S3-large                                              |
+| Complexity     | Single select | C0-none, C1-simple, C2-moderate, C3-complex                                         |
+| Risk           | Single select | R0-none, R1-safe, R2-moderate, R3-dangerous                                         |
 | Agent Tier     | Single select | agent:fast, agent:standard, agent:frontier                                          |
 | Agent Harness  | Single select | Codex, Claude Code, Cursor, Human, Other                                            |
 | Agent Model    | Text          | GPT 5.5 (xhigh), Opus 4.8 (medium), Composer 2.5など。作業開始時に記録              |
@@ -134,6 +163,8 @@ gh CLIの高水準コマンドで足りない場合だけ、`gh api` または `
 | Merged At      | Date          | merge日                                                                             |
 
 Issue時点では具体的なモデル名まで確定させない。Backlog/Triaged/ReadyではAgent Tierだけでよい。作業開始時にAgent HarnessとAgent ModelをProject fieldへ記録する。
+
+このskillではGitHub labelを使わない。Type、Source、Status、Priority、Size、Complexity、Risk、Agent TierはProject fieldをSSoTにする。
 
 # Typeの定義
 
@@ -159,11 +190,11 @@ TypeはConventional Commitsのtype集合に `epic` と `spike` を足す。
 
 要点:
 
-- Priorityは0が最低、3が最高。P1とP2が通常作業の大半を占める。
+- Priorityは0が最低、3が最高。P1-normalとP2-highが通常作業の大半を占める。
 - Sizeは変更量とレビュー量。
 - Complexityは設計・未知性・推論量。
 - Riskはmain、データ、セキュリティ、運用、利用者影響の危険度。
-- Agent Tierは `max(Complexity, Risk)` を基準に決める。
+- Agent TierはComplexityとRiskの数値prefixの最大値を基準に決める。
 
 # Issue lifecycle
 
@@ -182,11 +213,12 @@ Inbox/Triaged/Ready/In Progress/In Review -> Canceled
 
 作業開始時の必須操作:
 
-1. IssueをIn Progressにする。
-2. Assigneeを必ず設定する。
-3. agent自律作業でも、開発環境の持ち主またはreview責任者の人間をAssigneeにする。
-4. Agent Tier、Agent Harness、Agent ModelをProject fieldへ記録する。
-5. linked branchを作る。
+1. `blocked by` を確認する。未解決のblockerがある場合は作業を開始せず、StatusをBlockedに戻すか、blocker解消を開始条件にする。
+2. IssueをIn Progressにする。
+3. Assigneeを必ず設定する。
+4. agent自律作業でも、開発環境の持ち主またはreview責任者の人間をAssigneeにする。
+5. Agent Tier、Agent Harness、Agent ModelをProject fieldへ記録する。
+6. linked branchを作る。
 
 # WBS分解
 
@@ -203,7 +235,7 @@ WBS作成時の手順:
 3. 親子関係はsub-issueで表す。
 4. 実行順序はblocked by / blockingで表す。
 5. 先にinterface、schema、contractを切り、後続実装を並列化する。
-6. C3/R3はfeature化前にspikeを切る。
+6. C3-complex/R3-dangerousはfeature化前にspikeを切る。
 
 # Issue粒度
 
@@ -245,21 +277,20 @@ PR本文に必須の要素:
 - Review Focus
 - `Closes #<issue-number>` または同等のclosing keyword
 
+必須sectionが存在していても、`-`、`- [ ]`、`done`、`確認済み` のようなplaceholderだけなら不十分。PR作成前に `validate-pr-body.sh` を通し、第三者が確認できる具体的な変更点、確認手順、risk、review focusを書く。
+
 # 使用するscript
 
 再現可能な操作には `scripts/` を使う。
 
-- `bootstrap-labels.sh`
-- `bootstrap-project-fields.sh`
-- `create-issues-from-backlog.sh`
-- `start-issue-work.sh`
-- `set-project-field-by-url.sh`
-- `create-linked-branch.sh`
-- `create-pr-from-issue.sh`
-- `configure-repo-merge-methods.sh`
-- `check-merge-queue-readiness.sh`
-- `validate-issue-body.sh`
-- `validate-pr-body.sh`
-- `report-project-health.sh`
+- 初期化: `bootstrap-project-fields.sh`, `configure-repo-merge-methods.sh`
+- backlog起票: `create-issues-from-backlog.sh`
+- Project field更新: `set-project-field-by-url.sh`
+- 作業開始: `start-issue-work.sh`
+- linked branch作成: `create-linked-branch.sh`
+- PR作成: `create-pr-from-issue.sh`
+- merge queue準備確認: `check-merge-queue-readiness.sh`
+- 本文検証: `validate-issue-body.sh`, `validate-pr-body.sh`
+- Project状態集計: `report-project-health.sh`
 
-scriptはshellで書き、gh CLI、gh api、jq、curlだけを前提にする。
+scriptはshellで書き、gh CLI、gh api、jqだけを前提にする。

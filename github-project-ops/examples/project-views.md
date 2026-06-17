@@ -17,7 +17,7 @@
 # Current Focus
 
 - layout: table or board
-- filter: `status:Ready,In Progress,In Review priority:>=P2`
+- Project field filter: Status = Ready, In Progress, In Review; Priority = P2-high, P3-critical
 - group by: Status
 
 # Review Queue
@@ -35,7 +35,7 @@
 # Frontier Queue
 
 - layout: table
-- filter: `agent:frontier status:Ready,In Progress,In Review`
+- Project field filter: Agent Tier = agent:frontier; Status = Ready, In Progress, In Review
 
 # Merge Queue Candidates
 

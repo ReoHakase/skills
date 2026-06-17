@@ -44,7 +44,7 @@ AI agentを使う前提では、並列実行可能なIssue数は無限に近い�
 2. 共有contractを切る。
 3. contract完了後に並列実装Issueを切る。
 4. test/docs/observabilityを別Issueにできるなら分ける。
-5. C3/R3はspikeを先に切る。
+5. C3-complex/R3-dangerousはspikeを先に切る。
 6. branch同士の競合が予想される場合は、先にinterface PRを作る。
 
 # 悪い分解

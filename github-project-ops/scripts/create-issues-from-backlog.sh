@@ -47,10 +47,6 @@ for i in $(seq 0 $((count - 1))); do
     args+=(--type "$type")
   fi
 
-  while IFS= read -r label; do
-    [ -n "$label" ] && args+=(--label "$label")
-  done < <(jq -r '.labels[]? // empty' <<<"$issue")
-
   url=$("${args[@]}")
   number=$(basename "$url")
   printf '%s\t%s\t%s\n' "$title" "$number" "$url" >> "$MAP_FILE"

@@ -4,9 +4,9 @@
 
 # Priority
 
-Priorityは重要度。0が最低、3が最高。P1とP2が通常作業の大半を占める。
+Priorityは重要度。0が最低、3が最高。P1-normalとP2-highが通常作業の大半を占める。
 
-## P0
+## P0-optional
 
 やらなくても当面困らない任意作業。
 
@@ -23,7 +23,7 @@ Priorityは重要度。0が最低、3が最高。P1とP2が通常作業の大半
 - 使われていないコメントの整理。
 - 任意のdocs追記。
 
-## P1
+## P1-normal
 
 通常優先度。計画に入れる価値はあるが、順序を柔軟に変えられる。
 
@@ -34,9 +34,7 @@ Priorityは重要度。0が最低、3が最高。P1とP2が通常作業の大半
 - 期限が近くない。
 - agentの空きに応じて並列に流せる。
 
-通常Issueの40〜50%はP1にする。
-
-## P2
+## P2-high
 
 高優先度。現在の開発目標、milestone、releaseに直接効く。
 
@@ -47,9 +45,7 @@ Priorityは重要度。0が最低、3が最高。P1とP2が通常作業の大半
 - レビューや設計判断を早めに通す必要がある。
 - current focusに入れる候補。
 
-通常Issueの40〜50%はP2にする。
-
-## P3
+## P3-critical
 
 最重要。放置するとmain、release、利用者、セキュリティ、データ、開発全体に重大影響がある。
 
@@ -61,13 +57,13 @@ Priorityは重要度。0が最低、3が最高。P1とP2が通常作業の大半
 - 多数のIssueをblockしている。
 - 直ちに人間ownerが確認する必要がある。
 
-P3は少数に保つ。常時P3が多い場合、計画か品質ゲートが壊れている。
+P3-criticalは少数に保つ。常時P3-criticalが多い場合、計画か品質ゲートが壊れている。
 
 # Size
 
 Sizeは変更量・レビュー量・PRの大きさ。難しさではない。
 
-## S0
+## S0-tiny
 
 極小。数分〜30分程度。差分は小さく、レビューも即時。
 
@@ -78,7 +74,7 @@ Sizeは変更量・レビュー量・PRの大きさ。難しさではない。
 - テスト追加不要、または既存テストで十分。
 - 文言、設定、軽微な修正。
 
-## S1
+## S1-small
 
 小。1PRとして理想的な大きさ。
 
@@ -89,7 +85,7 @@ Sizeは変更量・レビュー量・PRの大きさ。難しさではない。
 - 受け入れ条件が1〜4個。
 - テストまたは確認手順が明確。
 
-## S2
+## S2-medium
 
 中。標準的だがレビューに注意が必要。
 
@@ -100,7 +96,7 @@ Sizeは変更量・レビュー量・PRの大きさ。難しさではない。
 - UI/API/DBなど複数箇所にまたがるが、境界は明確。
 - 受け入れ条件が5〜7個。
 
-## S3
+## S3-large
 
 大。原則分割を検討する。
 
@@ -112,13 +108,13 @@ Sizeは変更量・レビュー量・PRの大きさ。難しさではない。
 - UI、DB、API、infraを同時に広く変える。
 - reviewが重すぎる。
 
-S3をそのまま実装するのは例外。先にcontract issue、spike、sub-issue分割を検討する。
+S3-largeをそのまま実装するのは例外。先にcontract issue、spike、sub-issue分割を検討する。
 
 # Complexity
 
 Complexityは設計難度・未知性・推論量。
 
-## C0
+## C0-none
 
 ほぼ判断不要。
 
@@ -126,7 +122,7 @@ Complexityは設計難度・未知性・推論量。
 - 仕様が完全に明確。
 - 失敗時の影響範囲が狭い。
 
-## C1
+## C1-simple
 
 低複雑度。
 
@@ -134,7 +130,7 @@ Complexityは設計難度・未知性・推論量。
 - 迷う分岐が少ない。
 - 主要な設計判断は不要。
 
-## C2
+## C2-moderate
 
 中複雑度。
 
@@ -143,7 +139,7 @@ Complexityは設計難度・未知性・推論量。
 - agentが誤解しやすい非スコープがある。
 - 既存実装との互換性を見ながら進める。
 
-## C3
+## C3-complex
 
 高複雑度。
 
@@ -156,14 +152,14 @@ Complexityは設計難度・未知性・推論量。
 
 Riskは壊した場合の影響度。
 
-## R0
+## R0-none
 
 ほぼ無リスク。
 
 - docs、コメント、表示文言など。
 - mainや利用者データに影響しない。
 
-## R1
+## R1-safe
 
 低リスク。
 
@@ -171,7 +167,7 @@ Riskは壊した場合の影響度。
 - rollbackが簡単。
 - テストで十分検知できる。
 
-## R2
+## R2-moderate
 
 中リスク。
 
@@ -179,7 +175,7 @@ Riskは壊した場合の影響度。
 - 既存利用者や他PRと競合する可能性がある。
 - merge_group CIとレビューが重要。
 
-## R3
+## R3-dangerous
 
 高リスク。
 
@@ -195,9 +191,9 @@ Agent Tierは必要な推論・検証・慎重さの層。具体モデル名で�
 
 適用条件:
 
-- ComplexityがC0またはC1。
-- RiskがR0またはR1。
-- SizeがS0またはS1。
+- ComplexityがC0-noneまたはC1-simple。
+- RiskがR0-noneまたはR1-safe。
+- SizeがS0-tinyまたはS1-small。
 - 非スコープが単純。
 
 向く作業:
@@ -211,9 +207,9 @@ Agent Tierは必要な推論・検証・慎重さの層。具体モデル名で�
 
 適用条件:
 
-- ComplexityがC2以下。
-- RiskがR2以下。
-- SizeがS1またはS2。
+- ComplexityがC2-moderate以下。
+- RiskがR2-moderate以下。
+- SizeがS1-smallまたはS2-medium。
 - 通常のfeature/fix/refactor。
 
 向く作業:
@@ -226,7 +222,7 @@ Agent Tierは必要な推論・検証・慎重さの層。具体モデル名で�
 
 適用条件:
 
-- ComplexityがC3、またはRiskがR3。
+- ComplexityがC3-complex、またはRiskがR3-dangerous。
 - 設計判断、セキュリティ、migration、concurrency、merge queue、CI基盤に関係する。
 - 誤実装の手戻りが大きい。
 
@@ -239,12 +235,12 @@ Agent Tierは必要な推論・検証・慎重さの層。具体モデル名で�
 
 # 自動判定式
 
-基本式:
+形容詞は読みやすさのために付ける。自動判定やsortでは、`C2-moderate` の `2` のように数値prefixだけを比較する。
 
 ```text
-max(Complexity, Risk) <= 1 かつ Size <= 1 -> agent:fast
-max(Complexity, Risk) == 2 または Size == 2 -> agent:standard
-max(Complexity, Risk) == 3 または Size == 3 -> agent:frontier候補
+max(Complexity.number, Risk.number) <= 1 かつ Size.number <= 1 -> agent:fast
+max(Complexity.number, Risk.number) == 2 または Size.number == 2 -> agent:standard
+max(Complexity.number, Risk.number) == 3 または Size.number == 3 -> agent:frontier候補
 ```
 
-ただし、SizeだけがS3でComplexity/Riskが低い場合は、frontier agentへ投げるよりIssue分割を優先する。
+ただし、SizeだけがS3-largeでComplexity/Riskが低い場合は、frontier agentへ投げるよりIssue分割を優先する。

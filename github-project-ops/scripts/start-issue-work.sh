@@ -22,6 +22,16 @@ BASE_BRANCH="${8:-main}"
 PROJECT_NUMBER="${9:-}"
 PROJECT_OWNER="${10:-}"
 
+blocked_by_json=$(gh issue view "$ISSUE_NUMBER" --repo "$REPO" --json blockedBy --jq '.blockedBy // []')
+open_blockers=$(printf '%s\n' "$blocked_by_json" | jq '[.[] | select((.closed // false | not) and ((.state // "OPEN") != "CLOSED"))] | length')
+
+if [ "$open_blockers" -gt 0 ]; then
+  echo "Issue #$ISSUE_NUMBER has unresolved blockers. Do not start work or create a branch yet." >&2
+  printf '%s\n' "$blocked_by_json" | jq -r '.[] | select((.closed // false | not) and ((.state // "OPEN") != "CLOSED")) | "- #\(.number) \(.title // "")"' >&2
+  echo "Move the issue to Blocked or resolve/remove the dependency before running this script again." >&2
+  exit 1
+fi
+
 gh issue edit "$ISSUE_NUMBER" --repo "$REPO" --add-assignee "$HUMAN_ASSIGNEE"
 
 gh issue comment "$ISSUE_NUMBER" --repo "$REPO" --body "$(cat <<EOF

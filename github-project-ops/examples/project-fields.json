@@ -39,22 +39,22 @@
   {
     "name": "Priority",
     "type": "SINGLE_SELECT",
-    "options": ["P0", "P1", "P2", "P3"]
+    "options": ["P0-optional", "P1-normal", "P2-high", "P3-critical"]
   },
   {
     "name": "Size",
     "type": "SINGLE_SELECT",
-    "options": ["S0", "S1", "S2", "S3"]
+    "options": ["S0-tiny", "S1-small", "S2-medium", "S3-large"]
   },
   {
     "name": "Complexity",
     "type": "SINGLE_SELECT",
-    "options": ["C0", "C1", "C2", "C3"]
+    "options": ["C0-none", "C1-simple", "C2-moderate", "C3-complex"]
   },
   {
     "name": "Risk",
     "type": "SINGLE_SELECT",
-    "options": ["R0", "R1", "R2", "R3"]
+    "options": ["R0-none", "R1-safe", "R2-moderate", "R3-dangerous"]
   },
   {
     "name": "Agent Tier",

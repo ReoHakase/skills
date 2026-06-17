@@ -1,4 +1,4 @@
-# Project fields / labels / views
+# Project fields / views
 
 # Type field
 
@@ -10,22 +10,19 @@ epic, feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, sp
 
 Issue/PRタイトルにtypeやscopeを入れない。TypeとScopeはProject fieldで見る。
 
-# labels
+# GitHub labels
 
-labelsはProject fieldの補助。GitHub検索、通知、CLIで使いやすくするために残す。
+このskillではGitHub labelを使わない。
 
-推奨label group:
+Type、Source、Status、Priority、Size、Complexity、Risk、Agent TierはProject fieldをSSoTにする。GitHub labelへは複製しない。
 
-- `type:*`
-- `priority:*`
-- `size:*`
-- `complexity:*`
-- `risk:*`
-- `agent:*`
-- `source:*`
-- `status:*`
+分類、状態、起票元、優先度、見積もり、agent割り当てはすべてProject fieldで表す。新しいGitHub labelは定義せず、Issue作成scriptもlabelを付けない。
 
-Project fieldがSSoTだが、labelはgrepしやすいportable fallbackとして使う。
+Project fieldのfilterでIssueは絞り込めるため、labelをportable fallbackとして持たない。比較やsortでは `P2-high` の `2` のようにProject field optionの数値prefixを読む。
+
+既存Project fieldのoption名は自動移行しない。`bootstrap-project-fields.sh` は既存fieldをskipするため、形容詞なしの旧optionから `P2-high` のような新optionへの変更はProject側で手動移行する。
+
+既存repositoryに残っているlabelは自動削除しない。不要なlabelはrepository側で手動整理する。
 
 # Kanban view
 
@@ -63,10 +60,11 @@ Agent Tier
 
 Sprintの代替。固定コミットメントではなく、現在注力する観察窓として使う。
 
-filter:
+Project field filter:
 
 ```text
-status:Ready,In Progress,In Review priority:>=P2
+Status = Ready, In Progress, In Review
+Priority = P2-high, P3-critical
 ```
 
 またはProjectのIteration fieldを使う。
@@ -103,10 +101,11 @@ status:Blocked
 
 # Frontier Queue view
 
-filter:
+Project field filter:
 
 ```text
-agent:frontier status:Ready,In Progress,In Review
+Agent Tier = agent:frontier
+Status = Ready, In Progress, In Review
 ```
 
 目的:
@@ -153,7 +152,7 @@ GitHub Projects単体では厳密なVelocity chartは弱い。次の近似を使
 良い使い方:
 
 - 今週見る範囲をCurrent Focusに置く。
-- P2/P3とblockedを重点監視する。
+- P2-high/P3-criticalとblockedを重点監視する。
 - Velocityを週次で観察する。
 
 悪い使い方:
