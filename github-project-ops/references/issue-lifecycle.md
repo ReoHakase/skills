@@ -116,8 +116,8 @@ PRが作成され、reviewとCIを待っている状態。
 
 - PRがある。
 - PR本文にclosing keywordがある。
-- Verificationが書かれている。
-- Riskが書かれている。
+- 確認手順が書かれている。
+- リスクが書かれている。
 - 必要なreviewerが付いている。
 
 # Blocked

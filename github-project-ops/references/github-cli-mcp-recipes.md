@@ -57,7 +57,7 @@ gh issue develop 123 \
 
 # PR作成
 
-完成済みのPR本文を先に作り、具体的なSummary、Scope、Verification、Risk、Review Focus、closing keywordがあることを確認してから作成する。
+完成済みのPR本文を先に作り、具体的な概要、スコープ、確認手順、リスク、レビュー観点、closing keywordがあることを確認してから作成する。
 
 ```bash
 gh pr create \

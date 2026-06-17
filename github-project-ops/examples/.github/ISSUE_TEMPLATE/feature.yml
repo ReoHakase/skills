@@ -1,0 +1,95 @@
+# このファイルを .github/ISSUE_TEMPLATE/feature.yml へコピーする。
+# GitHub Projectsのメタデータは本文に書かない。Issue作成後に Type、Scope、
+# Status、Priority、Size、Complexity、Risk、Agent Tier、Source、担当者系項目を
+# GitHub Projectsで設定する。
+name: 機能追加 / 作業Issue
+description: スコープと確認手順が明確な、ブランチを作れる実装Issueを作る。
+body:
+  - type: markdown
+    attributes:
+      value: |
+        1つのブランチと1つのPRで完了できる作業に使う。
+
+        GitHub ProjectsのメタデータはIssue本文に書かない。Type、Scope、Status、Priority、Size、Complexity、Risk、Agent Tier、Source、Agent Harness、Agent Model、Reviewer Owner、Branch、日付系項目はGitHub Projectsで設定する。
+
+  - type: textarea
+    id: overview
+    attributes:
+      label: 概要
+      description: 何ができるようになるか、またはどんな運用価値が増えるかを書く。
+      placeholder: 検索結果カードで、各結果が一致した理由を確認できるようにする。
+    validations:
+      required: true
+
+  - type: textarea
+    id: background
+    attributes:
+      label: 背景
+      description: なぜ今必要かを書く。ユーザーの困りごと、運用上の理由、依存関係の文脈を含める。
+      placeholder: 現状では動画全体のメタデータしか見えず、どのシーンがなぜ一致したか判断できない。
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: スコープ
+      description: このIssueで実装することを具体的に書く。1つのPRで扱える大きさにする。
+      value: |
+        - 実装対象を書く
+    validations:
+      required: true
+
+  - type: textarea
+    id: non-scope
+    attributes:
+      label: 非スコープ
+      description: 関連するが、このIssueでは意図的に扱わないことを書く。
+      value: |
+        - このIssueでは扱わないことを書く
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: 受け入れ条件
+      description: レビュアーが確認できる、観測可能な完了条件を書く。
+      value: |
+        - [ ] 確認できる条件を書く
+        - [ ] 確認できる条件を書く
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: 確認手順
+      description: 具体的な自動テストまたは手動確認を書く。「完了」「確認済み」だけで終わらせない。
+      value: |
+        - [ ] 実行するテストまたは手動確認を書く
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: 依存関係
+      description: Issue番号が分かる場合は番号を書く。不明な依存はtriage用の文章として残す。
+      value: |
+        先に必要なIssue:
+        - なし / #...
+
+        このIssueの完了を待つIssue:
+        - なし / #...
+    validations:
+      required: false
+
+  - type: textarea
+    id: implementation-notes
+    attributes:
+      label: 実装メモ
+      description: エージェントが安全に作業を始めるために必要な、変更候補ファイル、インターフェース、契約、注意点を書く。
+      placeholder: UI作業の前に、既存のAPIレスポンス型を拡張する必要がある。
+    validations:
+      required: false

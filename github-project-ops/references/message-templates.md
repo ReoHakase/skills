@@ -2,7 +2,7 @@
 
 # Issue body
 
-Project fieldにあるmetadataは本文へ書かない。Type、Scope、Status、Priority、Size、Complexity、Risk、Agent Tier、Agent Harness、Agent Model、Reviewer Owner、Branch、Source、Target Date、Started At、Merged AtはProject fieldだけに記録する。
+Project fieldにあるメタデータは本文へ書かない。Type、Scope、Status、Priority、Size、Complexity、Risk、Agent Tier、Agent Harness、Agent Model、Reviewer Owner、Branch、Source、Target Date、Started At、Merged AtはProject fieldだけに記録する。
 
 ```markdown
 # 概要
@@ -51,19 +51,19 @@ Blocking:
 
 # PR body
 
-PR本文にProject fieldのmetadataや具体モデル名を書かない。Project fieldへ記録する。
+PR本文にProject fieldのメタデータや具体モデル名を書かない。Project fieldへ記録する。
 
 ```markdown
-## Summary
+## 概要
 
 - 変更点1
 - 変更点2
 
-## Linked Issue
+## 関連Issue
 
 Closes #123
 
-## Scope
+## スコープ
 
 実装したこと:
 
@@ -73,17 +73,17 @@ Closes #123
 
 - ...
 
-## Verification
+## 確認手順
 
 - [ ] テストまたは確認1
 - [ ] テストまたは確認2
 
-## Risk
+## リスク
 
 - 既知のリスク
 - rollback方針
 
-## Review Focus
+## レビュー観点
 
 - 特に見てほしい点
 ```

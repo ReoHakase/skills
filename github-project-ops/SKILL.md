@@ -33,6 +33,8 @@ SSoTはGitHub上のProject、Issue、PRである。
 
 `.github/` とskill内のexamples/referencesは、検証、再現、教育のために使う。GitHub上の動的状態を上書きするために使わない。
 
+copyableなrepository設定例は `examples/.github/` に置く。Issue Forms、PR template、merge_group対応CIをrepoへ導入するときは、このdirectory配下を `.github/` へコピーしてからrepo固有の文言とcheck commandだけを調整する。
+
 ## 変更前に発見する値
 
 Issue、PR、Project itemを変更する前に、GitHub上の実状態を読む。推測で埋めてよいのは計画案や下書きだけで、実行コマンドに渡す値は確認済みの値にする。
@@ -267,19 +269,19 @@ branchable issueは次を満たす。
 
 # PR body
 
-PR本文にはProject fieldのmetadataや具体的なagentモデル名を書かない。Agent HarnessとAgent ModelはProject fieldへ記録する。
+PR本文にはProject fieldのメタデータや具体的なagentモデル名を書かない。Agent HarnessとAgent ModelはProject fieldへ記録する。
 
 PR本文に必須の要素:
 
-- Summary
-- Linked Issue
-- Scope
-- Verification
-- Risk
-- Review Focus
+- 概要
+- 関連Issue
+- スコープ
+- 確認手順
+- リスク
+- レビュー観点
 - `Closes #<issue-number>` または同等のclosing keyword
 
-必須sectionが存在していても、`-`、`- [ ]`、`done`、`確認済み` のようなplaceholderだけなら不十分。PR作成前に、第三者が確認できる具体的な変更点、確認手順、risk、review focusが書かれているか確認する。
+必須sectionが存在していても、`-`、`- [ ]`、`done`、`確認済み` のようなplaceholderだけなら不十分。PR作成前に、第三者が確認できる具体的な変更点、確認手順、リスク、レビュー観点が書かれているか確認する。
 
 # 配布物
 
