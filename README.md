@@ -37,3 +37,7 @@ agent-skills/
 - 公開時は git tag を切って pin できる状態にする
 - skill を増やす場合も `<skill-name>/` を root 直下に置く
 - README の表に用途を足して分類する
+
+## License
+
+MIT
