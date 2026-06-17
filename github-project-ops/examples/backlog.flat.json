@@ -1,0 +1,44 @@
+[
+  {
+    "title": "検索機能の土台を作る",
+    "type": "epic",
+    "scope": "search",
+    "body": "検索機能全体の親Issue。子Issueの完了で閉じる。",
+    "labels": ["type:epic", "priority:2"],
+    "priority": "P2",
+    "size": "S0",
+    "complexity": "C1",
+    "risk": "R1",
+    "agent_tier": "agent:standard",
+    "status": "Triaged"
+  },
+  {
+    "title": "検索レスポンスのデータ契約を定義する",
+    "type": "feat",
+    "scope": "search",
+    "parent_title": "検索機能の土台を作る",
+    "body": "検索結果カードとbackendが共有するレスポンス形式を定義する。",
+    "labels": ["type:feat", "priority:2", "agent:frontier"],
+    "priority": "P2",
+    "size": "S1",
+    "complexity": "C3",
+    "risk": "R2",
+    "agent_tier": "agent:frontier",
+    "status": "Ready"
+  },
+  {
+    "title": "検索結果カードに一致シーンの情報を表示する",
+    "type": "feat",
+    "scope": "ui",
+    "parent_title": "検索機能の土台を作る",
+    "blocked_by_titles": ["検索レスポンスのデータ契約を定義する"],
+    "body": "検索結果カードに品番、商品名、長さ、容量、解像度、一致シーン説明、セリフ抜粋を表示する。",
+    "labels": ["type:feat", "priority:2", "agent:standard"],
+    "priority": "P2",
+    "size": "S2",
+    "complexity": "C2",
+    "risk": "R1",
+    "agent_tier": "agent:standard",
+    "status": "Ready"
+  }
+]

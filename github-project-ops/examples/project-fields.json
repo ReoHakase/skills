@@ -1,0 +1,108 @@
+[
+  {
+    "name": "Status",
+    "type": "SINGLE_SELECT",
+    "options": [
+      "Inbox",
+      "Triaged",
+      "Ready",
+      "In Progress",
+      "In Review",
+      "Blocked",
+      "Done",
+      "Canceled"
+    ]
+  },
+  {
+    "name": "Type",
+    "type": "SINGLE_SELECT",
+    "options": [
+      "epic",
+      "feat",
+      "fix",
+      "docs",
+      "style",
+      "refactor",
+      "perf",
+      "test",
+      "build",
+      "ci",
+      "chore",
+      "revert",
+      "spike"
+    ]
+  },
+  {
+    "name": "Scope",
+    "type": "TEXT"
+  },
+  {
+    "name": "Priority",
+    "type": "SINGLE_SELECT",
+    "options": ["P0", "P1", "P2", "P3"]
+  },
+  {
+    "name": "Size",
+    "type": "SINGLE_SELECT",
+    "options": ["S0", "S1", "S2", "S3"]
+  },
+  {
+    "name": "Complexity",
+    "type": "SINGLE_SELECT",
+    "options": ["C0", "C1", "C2", "C3"]
+  },
+  {
+    "name": "Risk",
+    "type": "SINGLE_SELECT",
+    "options": ["R0", "R1", "R2", "R3"]
+  },
+  {
+    "name": "Agent Tier",
+    "type": "SINGLE_SELECT",
+    "options": ["agent:fast", "agent:standard", "agent:frontier"]
+  },
+  {
+    "name": "Agent Harness",
+    "type": "SINGLE_SELECT",
+    "options": ["Codex", "Claude Code", "Cursor", "Human", "Other"]
+  },
+  {
+    "name": "Agent Model",
+    "type": "TEXT"
+  },
+  {
+    "name": "Reviewer Owner",
+    "type": "TEXT"
+  },
+  {
+    "name": "Branch",
+    "type": "TEXT"
+  },
+  {
+    "name": "Source",
+    "type": "SINGLE_SELECT",
+    "options": [
+      "human",
+      "agent",
+      "debug-log",
+      "chat",
+      "inquiry",
+      "ci",
+      "dependency",
+      "security",
+      "docs"
+    ]
+  },
+  {
+    "name": "Target Date",
+    "type": "DATE"
+  },
+  {
+    "name": "Started At",
+    "type": "DATE"
+  },
+  {
+    "name": "Merged At",
+    "type": "DATE"
+  }
+]

@@ -1,0 +1,182 @@
+[
+  {
+    "name": "type:epic",
+    "color": "5319E7",
+    "description": "複数Issueの親。原則branch/PRを持たず、sub-issueの完了で閉じる。"
+  },
+  {
+    "name": "type:feat",
+    "color": "0E8A16",
+    "description": "利用者価値または運用価値を追加する機能変更。"
+  },
+  {
+    "name": "type:fix",
+    "color": "D73A4A",
+    "description": "期待動作から外れた不具合を修正する。"
+  },
+  {
+    "name": "type:docs",
+    "color": "0075CA",
+    "description": "ドキュメントだけを変更する。挙動変更を含めない。"
+  },
+  {
+    "name": "type:style",
+    "color": "C2E0C6",
+    "description": "挙動を変えない整形・フォーマット・命名微修正。"
+  },
+  {
+    "name": "type:refactor",
+    "color": "FBCA04",
+    "description": "挙動を変えず内部構造を改善する。"
+  },
+  {
+    "name": "type:perf",
+    "color": "1D76DB",
+    "description": "性能改善。速度・メモリ・I/O・待ち時間を改善する。"
+  },
+  {
+    "name": "type:test",
+    "color": "BFD4F2",
+    "description": "テスト追加・修正。実装挙動の変更を主目的にしない。"
+  },
+  {
+    "name": "type:build",
+    "color": "D4C5F9",
+    "description": "build system、依存解決、packagingの変更。"
+  },
+  {
+    "name": "type:ci",
+    "color": "F9D0C4",
+    "description": "CI/CD、merge queue、branch protection、workflowの変更。"
+  },
+  {
+    "name": "type:chore",
+    "color": "EDEDED",
+    "description": "開発補助・掃除・非機能的メンテナンス。"
+  },
+  {
+    "name": "type:revert",
+    "color": "B60205",
+    "description": "既存変更を取り消す。revert範囲と理由を明示する。"
+  },
+  {
+    "name": "type:spike",
+    "color": "5319E7",
+    "description": "未確定要素を減らす調査Issue。成果物と後続Issueを残す。"
+  },
+  {
+    "name": "priority:0",
+    "color": "EDEDED",
+    "description": "P0: 任意作業。やらなくても当面の価値・安定性に影響しない。"
+  },
+  {
+    "name": "priority:1",
+    "color": "C2E0C6",
+    "description": "P1: 通常優先度。価値はあるが順序を柔軟に変えられる。"
+  },
+  {
+    "name": "priority:2",
+    "color": "FBCA04",
+    "description": "P2: 高優先度。現在の目標や後続Issueに直接効く。"
+  },
+  {
+    "name": "priority:3",
+    "color": "D73A4A",
+    "description": "P3: 最重要。main、release、利用者、データ、障害に重大影響。"
+  },
+  {
+    "name": "size:0",
+    "color": "EDEDED",
+    "description": "S0: 極小。数分〜30分、1〜2ファイル、レビュー即時。"
+  },
+  {
+    "name": "size:1",
+    "color": "C2E0C6",
+    "description": "S1: 小。1PRとして理想的、1〜5ファイル、条件1〜4個。"
+  },
+  {
+    "name": "size:2",
+    "color": "FBCA04",
+    "description": "S2: 中。標準だがレビュー注意、5〜12ファイル、条件5〜7個。"
+  },
+  {
+    "name": "size:3",
+    "color": "D73A4A",
+    "description": "S3: 大。原則分割検討、12ファイル超または条件8個以上。"
+  },
+  {
+    "name": "complexity:0",
+    "color": "EDEDED",
+    "description": "C0: 判断ほぼ不要。既存patternのコピーや完全明確な作業。"
+  },
+  {
+    "name": "complexity:1",
+    "color": "C2E0C6",
+    "description": "C1: 低複雑度。既存設計に沿えば迷わず実装できる。"
+  },
+  {
+    "name": "complexity:2",
+    "color": "FBCA04",
+    "description": "C2: 中複雑度。設計案比較やinterface整合が必要。"
+  },
+  {
+    "name": "complexity:3",
+    "color": "D73A4A",
+    "description": "C3: 高複雑度。architecture、migration、未知性が大きい。"
+  },
+  {
+    "name": "risk:0",
+    "color": "EDEDED",
+    "description": "R0: ほぼ無リスク。docsや表示などmain・データに影響しない。"
+  },
+  {
+    "name": "risk:1",
+    "color": "C2E0C6",
+    "description": "R1: 低リスク。局所変更でrollbackが簡単。"
+  },
+  {
+    "name": "risk:2",
+    "color": "FBCA04",
+    "description": "R2: 中リスク。DB/API/CI/release等に影響し得る。"
+  },
+  {
+    "name": "risk:3",
+    "color": "D73A4A",
+    "description": "R3: 高リスク。main破壊、データ、security、不可逆変更に関係。"
+  },
+  {
+    "name": "agent:fast",
+    "color": "C2E0C6",
+    "description": "低複雑度・低リスク向け。docs、小fix、既存pattern反復。"
+  },
+  {
+    "name": "agent:standard",
+    "color": "FBCA04",
+    "description": "通常実装向け。C2/R2以下のfeature/fix/test/refactor。"
+  },
+  {
+    "name": "agent:frontier",
+    "color": "D73A4A",
+    "description": "C3/R3向け。設計判断、高リスク変更、複雑障害調査。"
+  },
+  {
+    "name": "source:debug-log",
+    "color": "1D76DB",
+    "description": "debug logから起票。ログと再現性を本文に残す。"
+  },
+  {
+    "name": "source:chat",
+    "color": "1D76DB",
+    "description": "chatから起票。原文または要約と意思決定を本文に残す。"
+  },
+  {
+    "name": "source:inquiry",
+    "color": "1D76DB",
+    "description": "問い合わせから起票。影響範囲と期待対応を本文に残す。"
+  },
+  {
+    "name": "status:blocked",
+    "color": "D73A4A",
+    "description": "進行不能。理由、解除条件、解除担当をコメントに残す。"
+  }
+]
