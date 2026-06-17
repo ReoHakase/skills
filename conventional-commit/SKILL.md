@@ -5,7 +5,7 @@ description: >-
   changes, write commit messages, fix commitlint failures, or choose Conventional
   Commit types/scopes. It enforces Conventional Commits with exactly one Gitmoji,
   mandatory English body prose, optional GitHub `(#issue)` refs, no
-  Context-style body labels, and Agent Skills / APM `feat` vs `docs` decisions.
+  Context-style body labels, and Agent Skills `feat` vs `docs` decisions.
   Covers `gh` issue sync, dry-run vs real commits, commitlint config, Changesets,
   and changelog tooling. Standalone.
 compatibility: >-
@@ -24,7 +24,7 @@ Standalone guide for **staging, splitting, and committing** with messages that a
 - Splitting work by **scope** / component so each commit is easy to revert and grep
 - Repos using **commitlint**, **Changesets**, **release-please**, or **git-cliff**
 - Issue-driven branches where the subject must carry **`(#123)`**
-- **Agent Skills / APM** layouts (root-level `<skill-name>/SKILL.md`): picking **`feat` vs `docs` vs `fix`** without wavering—see [Agent Skills repositories (feat vs docs)](#agent-skills-repositories-feat-vs-docs)
+- **Agent Skills** layouts (root-level `<skill-name>/SKILL.md`): picking **`feat` vs `docs` vs `fix`** without wavering—see [Agent Skills repositories (feat vs docs)](#agent-skills-repositories-feat-vs-docs)
 
 ## When not to use
 
@@ -66,7 +66,7 @@ Examples:
 
 - Scoped: `feat(web/ui): ✨ add numeric date picker (#482)`
 - No scope: `docs: 📝 add CONTRIBUTING Gitmoji table (#702)`
-- Repo-wide / initial: `feat: ✨ bootstrap published APM skill repository`
+- Repo-wide / initial: `feat: ✨ bootstrap published Agent Skills repository`
 - Breaking: `feat(api)!: 💥 rename argument (#888)`
 
 Omit empty **`()`** when there is no scope. Omit **`!`** when the change is non-breaking.
@@ -167,7 +167,7 @@ Pick **by kind of change**, not by “importance”. Avoid masking a `fix`/`feat
 
 ### Agent Skills repositories (feat vs docs)
 
-Repos that publish **installable skills** (for example **root-level** `<skill-name>/SKILL.md` and APM consumption) confuse **`feat` vs `docs`** because Markdown looks like “documentation.” Use this **default** to stop flip-flopping:
+Repos that publish **installable skills** (for example **root-level** `<skill-name>/SKILL.md`) confuse **`feat` vs `docs`** because Markdown looks like “documentation.” Use this **default** to stop flip-flopping:
 
 | Situation                                                                                                                                                                   | type                                                                                       | Rationale                                                                                                                                                                                                                     |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -175,9 +175,9 @@ Repos that publish **installable skills** (for example **root-level** `<skill-na
 | **`SKILL.md` / `references/` / `scripts/` / bundled assets** change **what agents do or read** (new section, new trigger wording, new required step, new script agents run) | `feat` (additive / expanded behavior) or `fix` (corrects wrong or misleading instructions) | These files are **executable instructions**, not marketing copy—treat instruction changes like product behavior. Use **`fix`** when the old text could cause incorrect runs; use **`feat`** when you add or widen capability. |
 | **README**, root **install docs**, or **meta only** (no change to any `SKILL.md` / skill assets)                                                                            | `docs`                                                                                     | Publishing/consumer discovery text without altering skill behavior.                                                                                                                                                           |
 | **Typo / formatting / table alignment** in `SKILL.md` with **no intended semantic change** to instructions                                                                  | `docs`                                                                                     | Truly editorial; if there is any chance behavior shifts, use `feat` or `fix` instead.                                                                                                                                         |
-| Repo **tooling only** (`lefthook`, CI, `apm.yml` scaffolding) with **no skill instruction edits**                                                                           | `chore`, `ci`, or `build` (pick by kind)                                                   | Keeps skill commits grep-clean.                                                                                                                                                                                               |
+| Repo **tooling only** (`lefthook`, CI, package scaffolding) with **no skill instruction edits**                                                                             | `chore`, `ci`, or `build` (pick by kind)                                                   | Keeps skill commits grep-clean.                                                                                                                                                                                               |
 
-**Decision test:** if an **`apm install …/skill-name`** checkout would **behave differently** for an agent after the change, the commit is **not** `docs`.
+**Decision test:** if a checked-out **`<skill-name>/SKILL.md`** would **behave differently** for an agent after the change, the commit is **not** `docs`.
 
 **Changelog tools:** `release-please`, **git-cliff**, and Changesets still read git history or fragments you configure—**subjects stay conventional**. Those tools do **not** change the **`feat` vs `docs`** split above; they add release metadata elsewhere.
 

@@ -1,9 +1,0 @@
-name: agent-skills
-version: 0.1.0
-description: Public APM skill repository for reusable agent workflows
-author: ReoHakase
-dependencies:
-  apm: []
-  mcp: []
-scripts:
-  audit: apm audit

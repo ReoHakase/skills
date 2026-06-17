@@ -1,6 +1,6 @@
 # agent-skills
 
-APM で個別導入しやすいように、skill を root 直下に並べる公開用リポジトリです。
+Agent Skill を root 直下に並べる公開用リポジトリです。
 
 方針は固定です。
 
@@ -12,12 +12,12 @@ APM で個別導入しやすいように、skill を root 直下に並べる公�
 
 ```txt
 agent-skills/
-├── apm.yml
-├── apm.lock.yaml
 ├── README.md
 ├── agentskills-authoring/
 │   └── SKILL.md
 ├── conventional-commit/
+│   └── SKILL.md
+├── github-project-ops/
 │   └── SKILL.md
 ├── package.json
 ├── lefthook.yml
@@ -30,45 +30,10 @@ agent-skills/
 | ----------------------- | -------------- | ----------------------------------------------------------------------------------------------------- |
 | `agentskills-authoring` | Agent Skills   | agentskills.io 準拠で SKILL.md・description・progressive disclosure・評価ループを設計・レビューする   |
 | `conventional-commit`   | Git / Workflow | Conventional Commits と Gitmoji を前提に、staged changes を適切に分割して commit message を組み立てる |
-
-## Install
-
-### `agentskills-authoring`
-
-```bash
-apm install ReoHakase/skills/agentskills-authoring
-```
-
-### `conventional-commit`
-
-```bash
-apm install ReoHakase/skills/conventional-commit
-```
-
-バージョンを固定する場合:
-
-```bash
-apm install ReoHakase/skills/conventional-commit#v0.1.0
-```
-
-グローバル導入:
-
-```bash
-apm install -g ReoHakase/skills/conventional-commit
-```
-
-利用者側の `apm.yml` 例:
-
-```yaml
-name: my-project
-version: 1.0.0
-dependencies:
-  apm:
-    - ReoHakase/skills/conventional-commit#v0.1.0
-```
+| `github-project-ops`    | GitHub / Ops   | GitHub Projects、Issues、sub-issues、merge queue を使った Issue 駆動開発の運用を設計・実行する        |
 
 ## Notes
 
-- 公開時は git tag を切って `#v0.1.0` のように pin できる状態にする
+- 公開時は git tag を切って pin できる状態にする
 - skill を増やす場合も `<skill-name>/` を root 直下に置く
 - README の表に用途を足して分類する
