@@ -203,6 +203,7 @@ TypeはConventional Commitsのtype集合に `epic` と `spike` を足す。
 # Issue lifecycle
 
 詳細は `references/issue-lifecycle.md` を参照する。
+Status別に何を確認し、何をProject fieldへ更新し、何をIssue/PR/comment本文へ書くかも同referenceの実行手順に従う。
 
 標準Status:
 
