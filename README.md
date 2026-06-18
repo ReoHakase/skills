@@ -32,6 +32,80 @@ agent-skills/
 | `conventional-commit`   | Git / Workflow | Conventional Commits と Gitmoji を前提に、staged changes を適切に分割して commit message を組み立てる |
 | `github-project-ops`    | GitHub / Ops   | GitHub Projects、Issues、sub-issues、merge queue を使った Issue 駆動開発の運用を設計・実行する        |
 
+## Install / Update
+
+例は Codex 向けです。ほかの agent に入れる場合は `codex` や
+`targets.agents` を対象 agent の指定に置き換えてください。
+
+| Method             | Use case                                   | State management                    |
+| ------------------ | ------------------------------------------ | ----------------------------------- |
+| `npx skills`       | 手元で素早く install / update する         | manifest なし                       |
+| `apm`              | project ごとに再現可能に install する      | `apm.yml` と lockfile で管理        |
+| `agent-skills-nix` | Nix / Home Manager で宣言的に install する | `flake.lock` で source revision pin |
+
+### `npx skills`
+
+https://github.com/vercel-labs/skills
+
+```bash
+npx skills add ReoHakase/skills --list
+npx skills add ReoHakase/skills --skill agentskills-authoring -a codex -y
+npx skills add ReoHakase/skills --skill '*' -a codex -y
+npx skills update -p -y
+npx skills update agentskills-authoring -p -y
+```
+
+user scope に入れる場合だけ `-g` を付けます。user scope の更新は
+`npx skills update -g -y` です。
+
+### `apm`
+
+https://github.com/microsoft/apm
+
+```bash
+apm install ReoHakase/skills --target codex
+apm install ReoHakase/skills/agentskills-authoring --target codex
+apm deps update --target codex
+apm update --check
+apm update
+```
+
+`apm deps update` は installed skill dependencies を更新します。
+`apm update` は APM CLI 自体の更新です。
+
+### `agent-skills-nix`
+
+https://github.com/Kyure-A/agent-skills-nix
+
+```nix
+inputs.reohakase-skills = {
+  url = "github:ReoHakase/skills";
+  flake = false;
+};
+
+programs.agent-skills = {
+  enable = true;
+  sources.reohakase = {
+    input = "reohakase-skills";
+    filter.maxDepth = 1;
+  };
+  skills.enable = [
+    "agentskills-authoring"
+    "conventional-commit"
+    "github-project-ops"
+  ];
+  targets.agents.enable = true;
+};
+```
+
+この repository は root 直下の `<skill-name>/SKILL.md` だけを skill として扱うため、
+`filter.maxDepth = 1` を指定しています。
+
+```bash
+nix flake lock --update-input reohakase-skills
+home-manager switch --flake .#<profile>
+```
+
 ## Notes
 
 - 公開時は git tag を切って pin できる状態にする
