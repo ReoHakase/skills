@@ -1,3 +1,7 @@
+# 記入済み具体例
+
+このfileはgeneric templateではない。Issue bodyのcanonical templateは `references/message-templates.md` を使う。
+
 # 概要
 
 このIssueは関連する複数Issueを束ねる親Issueである。実装branchは持たない。

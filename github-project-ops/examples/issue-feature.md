@@ -1,3 +1,7 @@
+# 記入済み具体例
+
+このfileはgeneric templateではない。Issue bodyのcanonical templateは `references/message-templates.md` を使う。
+
 # 概要
 
 検索結果カードに、一致シーンの情報を日本語で表示できるようにする。

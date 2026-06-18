@@ -35,6 +35,8 @@ SSoTはGitHub上のProject、Issue、PRである。
 
 copyableなrepository設定例は `examples/.github/` に置く。Issue Forms、PR template、merge_group対応CIをrepoへ導入するときは、このdirectory配下を `.github/` へコピーしてからrepo固有の文言とcheck commandだけを調整する。
 
+Issue/PR bodyとlifecycle commentのcanonical templateは `references/message-templates.md` に置く。`examples/issue-*.md`、`examples/pr.md`、`examples/lifecycle-comments.md` は記入済み具体例として読む。
+
 ## 変更前に発見する値
 
 Issue、PR、Project itemを変更する前に、GitHub上の実状態を読む。推測で埋めてよいのは計画案や下書きだけで、実行コマンドに渡す値は確認済みの値にする。
@@ -137,7 +139,7 @@ gh CLIの高水準コマンドで足りない場合だけ、`gh api` または `
 | Status遷移、Ready/In Progress/In Review/Blocked判断                                            | `references/issue-lifecycle.md`           |
 | Priority / Size / Complexity / Risk / Agent Tier判定                                           | `references/estimation-and-agent-tier.md` |
 | Project fields、views、no-label policy、かんばん、WBS/ロードマップ、マージキュー候補、Velocity | `references/project-fields-views.md`      |
-| Issue body / PR body / work start / blocked comment作成                                        | `references/message-templates.md`         |
+| Issue/PR body更新、lifecycle comment作成、template / exampleの役割確認                         | `references/message-templates.md`         |
 | `gh` / GitHub MCP / dependency / linked branch / PR / auto-merge操作                           | `references/github-cli-mcp-recipes.md`    |
 | merge commit、merge queue、auto-merge、`merge_group` CI                                        | `references/merge-queue-policy.md`        |
 

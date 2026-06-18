@@ -13,6 +13,8 @@
 
 `Needs Info` と `Ready to Merge` は使わない。細かすぎる状態は更新負荷を増やし、agent運用で破綻しやすい。
 
+Issue/PR bodyとlifecycle commentの具体templateは `references/message-templates.md` をSSoTにする。このfileでは何を確認し、どの種類のcommentを残すかだけを定義する。
+
 # 状態遷移図
 
 ```mermaid
@@ -67,7 +69,7 @@ Inboxでは実装しない。まずtriageする。
 
 1. 流入元の原文、log、transcript、alert本文を読む。原文が長い場合も、要約だけでなく参照元を残す。
 2. Sourceと仮PriorityはProject fieldへ置き、影響範囲はIssue本文またはcommentの自然文へ整理する。SourceやPriorityなどのfield assignmentは本文へ書かない。
-3. 影響しているユーザー、機能、再現性、次に確認すべきことを書く。
+3. 影響しているユーザー、機能、再現性、次に確認すべきことを書く。必要なら `message-templates.md` のInbox commentを使う。
 4. Type、Scope、Size、Complexity、Risk、Agent TierをProject fieldへ仮設定できるか確認する。確定できない値は次のtriage確認事項として残す。
 5. 実装は開始しない。Ready条件が揃わない場合はTriagedで止める。
 
@@ -88,7 +90,7 @@ Inboxでは実装しない。まずtriageする。
 1. Type、Scope、Priority、Size、Complexity、Risk、Agent TierをProject fieldで確認する。
 2. epicまたは親Issueが必要な場合はsub-issueへ入れる。実行順序の依存はsub-issueではなくblocked by / blockingで表す。
 3. Issue本文に受け入れ条件、非スコープ、確認手順、依存関係があるか確認する。
-4. 影響範囲、再現性、実装対象が曖昧な場合は、Readyへ進めずTriagedのまま追加確認を残す。
+4. 影響範囲、再現性、実装対象が曖昧な場合は、Readyへ進めずTriagedのまま追加確認を残す。必要なら `message-templates.md` のTriaged commentを使う。
 5. Ready条件をすべて満たす場合だけReadyへ進める。
 
 # Ready
@@ -109,7 +111,7 @@ agentまたは人間が作業開始できる状態。
 2. blocked by / blockingをGitHub上の関係で確認する。未解決blockerが作業開始に影響する場合はReadyにしない。
 3. Agent TierがProject fieldに設定済みか確認する。Agent Harness、Agent Model、Branchは作業開始時まで確定させなくてよい。
 4. AssigneeまたはReviewer Ownerの責任者候補を確認する。まだ作業開始しない場合は、作業開始コメントを書かない。
-5. かんばん上でReadyに置くのは、受け入れ条件、確認手順、blocker解消を確認済みのIssueだけにする。
+5. かんばん上でReadyに置くのは、受け入れ条件、確認手順、blocker解消を確認済みのIssueだけにする。判断が揺れやすい場合は `message-templates.md` のReady commentを使う。
 
 # In Progress
 
@@ -131,15 +133,7 @@ agentまたは人間が作業開始できる状態。
 2. AssigneeとReviewer Ownerを確認し、agent自律作業でも人間の責任者を残す。
 3. Agent Harness、Agent Model、Branch、Actual StartをProject fieldへ記録する。具体モデル名、branch名、日付fieldはIssue本文やPR本文へ書かない。
 4. linked branchを作成し、Branch fieldとGitHub上のlinked branchが一致することを確認する。
-5. 作業開始コメントを書く。担当者、agent情報、branchはProject fieldに記録済みであることだけを自然文で書く。
-
-作業開始コメントの例:
-
-```markdown
-作業開始。
-
-担当者、agent情報、branchはProject fieldに記録済み。
-```
+5. `message-templates.md` のIn Progress commentを使って作業開始を記録する。
 
 # In Review
 
@@ -161,7 +155,8 @@ PRが作成され、reviewとCIを待っている状態。
 4. CIは最新commit SHAのcheck結果を見る。失敗checkがrequiredか、optionalか、rerun中かを確認してから判断する。
 5. PR作成日やmerge状態はGitHub PR metadataから読む。Project fieldへは複製しない。
 6. required CI、review、権限、設計判断、外部依存で止まっている場合はBlockedへ移す。reviewやCIが通常の待ち状態ならIn Reviewのままにする。
-7. review承認とrequired checksが揃ったらauto-mergeを有効化し、merge queueとmerge_group CIを待つ。
+7. PR本文とclosing keywordで追跡でき、特筆事項がなければcommentを書かない。PR本文やGitHub metadataでは分からない一時的な補足がある場合だけ、`message-templates.md` のIn Review commentを使う。
+8. review承認とrequired checksが揃ったらauto-mergeを有効化し、merge queueとmerge_group CIを待つ。
 
 # Blocked
 
@@ -178,8 +173,8 @@ Blockedにしたら必ず書く:
 
 1. 何が進行を止めているかを確認する。未解決blocker、required CI失敗、review requested changes、権限不足、設計判断待ちを区別する。
 2. Project StatusをBlockedへ更新する。StatusなどのProject field assignmentをcomment本文へ書かない。
-3. commentには理由、解除できる人、依存Issue/PR/log、次の確認タイミングを書く。
-4. blockerが解消したら、作業中PRがあるものはIn Reviewへ、未着手または作業再開前のものはReadyまたはIn Progressへ戻す前提条件を再確認する。
+3. `message-templates.md` のBlocked commentを使い、理由、解除できる人、依存Issue/PR/log、次の確認タイミングを書く。解除できる人はrepo内collaboratorならGitHub mention、project/repository外のGitHub accountならprofile URL、GitHub accountがない場合はSlack/Teams profile URLまたは氏名で特定し、外部依存は必ずURL付きにする。
+4. blockerが解消したら、作業中PRがあるものはIn Reviewへ、未着手または作業再開前のものはReadyまたはIn Progressへ戻す前提条件を再確認する。必要なら `message-templates.md` のUnblocked / resume commentを使う。
 
 # Done
 
@@ -197,7 +192,8 @@ Done条件:
 2. linked Issueがclosing keywordまたは手動処理でclosedになっていることを確認する。
 3. merge queueを使ったPRではmerge_group CIとrequired checksが通ったことを確認する。
 4. Project fieldのActual Endに実終了日を記録し、StatusをDoneへ更新する。merge日やIssue close日はGitHub metadataから読む。
-5. PR未merge、Issue open、merge日未確認のいずれかが残る場合はDoneにしない。
+5. `message-templates.md` のDone commentを使い、merge、close、checks、follow-upを記録する。
+6. PR未merge、Issue open、merge日未確認のいずれかが残る場合はDoneにしない。
 
 # Canceled
 
@@ -214,6 +210,6 @@ Done条件:
 実行手順:
 
 1. なぜ実行しないかを確認する。duplicated、obsolete、out of scope、invalid、別Issueへ置換のいずれかに寄せる。
-2. 代替Issue、duplicate元、方針変更の根拠がある場合はcommentにリンクする。
+2. `message-templates.md` のCanceled commentを使い、代替Issue、duplicate元、方針変更の根拠がある場合はcommentにリンクする。
 3. Project StatusをCanceledへ更新し、IssueまたはPRをcloseする場合はActual EndをProject fieldへ記録する。close日はGitHub metadataから読み、Project fieldへ複製しない。不要になったblocked by / blockingやsub-issue関係が残る場合は、混乱しないよう関係整理の要否を確認する。
 4. 実装中PRがある場合は、PR closeが必要か、代替Issueへ引き継ぐかを確認してからCanceledにする。

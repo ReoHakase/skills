@@ -1,3 +1,7 @@
+# 記入済み具体例
+
+このfileはgeneric templateではない。PR bodyのcanonical templateは `references/message-templates.md` を使う。
+
 ## Summary
 
 - 検索結果カードに品番、長さ、容量、解像度、商品名を表示しました

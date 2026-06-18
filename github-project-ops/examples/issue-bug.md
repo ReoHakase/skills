@@ -1,3 +1,7 @@
+# 記入済み具体例
+
+このfileはgeneric templateではない。Issue bodyのcanonical templateは `references/message-templates.md` を使う。
+
 # 概要
 
 分割動画の連結時刻からpart内のローカル時刻を逆引きする処理が、part境界で1秒ずれる。
