@@ -1,49 +1,49 @@
-# Project views example
+# Project views の設定例
 
-# Kanban
+# カンバン
 
-- layout: board
-- group by: Status
-- sort: Priority desc, Risk desc
-- visible fields: Type, Scope, Priority, Agent Tier, Assignee, Branch
+- レイアウト: board
+- グループ化: Status
+- 並び順: Priority desc, Risk desc
+- 表示field: Type, Scope, Priority, Agent Tier, Assignee, Branch
 
-# Ready Pool
+# 着手待ち
 
-- layout: table
+- レイアウト: table
 - filter: `status:Ready -is:blocked`
-- group by: Agent Tier
-- sort: Priority desc, Risk desc, updated asc
+- グループ化: Agent Tier
+- 並び順: Priority desc, Risk desc, updated asc
 
-# Current Focus
+# 現在の注力
 
-- layout: table or board
+- レイアウト: table または board
 - Project field filter: Status = Ready, In Progress, In Review; Priority = P2-high, P3-critical
-- group by: Status
+- グループ化: Status
 
-# Review Queue
+# レビュー待ち
 
-- layout: table
+- レイアウト: table
 - filter: `status:In Review`
-- sort: Risk desc, Priority desc, updated asc
+- 並び順: Risk desc, Priority desc, updated asc
 
-# Blocked
+# 停止中
 
-- layout: table
+- レイアウト: table
 - filter: `status:Blocked`
-- visible fields: blocked by, blocking, Risk, Assignee, updated
+- 表示field: blocked by, blocking, Risk, Assignee, updated
 
-# Frontier Queue
+# frontier向け
 
-- layout: table
+- レイアウト: table
 - Project field filter: Agent Tier = agent:frontier; Status = Ready, In Progress, In Review
 
-# Merge Queue Candidates
+# merge queue候補
 
-- layout: table
+- レイアウト: table
 - filter: `status:In Review is:pr review:approved`
 
-# Velocity
+# 処理量
 
-- layout: table
+- レイアウト: table
 - filter: `status:Done closed:>=YYYY-MM-DD`
-- group by: Scope or Agent Tier
+- グループ化: Scope または Agent Tier
