@@ -109,7 +109,7 @@ agentまたは人間が作業開始できる状態。
 2. blocked by / blockingをGitHub上の関係で確認する。未解決blockerが作業開始に影響する場合はReadyにしない。
 3. Agent TierがProject fieldに設定済みか確認する。Agent Harness、Agent Model、Branchは作業開始時まで確定させなくてよい。
 4. AssigneeまたはReviewer Ownerの責任者候補を確認する。まだ作業開始しない場合は、作業開始コメントを書かない。
-5. Ready Poolから投入できる状態になったIssueだけReadyに置く。
+5. かんばん上でReadyに置くのは、受け入れ条件、確認手順、blocker解消を確認済みのIssueだけにする。
 
 # In Progress
 
@@ -122,13 +122,14 @@ agentまたは人間が作業開始できる状態。
 - Agent Harnessを設定する。
 - Agent ModelをProject fieldへ設定する。Issue本文とPR本文には書かない。
 - Branchを設定する。
+- Actual Startを設定する。
 - linked branchを作る。
 
 実行手順:
 
 1. 作業開始直前にblocked byを再確認する。未解決blockerがある場合はIn Progressへ進めずBlockedへ戻す。
 2. AssigneeとReviewer Ownerを確認し、agent自律作業でも人間の責任者を残す。
-3. Agent Harness、Agent Model、BranchをProject fieldへ記録する。具体モデル名やbranch名はIssue本文やPR本文へ書かない。
+3. Agent Harness、Agent Model、Branch、Actual StartをProject fieldへ記録する。具体モデル名、branch名、日付fieldはIssue本文やPR本文へ書かない。
 4. linked branchを作成し、Branch fieldとGitHub上のlinked branchが一致することを確認する。
 5. 作業開始コメントを書く。担当者、agent情報、branchはProject fieldに記録済みであることだけを自然文で書く。
 
@@ -158,8 +159,9 @@ PRが作成され、reviewとCIを待っている状態。
 2. PR本文に概要、関連Issue、スコープ、確認手順、リスク、レビュー観点があるか確認する。具体モデル名やProject field metadataは本文へ書かない。
 3. reviewer、review decision、unresolved conversation、requested changesを確認する。
 4. CIは最新commit SHAのcheck結果を見る。失敗checkがrequiredか、optionalか、rerun中かを確認してから判断する。
-5. required CI、review、権限、設計判断、外部依存で止まっている場合はBlockedへ移す。reviewやCIが通常の待ち状態ならIn Reviewのままにする。
-6. review承認とrequired checksが揃ったらauto-mergeを有効化し、merge queueとmerge_group CIを待つ。
+5. PR作成日やmerge状態はGitHub PR metadataから読む。Project fieldへは複製しない。
+6. required CI、review、権限、設計判断、外部依存で止まっている場合はBlockedへ移す。reviewやCIが通常の待ち状態ならIn Reviewのままにする。
+7. review承認とrequired checksが揃ったらauto-mergeを有効化し、merge queueとmerge_group CIを待つ。
 
 # Blocked
 
@@ -194,8 +196,8 @@ Done条件:
 1. PRがmainへmerge済みであることをPR state、merge commit、mergedAtで確認する。
 2. linked Issueがclosing keywordまたは手動処理でclosedになっていることを確認する。
 3. merge queueを使ったPRではmerge_group CIとrequired checksが通ったことを確認する。
-4. Project fieldのMerged Atにmerge日時を記録し、StatusをDoneへ更新する。
-5. PR未merge、Issue open、merge日時未確認のいずれかが残る場合はDoneにしない。
+4. Project fieldのActual Endに実終了日を記録し、StatusをDoneへ更新する。merge日やIssue close日はGitHub metadataから読む。
+5. PR未merge、Issue open、merge日未確認のいずれかが残る場合はDoneにしない。
 
 # Canceled
 
@@ -213,5 +215,5 @@ Done条件:
 
 1. なぜ実行しないかを確認する。duplicated、obsolete、out of scope、invalid、別Issueへ置換のいずれかに寄せる。
 2. 代替Issue、duplicate元、方針変更の根拠がある場合はcommentにリンクする。
-3. Project StatusをCanceledへ更新する。不要になったblocked by / blockingやsub-issue関係が残る場合は、混乱しないよう関係整理の要否を確認する。
+3. Project StatusをCanceledへ更新し、IssueまたはPRをcloseする場合はActual EndをProject fieldへ記録する。close日はGitHub metadataから読み、Project fieldへ複製しない。不要になったblocked by / blockingやsub-issue関係が残る場合は、混乱しないよう関係整理の要否を確認する。
 4. 実装中PRがある場合は、PR closeが必要か、代替Issueへ引き継ぐかを確認してからCanceledにする。

@@ -2,7 +2,7 @@
 
 # Issue body
 
-Project fieldにあるメタデータは本文へ書かない。Type、Scope、Status、Priority、Size、Complexity、Risk、Agent Tier、Agent Harness、Agent Model、Reviewer Owner、Branch、Source、Target Date、Started At、Merged AtはProject fieldだけに記録する。
+Project fieldにあるメタデータは本文へ書かない。Type、Scope、Status、Priority、Size、Complexity、Risk、Agent Tier、Agent Harness、Agent Model、Reviewer Owner、Branch、Source、Forecast Start、Forecast End、Actual Start、Actual EndはProject fieldだけに記録する。
 
 ```markdown
 # 概要

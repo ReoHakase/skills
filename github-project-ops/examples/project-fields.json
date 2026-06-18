@@ -94,15 +94,19 @@
     ]
   },
   {
-    "name": "Target Date",
+    "name": "Forecast Start",
     "type": "DATE"
   },
   {
-    "name": "Started At",
+    "name": "Forecast End",
     "type": "DATE"
   },
   {
-    "name": "Merged At",
+    "name": "Actual Start",
+    "type": "DATE"
+  },
+  {
+    "name": "Actual End",
     "type": "DATE"
   }
 ]

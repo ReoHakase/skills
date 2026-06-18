@@ -12,7 +12,7 @@ Agentで効率的に並列Issue処理することを前提とした、GitHub Pro
 # 適用する場面
 
 - 大型ソフトウェア開発をGitHub ProjectsとIssuesで分解する。
-- WBS、Kanban、Roadmap、Current Focus、Review Queue、Blocked Queue、VelocityをGitHub Projectsで管理する。
+- WBS/ロードマップ、かんばん、マージキュー候補、VelocityをGitHub Projectsで管理する。
 - 複数agentが並列にIssueを処理できるように、低コンテクストで非属人的なIssueを作る。
 - 1 issue = 1 branch = 1 PRを維持する。
 - mainを壊さず、merge commit + merge queue + auto-mergeでPRを高速に流す。
@@ -130,16 +130,16 @@ gh CLIの高水準コマンドで足りない場合だけ、`gh api` または `
 
 必要なreferenceだけを読む。
 
-| Task                                                                        | Read                                      |
-| --------------------------------------------------------------------------- | ----------------------------------------- |
-| WBS分解、critical path短縮、sub-issueと依存関係設計                         | `references/wbs-and-dependency-policy.md` |
-| branchable issueの粒度判断、epic/spike/bug/debug-log起票                    | `references/issue-granularity.md`         |
-| Status遷移、Ready/In Progress/In Review/Blocked判断                         | `references/issue-lifecycle.md`           |
-| Priority / Size / Complexity / Risk / Agent Tier判定                        | `references/estimation-and-agent-tier.md` |
-| Project fields、views、no-label policy、Ready Pool、Blocked Queue、Velocity | `references/project-fields-views.md`      |
-| Issue body / PR body / work start / blocked comment作成                     | `references/message-templates.md`         |
-| `gh` / GitHub MCP / dependency / linked branch / PR / auto-merge操作        | `references/github-cli-mcp-recipes.md`    |
-| merge commit、merge queue、auto-merge、`merge_group` CI                     | `references/merge-queue-policy.md`        |
+| Task                                                                                           | Read                                      |
+| ---------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| WBS分解、critical path短縮、sub-issueと依存関係設計                                            | `references/wbs-and-dependency-policy.md` |
+| branchable issueの粒度判断、epic/spike/bug/debug-log起票                                       | `references/issue-granularity.md`         |
+| Status遷移、Ready/In Progress/In Review/Blocked判断                                            | `references/issue-lifecycle.md`           |
+| Priority / Size / Complexity / Risk / Agent Tier判定                                           | `references/estimation-and-agent-tier.md` |
+| Project fields、views、no-label policy、かんばん、WBS/ロードマップ、マージキュー候補、Velocity | `references/project-fields-views.md`      |
+| Issue body / PR body / work start / blocked comment作成                                        | `references/message-templates.md`         |
+| `gh` / GitHub MCP / dependency / linked branch / PR / auto-merge操作                           | `references/github-cli-mcp-recipes.md`    |
+| merge commit、merge queue、auto-merge、`merge_group` CI                                        | `references/merge-queue-policy.md`        |
 
 # Project fields
 
@@ -160,9 +160,10 @@ gh CLIの高水準コマンドで足りない場合だけ、`gh api` または `
 | Reviewer Owner | Text          | agent実行環境の持ち主、またはreview責任者のGitHub login                             |
 | Branch         | Text          | 123/feat-ui-example                                                                 |
 | Source         | Single select | human, agent, debug-log, chat, inquiry, ci, dependency, security, docs              |
-| Target Date    | Date          | 期限がある場合だけ                                                                  |
-| Started At     | Date          | 作業開始日                                                                          |
-| Merged At      | Date          | merge日                                                                             |
+| Forecast Start | Date          | 計画開始日。ロードマップで使う                                                      |
+| Forecast End   | Date          | 計画終了目標日。ロードマップで使う                                                  |
+| Actual Start   | Date          | 実作業開始日                                                                        |
+| Actual End     | Date          | 実終了日                                                                            |
 
 Issue時点では具体的なモデル名まで確定させない。Backlog/Triaged/ReadyではAgent Tierだけでよい。作業開始時にAgent HarnessとAgent ModelをProject fieldへ記録する。
 

@@ -20,122 +20,220 @@ Type、Source、Status、Priority、Size、Complexity、Risk、Agent TierはProj
 
 Project fieldのfilterでIssueは絞り込めるため、labelをportable fallbackとして持たない。比較やsortでは `P2-high` の `2` のようにProject field optionの数値prefixを読む。
 
-既存Project fieldのoption名は自動移行しない。形容詞なしの旧optionから `P2-high` のような新optionへの変更はProject側で手動移行する。
+既存Project fieldのoption名は自動移行しない。Project側で必要なoption移行を手動で行う。
 
 既存repositoryに残っているlabelは自動削除しない。不要なlabelはrepository側で手動整理する。
 
-# Kanban view
+# Date fields
+
+計画日と実績日は別fieldにする。
+
+- `Forecast Start`: 計画開始日。`WBS/ロードマップ` viewで使う。
+- `Forecast End`: 計画終了目標日。`WBS/ロードマップ` viewで使う。
+- `Actual Start`: 実作業開始日。IssueをIn Progressへ進める時に記録する。
+- `Actual End`: 実終了日。DoneまたはCanceledで終了を確認した時に記録する。
+
+PR作成日、merge日、Issue/PR close日はGitHub metadataをSSoTにする。Project fieldへ複製しない。
+
+本文、PR body、作業開始commentにはdate field assignmentを書かない。計画/実績の期間はProject fieldで見る。
+
+# View説明の置き場所
+
+GitHub Projectsのviewには説明文欄がない前提で運用する。viewの目的、filter、運用ルールは、この `references/project-fields-views.md` とcopyableな `examples/project-views.md` に置く。
+
+repo固有に公開したい場合は、対象repoの `.github/project/views.md` に同じ形式で保存する。Project本体にはview名とfield設定だけを置く。
+
+# 標準view
+
+標準viewは次の4つだけにする。
+
+- `かんばん`
+- `WBS/ロードマップ`
+- `マージキュー候補`
+- `Velocity`
+
+Ready、review、blocked、高難度agent向けの専用viewは作らない。必要な確認は `かんばん` のStatus、filter、sort、visible fieldsで行う。
+
+# かんばん
 
 目的:
 
-- 人間が全体進捗を把握する。
-- agent作業中、review中、blockedを一目で見る。
+- 全体の進捗をStatus別に見る。
+- Ready、In Progress、In Review、Blockedの詰まりを日次で確認する。
+- 作業投入、review待ち、blocker解除の入口にする。
 
-設定:
+Layout:
 
-- layout: board
-- group by: Status
-- slice by: ScopeまたはAgent Tier
-- sort: Priority desc, Risk desc
+- board
 
-# Ready Pool view
+Filter:
+
+- Project field: Status = Inbox, Triaged, Ready, In Progress, In Review, Blocked
+
+Group:
+
+- Status
+
+Sort:
+
+- Priority desc
+- Risk desc
+- updated asc
+
+Visible fields:
+
+- Type
+- Scope
+- Priority
+- Size
+- Complexity
+- Risk
+- Agent Tier
+- Assignee
+- Reviewer Owner
+- Branch
+- Actual Start
+
+運用ルール:
+
+- Readyに置くのは、受け入れ条件、非スコープ、確認手順、blocker解消を確認済みのIssueだけにする。
+- In Progressへ進める前にblocked byを再確認する。未解決blockerがある場合は作業開始しない。
+- In ReviewではPR本文のclosing keyword、確認手順、リスク、レビュー観点、required checksを見る。
+- Blockedではcommentに理由、解除者、依存Issue/PR/log、次の確認タイミングがあるか確認する。
+- `C3-complex` または `R3-dangerous` を含む作業は人間review責任者を明確にする。
+- DoneとCanceledは通常表示しない。完了後の観察は `Velocity` で行う。
+
+# WBS/ロードマップ
 
 目的:
 
-- すぐagentへ投入できるIssueを見る。
+- WBS/Gantt相当の計画表示として使う。
+- 作業の構造と順序を、epic、sub-issue、blocked by / blockingで見る。
+- 計画開始日と計画終了目標日を確認する。
 
-filter:
+Layout:
 
-```text
-status:Ready -is:blocked
-```
+- roadmap
 
-group:
+Filter:
 
-```text
-Agent Tier
-```
+- Project field: Forecast Start is not empty
+- Project field: Forecast End is not empty
+- Project field: Status = Triaged, Ready, In Progress, In Review, Blocked, Done
 
-# Current Focus view
+Group:
 
-Sprintの代替。固定コミットメントではなく、現在注力する観察窓として使う。
+- Scope
 
-Project field filter:
+Sort:
 
-```text
-Status = Ready, In Progress, In Review
-Priority = P2-high, P3-critical
-```
+- Forecast Start asc
+- Forecast End asc
+- Priority desc
 
-またはProjectのIteration fieldを使う。
+Visible fields:
 
-# Review Queue view
-
-filter:
-
-```text
-status:In Review
-```
-
-sort:
-
-```text
-Risk desc, Priority desc, updated asc
-```
-
-# Blocked view
-
-filter:
-
-```text
-status:Blocked
-```
-
-表示field:
-
+- Type
+- Scope
+- Priority
+- Risk
+- Agent Tier
+- Forecast Start
+- Forecast End
 - blocked by
 - blocking
-- assignee
-- risk
-- updated
 
-# Frontier Queue view
+運用ルール:
 
-Project field filter:
+- date fieldsは `Forecast Start` / `Forecast End` を使う。
+- WBS番号は作らない。構造はepic/sub-issue、順序はblocked by / blockingで表す。
+- 実績はActual Start、Actual Endで見る。ロードマップ上の計画日と混ぜない。
+- 日付変更は計画の変更として扱い、Issue本文のmetadata行ではなくProject fieldだけを更新する。
 
-```text
-Agent Tier = agent:frontier
-Status = Ready, In Progress, In Review
-```
+# マージキュー候補
 
 目的:
 
-- 高性能agentまたは人間reviewが必要な作業を分ける。
+- auto-mergeまたはmerge queue投入候補のPRを確認する。
+- review承認済みでrequired checksが揃ったPRをmainへ流す。
 
-# Merge Queue Candidate view
+Layout:
 
-filter:
+- table
 
-```text
-status:In Review is:pr review:approved
-```
+Filter:
+
+- Project field: Status = In Review
+- GitHub PR: review approved
+- GitHub checks: required checks passing
+
+Group:
+
+- Risk
+
+Sort:
+
+- Priority desc
+- updated asc
+
+Visible fields:
+
+- Type
+- Scope
+- Priority
+- Risk
+- Reviewer Owner
+- Branch
+
+運用ルール:
+
+- closing keyword、linked Issue、base/head branch、merge queue設定を確認してからauto-mergeを有効化する。
+- required checkがrerun中または失敗中なら候補にしない。
+- PR作成日、merge状態、merge日はGitHub PR metadataから読む。Project fieldへ複製しない。
+- merge後はDone条件を満たしてからActual EndをProject fieldへ記録する。
+- Project field metadataや具体モデル名はPR本文へ書かない。
+
+# Velocity
 
 目的:
 
-- auto-merge対象候補を確認する。
+- 完了量、cycle time、review timeを週次で観察する。
+- agent投入量とmerge queueの詰まりをふりかえる。
 
-# Velocity view
+Layout:
 
-GitHub Projects単体では厳密なVelocity chartは弱い。次の近似を使う。
+- table
 
-- Done count per week
-- Done Size sum per week
-- Done by Scope
-- Done by Agent Tier
-- Cycle time: Started AtからMerged Atまで
-- Review time: PR作成からmergeまで
+Filter:
 
-GitHub Projectsのview、export、またはその場で必要な `gh project item-list` / `gh api graphql` 集計を使う。
+- Project field: Status = Done
+- Project field: Actual End is not empty
+
+Group:
+
+- Scope
+
+Sort:
+
+- Actual End desc
+
+Visible fields:
+
+- Type
+- Scope
+- Size
+- Complexity
+- Risk
+- Agent Tier
+- Actual Start
+- Actual End
+
+運用ルール:
+
+- Done count、Size合計、Scope別完了、Agent Tier別完了を週次で見る。
+- Cycle timeはActual StartからActual Endまでを見る。
+- review timeやmerge待ち時間が必要な場合は、GitHub PR metadataのcreatedAt、mergedAt、review状態から読む。
+- 厳密な見積もり契約ではなく、throughputを観察してReady投入量を調整するために使う。
 
 # Sprintを導入するか
 
@@ -151,9 +249,10 @@ GitHub Projectsのview、export、またはその場で必要な `gh project ite
 
 良い使い方:
 
-- 今週見る範囲をCurrent Focusに置く。
-- P2-high/P3-criticalとblockedを重点監視する。
-- Velocityを週次で観察する。
+- `かんばん` で現在のStatusと詰まりを見る。
+- `WBS/ロードマップ` で計画日と依存関係を見る。
+- `マージキュー候補` でmain統合前のPRだけを見る。
+- `Velocity` を週次で観察する。
 
 悪い使い方:
 
