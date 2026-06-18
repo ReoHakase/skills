@@ -1,14 +1,57 @@
-# Project fields / views
+# Project setup
 
-# Type field
+Project fields、no-label policy、date fields、views、copyable assetsを扱うときに読む。
 
-値:
+# 目次
 
-```text
-epic, feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, spike
-```
+- Copyable assets
+- Project fields
+- GitHub labels
+- Date fields
+- View説明の置き場所
+- 標準view
+- Sprintを導入するか
 
-Issue/PRタイトルにtypeやscopeを入れない。TypeとScopeはProject fieldで見る。
+# Copyable assets
+
+`assets/` は、対象repositoryへコピーして使う設定・サンプルデータを置く場所である。agentが読む手順は `references/` に置く。
+
+主なcopyable assets:
+
+- `assets/.github/`: Issue Forms、PR template、merge_group対応CIの例。導入時は対象repoの `.github/` へコピーし、repo固有の文言とcheck commandだけを調整する。
+- `assets/.github/project/views.md`: GitHub Projects viewの説明をrepo側へ置く例。導入時は対象repoの `.github/project/views.md` へコピーする。
+- `assets/project-fields.json`: 推奨Project fieldsの定義例。
+- `assets/backlog.flat.json`: 初期backlog作成用のサンプルデータ。
+
+これらはlive GitHub Projectやrepository設定を自動移行するものではない。GitHub上の実状態を確認してから、必要な設定だけ手動またはgh CLIで反映する。
+
+# Project fields
+
+推奨Project fieldsは次。
+
+| Field          | Type          | Values                                                                              |
+| -------------- | ------------- | ----------------------------------------------------------------------------------- |
+| Status         | Single select | Inbox, Triaged, Ready, In Progress, In Review, Blocked, Done, Canceled              |
+| Type           | Single select | epic, feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, spike |
+| Scope          | Text          | ui, api, db, infraなど。repoごとに自由定義                                          |
+| Priority       | Single select | P0-optional, P1-normal, P2-high, P3-critical                                        |
+| Size           | Single select | S0-tiny, S1-small, S2-medium, S3-large                                              |
+| Complexity     | Single select | C0-none, C1-simple, C2-moderate, C3-complex                                         |
+| Risk           | Single select | R0-none, R1-safe, R2-moderate, R3-dangerous                                         |
+| Agent Tier     | Single select | agent:fast, agent:standard, agent:frontier                                          |
+| Agent Harness  | Single select | Codex, Claude Code, Cursor, Human, Other                                            |
+| Agent Model    | Text          | GPT 5.5 (xhigh), Opus 4.8 (medium), Composer 2.5など。作業開始時に記録              |
+| Reviewer Owner | Text          | agent実行環境の持ち主、またはreview責任者のGitHub login                             |
+| Branch         | Text          | 123/feat-ui-example                                                                 |
+| Source         | Single select | human, agent, debug-log, chat, inquiry, ci, dependency, security, docs              |
+| Forecast Start | Date          | 計画開始日。WBS/ロードマップで使う                                                  |
+| Forecast End   | Date          | 計画終了目標日。WBS/ロードマップで使う                                              |
+| Actual Start   | Date          | 実作業開始日                                                                        |
+| Actual End     | Date          | 実終了日                                                                            |
+
+Issue時点では具体的なモデル名まで確定させない。Backlog/Triaged/ReadyではAgent Tierだけでよい。作業開始時にAgent HarnessとAgent ModelをProject fieldへ記録する。
+
+Issue/PRタイトルにTypeやScopeを入れない。TypeとScopeはProject fieldで見る。
 
 # GitHub labels
 
@@ -39,7 +82,7 @@ PR作成日、merge日、Issue/PR close日はGitHub metadataをSSoTにする。P
 
 # View説明の置き場所
 
-GitHub Projectsのviewには説明文欄がない前提で運用する。viewの目的、filter、運用ルールは、この `references/project-fields-views.md` とcopyableな `examples/project-views.md` に置く。
+GitHub Projectsのviewには説明文欄がない前提で運用する。viewの目的、filter、運用ルールは、このfileとcopyableな `assets/.github/project/views.md` に置く。
 
 repo固有に公開したい場合は、対象repoの `.github/project/views.md` に同じ形式で保存する。Project本体にはview名とfield設定だけを置く。
 
@@ -54,7 +97,7 @@ repo固有に公開したい場合は、対象repoの `.github/project/views.md`
 
 Ready、review、blocked、高難度agent向けの専用viewは作らない。必要な確認は `かんばん` のStatus、filter、sort、visible fieldsで行う。
 
-# かんばん
+## かんばん
 
 目的:
 
@@ -103,7 +146,7 @@ Visible fields:
 - `C3-complex` または `R3-dangerous` を含む作業は人間review責任者を明確にする。
 - DoneとCanceledは通常表示しない。完了後の観察は `Velocity` で行う。
 
-# WBS/ロードマップ
+## WBS/ロードマップ
 
 目的:
 
@@ -150,7 +193,7 @@ Visible fields:
 - 実績はActual Start、Actual Endで見る。ロードマップ上の計画日と混ぜない。
 - 日付変更は計画の変更として扱い、Issue本文のmetadata行ではなくProject fieldだけを更新する。
 
-# マージキュー候補
+## マージキュー候補
 
 目的:
 
@@ -193,7 +236,7 @@ Visible fields:
 - merge後はDone条件を満たしてからActual EndをProject fieldへ記録する。
 - Project field metadataや具体モデル名はPR本文へ書かない。
 
-# Velocity
+## Velocity
 
 目的:
 

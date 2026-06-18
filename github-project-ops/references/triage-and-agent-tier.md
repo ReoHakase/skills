@@ -1,4 +1,4 @@
-# Priority / Size / Complexity / Risk / Agent Tier基準
+# Triage and Agent Tier
 
 この基準は、複数人・複数agentが迷わず同じ分類をできることを目的にする。
 

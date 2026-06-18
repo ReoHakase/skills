@@ -8,7 +8,7 @@
 2. skillだけを読んだagentにIssueを作らせる。
 3. 別agentまたは人間が検証する。
 4. 失敗を分類する。
-5. skill本文、references、examplesを修正する。
+5. skill本文、references、assetsを修正する。
 6. 同じシナリオで再実行する。
 
 # 評価観点
