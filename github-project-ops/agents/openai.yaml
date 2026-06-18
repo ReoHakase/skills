@@ -1,0 +1,6 @@
+interface:
+  display_name: "GitHub Project Ops"
+  short_description: "GitHub ProjectsでWBS・PR-Issueライフサイクル・マージキュー運用を管理"
+  icon_small: "./assets/github-project-ops-small.png"
+  icon_large: "./assets/github-project-ops.png"
+  default_prompt: "Use $github-project-ops to manage Japanese GitHub Projects / Issues / PR workflows, including WBS, no-label Project fields, lifecycle comments, dependencies, and merge queue."
