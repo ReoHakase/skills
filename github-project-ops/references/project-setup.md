@@ -20,7 +20,7 @@ Project fields、no-label policy、date fields、views、copyable assetsを扱�
 
 - `assets/.github/`: Issue Forms、PR template、merge_group対応CIの例。導入時は対象repoの `.github/` へコピーし、repo固有の文言とcheck commandだけを調整する。
 - `assets/.github/project/views.md`: GitHub Projects viewの説明をrepo側へ置く例。導入時は対象repoの `.github/project/views.md` へコピーする。
-- `assets/project-fields.json`: 推奨Project fieldsの定義例。
+- `assets/project-fields.json`: 推奨Project fieldsとsingle select optionの色・説明文の定義例。
 - `assets/backlog.flat.json`: 初期backlog作成用のサンプルデータ。
 
 これらはlive GitHub Projectやrepository設定を自動移行するものではない。GitHub上の実状態を確認してから、必要な設定だけ手動またはgh CLIで反映する。
@@ -30,6 +30,8 @@ Project fields、no-label policy、date fields、views、copyable assetsを扱�
 推奨Project fieldsは次。
 
 Single select optionはlower-kebabにする。GitHub Projectsのfilter query、`gh` 出力後の `jq`、手作業の検索で、空白・大文字小文字・quoteの扱いを減らすためである。Field名は人間が読むためTitle Caseのままにする。
+
+`assets/project-fields.json` のsingle select `options` は、標準では `name`、`color`、`description` を持つobject形式にする。Project fieldの値として使うのは `name` だけで、色と説明文は `references/project-bootstrap.md` のGraphQL手順または `assets/project-bootstrap-template.py` で反映する。
 
 | Field          | Type          | Values                                                                              |
 | -------------- | ------------- | ----------------------------------------------------------------------------------- |
@@ -43,7 +45,7 @@ Single select optionはlower-kebabにする。GitHub Projectsのfilter query、`
 | Agent Tier     | Single select | agent-fast, agent-standard, agent-frontier                                          |
 | Agent Harness  | Single select | codex, claude-code, cursor, human, other                                            |
 | Agent Model    | Text          | GPT 5.5 (xhigh), Opus 4.8 (medium), Composer 2.5など。作業開始時に記録              |
-| Reviewer Owner | Text          | agent実行環境の持ち主、またはreview責任者のGitHub login                             |
+| Reviewer Owner | Text          | agent実行環境の持ち主、またはレビュー責任者のGitHub login                           |
 | Branch         | Text          | 123/feat-ui-example                                                                 |
 | Source         | Single select | human, agent, debug-log, chat, inquiry, ci, dependency, security, docs              |
 | Forecast Start | Date          | 計画開始日。WBS/ロードマップで使う                                                  |
@@ -78,7 +80,7 @@ Project fieldのfilterでIssueは絞り込めるため、labelをportable fallba
 - `Actual Start`: 実作業開始日。Issueをin-progressへ進める時に記録する。
 - `Actual End`: 実終了日。doneまたはcanceledで終了を確認した時に記録する。
 
-PR作成日、merge日、Issue/PR close日はGitHub metadataをSSoTにする。Project fieldへ複製しない。
+PR作成日、マージ日、Issue/PR close日はGitHub metadataをSSoTにする。Project fieldへ複製しない。
 
 本文、PR body、作業開始commentにはdate field assignmentを書かない。計画/実績の期間はProject fieldで見る。
 
@@ -97,7 +99,7 @@ repo固有に公開したい場合は、対象repoの `.github/project/views.md`
 - `マージキュー候補`
 - `Velocity`
 
-ready、review、blocked、高難度agent向けの専用viewは作らない。必要な確認は `かんばん` のStatus、filter、sort、visible fieldsで行う。
+ready、レビュー、blocked、高難度agent向けの専用viewは作らない。必要な確認は `かんばん` のStatus、filter、sort、visible fieldsで行う。
 
 ## かんばん
 
@@ -105,7 +107,7 @@ ready、review、blocked、高難度agent向けの専用viewは作らない。�
 
 - 全体の進捗をStatus別に見る。
 - ready、in-progress、in-review、blockedの詰まりを日次で確認する。
-- 作業投入、review待ち、blocker解除の入口にする。
+- 作業投入、レビュー待ち、阻害要因解除の入口にする。
 
 Layout:
 
@@ -141,11 +143,11 @@ Visible fields:
 
 運用ルール:
 
-- readyに置くのは、受け入れ条件、非スコープ、確認手順、blocker解消を確認済みのIssueだけにする。
-- in-progressへ進める前にblocked byを再確認する。未解決blockerがある場合は作業開始しない。
+- readyに置くのは、受け入れ条件、非スコープ、確認手順、阻害要因の解消を確認済みのIssueだけにする。
+- in-progressへ進める前にblocked byを再確認する。未解決の阻害要因がある場合は作業開始しない。
 - in-reviewではPR本文のclosing keyword、確認手順、リスク、レビュー観点、required checksを見る。
-- blockedではcommentに理由、解除者、依存Issue/PR/log、次の確認タイミングがあるか確認する。
-- `c3-complex` または `r3-dangerous` を含む作業は人間review責任者を明確にする。
+- blockedではコメントに理由、解除者、依存Issue/PR/log、次の確認タイミングがあるか確認する。
+- `c3-complex` または `r3-dangerous` を含む作業は人間のレビュー責任者を明確にする。
 - doneとcanceledは通常表示しない。完了後の観察は `Velocity` で行う。
 
 ## WBS/ロードマップ
@@ -199,8 +201,8 @@ Visible fields:
 
 目的:
 
-- auto-mergeまたはmerge queue投入候補のPRを確認する。
-- review承認済みでrequired checksが揃ったPRをmainへ流す。
+- 自動マージまたはマージキュー投入候補のPRを確認する。
+- レビュー承認済みでrequired checksが揃ったPRをmainへ流す。
 
 Layout:
 
@@ -209,7 +211,7 @@ Layout:
 Filter:
 
 - Project field: Status = in-review
-- GitHub PR: review approved
+- GitHub PR: レビュー承認済み
 - GitHub checks: required checks passing
 
 Group:
@@ -232,18 +234,18 @@ Visible fields:
 
 運用ルール:
 
-- closing keyword、linked Issue、base/head branch、merge queue設定を確認してからauto-mergeを有効化する。
+- closing keyword、linked Issue、base/head branch、マージキュー設定を確認してから自動マージを有効化する。
 - required checkがrerun中または失敗中なら候補にしない。
-- PR作成日、merge状態、merge日はGitHub PR metadataから読む。Project fieldへ複製しない。
-- merge後はdone条件を満たしてからActual EndをProject fieldへ記録する。
+- PR作成日、マージ状態、マージ日はGitHub PR metadataから読む。Project fieldへ複製しない。
+- マージ後はdone条件を満たしてからActual EndをProject fieldへ記録する。
 - Project field metadataや具体モデル名はPR本文へ書かない。
 
 ## Velocity
 
 目的:
 
-- 完了量、cycle time、review timeを週次で観察する。
-- agent投入量とmerge queueの詰まりをふりかえる。
+- 完了量、サイクルタイム、レビュー時間を週次で観察する。
+- agent投入量とマージキューの詰まりをふりかえる。
 
 Layout:
 
@@ -277,7 +279,7 @@ Visible fields:
 
 - done count、Size合計、Scope別完了、Agent Tier別完了を週次で見る。
 - Cycle timeはActual StartからActual Endまでを見る。
-- review timeやmerge待ち時間が必要な場合は、GitHub PR metadataのcreatedAt、mergedAt、review状態から読む。
+- レビュー時間やマージ待ち時間が必要な場合は、GitHub PR metadataのcreatedAt、mergedAt、レビュー状態から読む。
 - 厳密な見積もり契約ではなく、throughputを観察してready投入量を調整するために使う。
 
 # Sprintを導入するか
@@ -287,7 +289,7 @@ Visible fields:
 理由:
 
 - agent並列開発では投入可能量が動的に変わる。
-- CI、review、merge queueの詰まりでthroughputが変わる。
+- CI、レビュー、マージキューの詰まりで処理量が変わる。
 - 割り込みIssueを柔軟に流す必要がある。
 
 使うならIterationは観察窓として使う。

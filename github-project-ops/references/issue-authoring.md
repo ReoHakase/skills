@@ -85,7 +85,7 @@ branchable issueは、1 branchと1 PRを持てるIssueである。次をすべ�
 - TypeとScopeはProject fieldに入っている。
 - 主componentが1つ、またはinterface境界が1つ。
 - 非スコープが明記されている。
-- blocked by / blockingが明記されている。
+- 必要なblocked by / blockingがGitHub上の関係として設定されている。
 - テストまたは確認手順がある。
 - Issue本文だけでagentが作業できる。
 
@@ -96,10 +96,10 @@ branchable issueは、1 branchと1 PRを持てるIssueである。次をすべ�
 - UI、DB、API、infra、docsを同時に広く変更する。
 - 仕様未確定の判断が複数残っている。
 - 複数agentが並列実行できる作業を1 Issueに押し込んでいる。
-- review focusが3つ以上ある。
-- 失敗時のrollbackが複数段階になる。
+- レビュー観点が3つ以上ある。
+- 失敗時の巻き戻しが複数段階になる。
 
-epicは親Issue。実装branchを持たない。目的、成功条件、sub-issue一覧、主要依存関係、完了条件を書く。
+epic本文には、到達したい成果、成果の境界、分割方針、完了判定を書く。sub-issue一覧はGitHub metadataで見る。
 
 spikeは未確定要素を減らすための調査Issue。調査結果、採用案、棄却案、後続Issue案、実装しない判断の理由を書く。コード変更を含んでもよいが、本番機能を完成させるIssueではない。
 
@@ -127,9 +127,15 @@ inboxから直接in-progressにしない。必ずtriagedまたはreadyを通す�
 
 # Issue body運用
 
-Issue bodyは最新状態の要約として随時更新する。受け入れ条件、非スコープ、確認手順、実装メモ、依存関係が変わった場合は、古い情報を放置せずbodyを更新する。
+Issue bodyは最新の信頼できる情報源として随時更新する。受け入れ条件、非スコープ、確認手順、再現条件、成果の境界が変わった場合は、古い情報を放置せずbodyを更新する。
 
-状態遷移、判断理由、blocker、review/CI判断、close/cancel理由はcommentへ残す。bodyは現在読むべき内容、commentは時系列の判断記録として分ける。
+状態遷移、判断理由、阻害要因、レビュー/CI判断、close/cancel理由はコメントへ残す。bodyは現在信頼してよい内容、コメントは時系列の判断記録として分ける。
+
+Issue bodyに `実装メモ`、`メモ`、`注意点` のような何でも入る欄を作らない。変更予定箇所、調査中の考え、実装中の注意、未確定の案はコメントへ書く。確定した契約、受け入れ条件、非スコープ、確認手順だけをbodyへ反映する。
+
+sub-issue、blocked by / blocking、Project field、Assignee、linked branchはGitHub metadataをSSoTにする。Issue bodyにsub-issue一覧、依存関係section、field assignmentを書かない。
+
+Issue bodyやPR bodyで既存Issue/PRやcommitを参照するときは、同一repositoryなら `#123` や短いcommit SHAだけを書く。GitHubがautolinkとhover/previewで参照先を表示するため、`#123 タイトル` のようにtitleを併記しない。別repositoryのIssue/PRは `OWNER/REPO#123` と書く。参照: <https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/autolinked-references-and-urls>
 
 古いが消すと混乱する短い記述はstrikethroughで残す。
 
@@ -191,20 +197,6 @@ Project fieldにあるメタデータは本文へ書かない。Type、Scope、S
 
 - [ ] testまたは手動確認1
 - [ ] testまたは手動確認2
-
-# 依存関係
-
-blocked by:
-
-- #...
-
-Blocking:
-
-- #...
-
-# 実装メモ
-
-変更予定箇所、interface、注意点を書く。
 ```
 
 # 記入済み例
@@ -212,24 +204,35 @@ Blocking:
 ## Epic
 
 ```markdown
-# 概要
+# 目的
 
-このIssueは関連する複数Issueを束ねる親Issueである。実装branchは持たない。
+検索結果から「なぜこの動画がヒットしたか」を、一覧画面だけで判断できるようにする。
 
-# 成功条件
+# 成果の境界
 
-- [ ] 主要sub-issueが作成されている
-- [ ] 実行順序が必要なものはblocked by / blockingで表現されている
-- [ ] 完了条件が明確である
+対象:
 
-# sub-issues
+- 検索結果カードに作品情報と一致シーンの根拠を表示する
+- 一致シーンの時刻からプレイヤーへ移動できる
+- 未取得データがあっても表示が破綻しない
 
-- #...
+対象外:
 
-# 完了条件
+- ホバー動画プレビュー
+- 検索ランキング
+- キャプション生成処理
 
-- [ ] 子Issueが完了している
-- [ ] 残Issueが別epicへ移動済み、またはcanceledになっている
+# 分割方針
+
+- 検索レスポンスの契約を先に固定する
+- UI、API、フィクスチャ確認は契約確定後に並列化する
+- ランキング変更は別の親Issueで扱う
+
+# 完了判定
+
+- [ ] フィクスチャ検索で一致シーンの根拠表示まで確認できる
+- [ ] 未取得データのフォールバック表示が確認できる
+- [ ] 残作業が別Issueまたは中止として整理されている
 ```
 
 ## Feature
@@ -265,16 +268,6 @@ Blocking:
 
 - [ ] fixtureデータでカードが表示される
 - [ ] 長い商品名でもレイアウトが崩れない
-
-# 依存関係
-
-blocked by:
-
-- #...
-
-Blocking:
-
-- #...
 ```
 
 ## Bug

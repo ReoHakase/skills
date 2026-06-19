@@ -27,9 +27,11 @@ PR本文に必須の要素:
 
 必須sectionが存在していても、`-`、`- [ ]`、`done`、`確認済み` のようなplaceholderだけなら不十分。PR作成前に、第三者が確認できる具体的な変更点、確認手順、リスク、レビュー観点が書かれているか確認する。
 
-PR bodyは最新状態の要約として随時更新する。確認手順、実装メモ、リスク、レビュー観点が変わった場合は、古い情報を放置せずbodyを更新する。
+PR bodyは最新状態の要約として随時更新する。確認手順、リスク、レビュー観点が変わった場合は、古い情報を放置せずbodyを更新する。
 
 PR descriptionは既存PRではopening commentとして編集する。参照: <https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/getting-started/helping-others-review-your-changes>
+
+Issue/PRやcommitの参照は、同一repositoryなら `#123` や短いcommit SHAだけを書く。GitHubがautolinkとhover/previewで参照先を表示するため、titleを併記しない。別repositoryのIssue/PRは `OWNER/REPO#123` と書く。参照: <https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/autolinked-references-and-urls>
 
 古いが消すと混乱する短い記述はstrikethroughで残す。長い経緯はcollapsed sectionへ移す。secret、credential、個人情報、公開してはいけないlogはstrikethroughやdetailsで残さない。
 
@@ -63,7 +65,7 @@ Closes #123
 ## リスク
 
 - 既知のリスク
-- rollback方針
+- 巻き戻し方針
 
 ## レビュー観点
 

@@ -97,7 +97,7 @@ stateDiagram-v2
 
 1. Type、Scope、Priority、Size、Complexity、Risk、Agent TierをProject fieldで確認する。
 2. epicまたは親Issueが必要な場合はsub-issueへ入れる。実行順序の依存はsub-issueではなくblocked by / blockingで表す。
-3. Issue本文に受け入れ条件、非スコープ、確認手順、依存関係があるか確認する。
+3. Issue本文に受け入れ条件、非スコープ、確認手順があるか確認する。依存関係は本文ではなくGitHub上のsub-issue / blocked by / blockingで確認する。
 4. 影響範囲、再現性、実装対象が曖昧な場合は、readyへ進めずtriagedのまま追加確認を残す。必要ならtriaged commentを使う。
 5. ready条件をすべて満たす場合だけreadyへ進める。
 

@@ -3,33 +3,117 @@
     "name": "Status",
     "type": "SINGLE_SELECT",
     "options": [
-      "inbox",
-      "triaged",
-      "ready",
-      "in-progress",
-      "in-review",
-      "blocked",
-      "done",
-      "canceled"
+      {
+        "name": "inbox",
+        "color": "GRAY",
+        "description": "新しく起票され、まだトリアージされていない。"
+      },
+      {
+        "name": "triaged",
+        "color": "BLUE",
+        "description": "分類済みだが、まだ実装開始できるとは限らない。"
+      },
+      {
+        "name": "ready",
+        "color": "GREEN",
+        "description": "阻害要因と受け入れ条件を確認済みで、作業開始できる。"
+      },
+      {
+        "name": "in-progress",
+        "color": "YELLOW",
+        "description": "現在作業中。"
+      },
+      {
+        "name": "in-review",
+        "color": "ORANGE",
+        "description": "プルリクエストがあり、レビュー、CI、またはマージキュー待ち。"
+      },
+      {
+        "name": "blocked",
+        "color": "RED",
+        "description": "外部依存、判断待ち、失敗対応などが解消するまで進められない。"
+      },
+      {
+        "name": "done",
+        "color": "PURPLE",
+        "description": "マージまたは完了確認済み。"
+      },
+      {
+        "name": "canceled",
+        "color": "GRAY",
+        "description": "不要、無効、重複、対象外などの理由で実装せず終了。"
+      }
     ]
   },
   {
     "name": "Type",
     "type": "SINGLE_SELECT",
     "options": [
-      "epic",
-      "feat",
-      "fix",
-      "docs",
-      "style",
-      "refactor",
-      "perf",
-      "test",
-      "build",
-      "ci",
-      "chore",
-      "revert",
-      "spike"
+      {
+        "name": "epic",
+        "color": "PURPLE",
+        "description": "関連Issueを束ねる親Issue。原則ブランチを持たない。"
+      },
+      {
+        "name": "feat",
+        "color": "GREEN",
+        "description": "ユーザー価値または運用価値を追加する。"
+      },
+      {
+        "name": "fix",
+        "color": "RED",
+        "description": "期待動作から外れた不具合を修正する。"
+      },
+      {
+        "name": "docs",
+        "color": "BLUE",
+        "description": "ドキュメントのみの変更。"
+      },
+      {
+        "name": "style",
+        "color": "GRAY",
+        "description": "挙動を変えない整形、命名、表記の変更。"
+      },
+      {
+        "name": "refactor",
+        "color": "YELLOW",
+        "description": "挙動を変えずにコード構造を整理する。"
+      },
+      {
+        "name": "perf",
+        "color": "ORANGE",
+        "description": "性能を改善する。"
+      },
+      {
+        "name": "test",
+        "color": "BLUE",
+        "description": "テストを追加または修正する。"
+      },
+      {
+        "name": "build",
+        "color": "YELLOW",
+        "description": "ビルドシステム、依存関係、パッケージング、ツールチェーンの変更。"
+      },
+      {
+        "name": "ci",
+        "color": "ORANGE",
+        "description": "CI/CD、ブランチ保護、マージキュー、ワークフローの変更。"
+      },
+      {
+        "name": "chore",
+        "color": "GRAY",
+        "description": "機能挙動に直接関係しない開発メンテナンス。"
+      },
+      {
+        "name": "revert",
+        "color": "RED",
+        "description": "既存変更をrevertする。"
+      },
+      {
+        "name": "spike",
+        "color": "PURPLE",
+        "description": "実装前の調査、設計検証、技術検証。"
+      }
     ]
   },
   {
@@ -39,32 +123,158 @@
   {
     "name": "Priority",
     "type": "SINGLE_SELECT",
-    "options": ["p0-optional", "p1-normal", "p2-high", "p3-critical"]
+    "options": [
+      {
+        "name": "p0-optional",
+        "color": "GRAY",
+        "description": "任意対応。後回しにできる。"
+      },
+      {
+        "name": "p1-normal",
+        "color": "BLUE",
+        "description": "通常の計画作業。順序は柔軟に調整できる。"
+      },
+      {
+        "name": "p2-high",
+        "color": "ORANGE",
+        "description": "現在の目標達成に直接効く高優先度作業。"
+      },
+      {
+        "name": "p3-critical",
+        "color": "RED",
+        "description": "main、リリース、ユーザー、セキュリティ、データ、開発進行を妨げる最優先作業。"
+      }
+    ]
   },
   {
     "name": "Size",
     "type": "SINGLE_SELECT",
-    "options": ["s0-tiny", "s1-small", "s2-medium", "s3-large"]
+    "options": [
+      {
+        "name": "s0-tiny",
+        "color": "GRAY",
+        "description": "小さな変更。通常は少数ファイルで短時間レビューできる。"
+      },
+      {
+        "name": "s1-small",
+        "color": "GREEN",
+        "description": "小さめのPRとして扱える変更。"
+      },
+      {
+        "name": "s2-medium",
+        "color": "YELLOW",
+        "description": "集中したレビューが必要な中規模変更。"
+      },
+      {
+        "name": "s3-large",
+        "color": "RED",
+        "description": "大きい変更。通常は分割を検討する。"
+      }
+    ]
   },
   {
     "name": "Complexity",
     "type": "SINGLE_SELECT",
-    "options": ["c0-none", "c1-simple", "c2-moderate", "c3-complex"]
+    "options": [
+      {
+        "name": "c0-none",
+        "color": "GRAY",
+        "description": "ほぼ設計判断が不要。"
+      },
+      {
+        "name": "c1-simple",
+        "color": "GREEN",
+        "description": "既存パターンに沿って進められる単純な作業。"
+      },
+      {
+        "name": "c2-moderate",
+        "color": "YELLOW",
+        "description": "中程度の設計判断または統合判断が必要。"
+      },
+      {
+        "name": "c3-complex",
+        "color": "RED",
+        "description": "複雑または不確実な作業。スパイクや高度なレビューを検討する。"
+      }
+    ]
   },
   {
     "name": "Risk",
     "type": "SINGLE_SELECT",
-    "options": ["r0-none", "r1-safe", "r2-moderate", "r3-dangerous"]
+    "options": [
+      {
+        "name": "r0-none",
+        "color": "GRAY",
+        "description": "ドキュメントや表示など、実質的なリスクがない。"
+      },
+      {
+        "name": "r1-safe",
+        "color": "GREEN",
+        "description": "影響範囲が局所的な低リスク変更。"
+      },
+      {
+        "name": "r2-moderate",
+        "color": "YELLOW",
+        "description": "DB、API、CI、リリース、性能、既存挙動への中程度のリスクがある。"
+      },
+      {
+        "name": "r3-dangerous",
+        "color": "RED",
+        "description": "データ消失、セキュリティ、main破壊、リリース停止に関わる高リスク変更。"
+      }
+    ]
   },
   {
     "name": "Agent Tier",
     "type": "SINGLE_SELECT",
-    "options": ["agent-fast", "agent-standard", "agent-frontier"]
+    "options": [
+      {
+        "name": "agent-fast",
+        "color": "GREEN",
+        "description": "高速エージェントに適した作業。"
+      },
+      {
+        "name": "agent-standard",
+        "color": "BLUE",
+        "description": "標準エージェントに適した作業。"
+      },
+      {
+        "name": "agent-frontier",
+        "color": "PURPLE",
+        "description": "高性能エージェントまたは人間主導の注意が必要な作業。"
+      }
+    ]
   },
   {
     "name": "Agent Harness",
     "type": "SINGLE_SELECT",
-    "options": ["codex", "claude-code", "cursor", "human", "other"]
+    "options": [
+      {
+        "name": "codex",
+        "color": "BLUE",
+        "description": "OpenAI CodexまたはCodex系エージェントでの作業。"
+      },
+      {
+        "name": "claude-code",
+        "color": "PURPLE",
+        "description": "Claude Codeでの作業。"
+      },
+      {
+        "name": "cursor",
+        "color": "GREEN",
+        "description": "Cursorエージェントでの作業。"
+      },
+      {
+        "name": "human",
+        "color": "GRAY",
+        "description": "人間主導の作業。"
+      },
+      {
+        "name": "other",
+        "color": "YELLOW",
+        "description": "その他の実行環境。必要ならProject項目やコメントで補足する。"
+      }
+    ]
   },
   {
     "name": "Agent Model",
@@ -82,15 +292,51 @@
     "name": "Source",
     "type": "SINGLE_SELECT",
     "options": [
-      "human",
-      "agent",
-      "debug-log",
-      "chat",
-      "inquiry",
-      "ci",
-      "dependency",
-      "security",
-      "docs"
+      {
+        "name": "human",
+        "color": "BLUE",
+        "description": "人間の依頼または計画から起票。"
+      },
+      {
+        "name": "agent",
+        "color": "PURPLE",
+        "description": "エージェントの分解や追跡中の発見から起票。"
+      },
+      {
+        "name": "debug-log",
+        "color": "ORANGE",
+        "description": "ログや失敗出力から起票。"
+      },
+      {
+        "name": "chat",
+        "color": "GREEN",
+        "description": "チャット文脈から起票。"
+      },
+      {
+        "name": "inquiry",
+        "color": "BLUE",
+        "description": "ユーザーまたはstakeholderの問い合わせから起票。"
+      },
+      {
+        "name": "ci",
+        "color": "RED",
+        "description": "CI失敗または自動化シグナルから起票。"
+      },
+      {
+        "name": "dependency",
+        "color": "YELLOW",
+        "description": "依存関係更新またはアラートから起票。"
+      },
+      {
+        "name": "security",
+        "color": "RED",
+        "description": "セキュリティ指摘から起票。"
+      },
+      {
+        "name": "docs",
+        "color": "GRAY",
+        "description": "正本ドキュメントまたは仕様から起票。"
+      }
     ]
   },
   {
