@@ -1,13 +1,13 @@
 # PR and merge
 
-PR本文、In Review判断、merge commit、merge queue、auto-mergeを扱うときに読む。
+PR本文、in-review判断、merge commit、merge queue、auto-mergeを扱うときに読む。
 
 # 目次
 
 - PR body運用
 - PR body template
 - PR body example
-- In Review comment方針
+- in-review comment方針
 - Merge policy
 - gh CLI / MCP操作
 
@@ -110,11 +110,11 @@ Closes #123
 - 未取得項目の表示が分かりやすいか
 ```
 
-# In Review comment方針
+# in-review comment方針
 
 通常はcommentを書かない。PR bodyに概要、関連Issue、スコープ、確認手順、リスク、レビュー観点を書き、`Closes #...` / `Fixes #...` / `Resolves #...` による自動追跡に任せる。
 
-PR bodyやGitHub metadataで分かる内容をcommentへ重複させない。reviewerへの一時的な補足、CIの特殊事情、外部判断待ち、通常と違う確認依頼がある場合だけ、`issue-lifecycle.md` のIn Review commentを使う。
+PR bodyやGitHub metadataで分かる内容をcommentへ重複させない。reviewerへの一時的な補足、CIの特殊事情、外部判断待ち、通常と違う確認依頼がある場合だけ、`issue-lifecycle.md` のin-review commentを使う。
 
 # Merge policy
 

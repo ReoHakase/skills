@@ -45,7 +45,7 @@ AI agentを使う前提では、並列実行可能なIssue数は無限に近い�
 2. 共有contractを切る。
 3. contract完了後に並列実装Issueを切る。
 4. test/docs/observabilityを別Issueにできるなら分ける。
-5. C3-complex/R3-dangerousはspikeを先に切る。
+5. c3-complex/r3-dangerousはspikeを先に切る。
 6. branch同士の競合が予想される場合は、先にinterface PRを作る。
 
 悪い分解:
@@ -113,7 +113,7 @@ bug Issueには必ず再現条件を書く。
 - 影響範囲
 - 修正の受け入れ条件
 
-debug log、chat、inquiryからIssueを起こす場合は、最初はStatusをInboxにする。SourceはProject fieldに入れる。Issue本文にはSourceなどのProject field assignmentを書かない。
+debug log、chat、inquiryからIssueを起こす場合は、最初はStatusをinboxにする。SourceはProject fieldに入れる。Issue本文にはSourceなどのProject field assignmentを書かない。
 
 Issue本文に必ず書く:
 
@@ -123,7 +123,7 @@ Issue本文に必ず書く:
 - 緊急度の仮判定
 - 次のtriageで確認すべきこと
 
-Inboxから直接In Progressにしない。必ずTriagedまたはReadyを通す。
+inboxから直接in-progressにしない。必ずtriagedまたはreadyを通す。
 
 # Issue body運用
 
@@ -194,7 +194,7 @@ Project fieldにあるメタデータは本文へ書かない。Type、Scope、S
 
 # 依存関係
 
-Blocked by:
+blocked by:
 
 - #...
 
@@ -229,7 +229,7 @@ Blocking:
 # 完了条件
 
 - [ ] 子Issueが完了している
-- [ ] 残Issueが別epicへ移動済み、またはCanceledになっている
+- [ ] 残Issueが別epicへ移動済み、またはcanceledになっている
 ```
 
 ## Feature
@@ -268,7 +268,7 @@ Blocking:
 
 # 依存関係
 
-Blocked by:
+blocked by:
 
 - #...
 

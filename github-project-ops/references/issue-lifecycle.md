@@ -1,6 +1,6 @@
 # Issue lifecycle
 
-Status遷移、Ready/In Progress/In Review/Blocked判断、lifecycle commentを書くときに読む。
+Status遷移、ready/in-progress/in-review/blocked判断、lifecycle commentを書くときに読む。
 
 # 目次
 
@@ -12,47 +12,47 @@ Status遷移、Ready/In Progress/In Review/Blocked判断、lifecycle commentを�
 
 # Status一覧
 
-- Inbox
-- Triaged
-- Ready
-- In Progress
-- In Review
-- Blocked
-- Done
-- Canceled
+- inbox
+- triaged
+- ready
+- in-progress
+- in-review
+- blocked
+- done
+- canceled
 
-`Needs Info` と `Ready to Merge` は使わない。細かすぎる状態は更新負荷を増やし、agent運用で破綻しやすい。
+`needs-info` と `ready-to-merge` は使わない。細かすぎる状態は更新負荷を増やし、agent運用で破綻しやすい。
 
 # 状態遷移図
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Inbox: 新規起票
-    Inbox --> Triaged: 重要度・種類・再現性を確認
-    Triaged --> Ready: 受け入れ条件と依存が明確
-    Ready --> InProgress: 作業開始
+    [*] --> inbox: 新規起票
+    inbox --> triaged: 重要度・種類・再現性を確認
+    triaged --> ready: 受け入れ条件と依存が明確
+    ready --> InProgress: 作業開始
     InProgress --> InReview: PR作成
-    InReview --> Done: merge queue経由でmainへmerge
+    InReview --> done: merge queue経由でmainへmerge
 
-    InProgress --> Blocked: 外部依存・設計判断・CI障害
-    InReview --> Blocked: review/CIで停止
-    Blocked --> InProgress: 作業再開
-    Blocked --> InReview: PR review再開
+    InProgress --> blocked: 外部依存・設計判断・CI障害
+    InReview --> blocked: review/CIで停止
+    blocked --> InProgress: 作業再開
+    blocked --> InReview: PR review再開
 
-    Inbox --> Canceled: 起票不要
-    Triaged --> Canceled: やらない判断
-    Ready --> Canceled: 方針変更
-    InProgress --> Canceled: 実装中止
-    InReview --> Canceled: PR close
-    Canceled --> [*]
-    Done --> [*]
+    inbox --> canceled: 起票不要
+    triaged --> canceled: やらない判断
+    ready --> canceled: 方針変更
+    InProgress --> canceled: 実装中止
+    InReview --> canceled: PR close
+    canceled --> [*]
+    done --> [*]
 ```
 
 # Status別実行手順
 
-## Inbox
+## inbox
 
-新規流入の置き場。Inboxでは実装しない。まずtriageする。
+新規流入の置き場。inboxでは実装しない。まずtriageする。
 
 流入元:
 
@@ -77,11 +77,11 @@ stateDiagram-v2
 
 1. 流入元の原文、log、transcript、alert本文を読む。原文が長い場合も、要約だけでなく参照元を残す。
 2. Sourceと仮PriorityはProject fieldへ置き、影響範囲はIssue本文またはcommentの自然文へ整理する。SourceやPriorityなどのfield assignmentは本文へ書かない。
-3. 影響しているユーザー、機能、再現性、次に確認すべきことを書く。必要ならInbox commentを使う。
+3. 影響しているユーザー、機能、再現性、次に確認すべきことを書く。必要ならinbox commentを使う。
 4. Type、Scope、Size、Complexity、Risk、Agent TierをProject fieldへ仮設定できるか確認する。確定できない値は次のtriage確認事項として残す。
-5. 実装は開始しない。Ready条件が揃わない場合はTriagedで止める。
+5. 実装は開始しない。ready条件が揃わない場合はtriagedで止める。
 
-## Triaged
+## triaged
 
 分類済みだが、まだ作業できるとは限らない状態。
 
@@ -98,10 +98,10 @@ stateDiagram-v2
 1. Type、Scope、Priority、Size、Complexity、Risk、Agent TierをProject fieldで確認する。
 2. epicまたは親Issueが必要な場合はsub-issueへ入れる。実行順序の依存はsub-issueではなくblocked by / blockingで表す。
 3. Issue本文に受け入れ条件、非スコープ、確認手順、依存関係があるか確認する。
-4. 影響範囲、再現性、実装対象が曖昧な場合は、Readyへ進めずTriagedのまま追加確認を残す。必要ならTriaged commentを使う。
-5. Ready条件をすべて満たす場合だけReadyへ進める。
+4. 影響範囲、再現性、実装対象が曖昧な場合は、readyへ進めずtriagedのまま追加確認を残す。必要ならtriaged commentを使う。
+5. ready条件をすべて満たす場合だけreadyへ進める。
 
-## Ready
+## ready
 
 agentまたは人間が作業開始できる状態。
 
@@ -116,12 +116,12 @@ agentまたは人間が作業開始できる状態。
 実行手順:
 
 1. 受け入れ条件、非スコープ、確認手順が第三者に判定可能か読む。
-2. blocked by / blockingをGitHub上の関係で確認する。未解決blockerが作業開始に影響する場合はReadyにしない。
+2. blocked by / blockingをGitHub上の関係で確認する。未解決blockerが作業開始に影響する場合はreadyにしない。
 3. Agent TierがProject fieldに設定済みか確認する。Agent Harness、Agent Model、Branchは作業開始時まで確定させなくてよい。
 4. AssigneeまたはReviewer Ownerの責任者候補を確認する。まだ作業開始しない場合は、作業開始コメントを書かない。
-5. かんばん上でReadyに置くのは、受け入れ条件、確認手順、blocker解消を確認済みのIssueだけにする。判断が揺れやすい場合はReady commentを使う。
+5. かんばん上でreadyに置くのは、受け入れ条件、確認手順、blocker解消を確認済みのIssueだけにする。判断が揺れやすい場合はready commentを使う。
 
-## In Progress
+## in-progress
 
 作業中。
 
@@ -137,13 +137,13 @@ agentまたは人間が作業開始できる状態。
 
 実行手順:
 
-1. 作業開始直前にblocked byを再確認する。未解決blockerがある場合はIn Progressへ進めずBlockedへ戻す。
+1. 作業開始直前にblocked byを再確認する。未解決blockerがある場合はin-progressへ進めずblockedへ戻す。
 2. AssigneeとReviewer Ownerを確認し、agent自律作業でも人間の責任者を残す。
 3. Agent Harness、Agent Model、Branch、Actual StartをProject fieldへ記録する。具体モデル名、branch名、日付fieldはIssue本文やPR本文へ書かない。
 4. linked branchを作成し、Branch fieldとGitHub上のlinked branchが一致することを確認する。
-5. In Progress commentを使って作業開始を記録する。
+5. in-progress commentを使って作業開始を記録する。
 
-## In Review
+## in-review
 
 PRが作成され、reviewとCIを待っている状態。
 
@@ -162,15 +162,15 @@ PRが作成され、reviewとCIを待っている状態。
 3. reviewer、review decision、unresolved conversation、requested changesを確認する。
 4. CIは最新commit SHAのcheck結果を見る。失敗checkがrequiredか、optionalか、rerun中かを確認してから判断する。
 5. PR作成日やmerge状態はGitHub PR metadataから読む。Project fieldへは複製しない。
-6. required CI、review、権限、設計判断、外部依存で止まっている場合はBlockedへ移す。reviewやCIが通常の待ち状態ならIn Reviewのままにする。
-7. PR本文とclosing keywordで追跡でき、特筆事項がなければcommentを書かない。PR本文やGitHub metadataでは分からない一時的な補足がある場合だけ、In Review commentを使う。
+6. required CI、review、権限、設計判断、外部依存で止まっている場合はblockedへ移す。reviewやCIが通常の待ち状態ならin-reviewのままにする。
+7. PR本文とclosing keywordで追跡でき、特筆事項がなければcommentを書かない。PR本文やGitHub metadataでは分からない一時的な補足がある場合だけ、in-review commentを使う。
 8. review承認とrequired checksが揃ったらauto-mergeを有効化し、merge queueとmerge_group CIを待つ。
 
-## Blocked
+## blocked
 
 外部依存、設計判断、CI障害、review unresolved、権限不足で進めない状態。
 
-Blockedにしたら必ず書く:
+blockedにしたら必ず書く:
 
 - 何でblockedか。
 - 誰が解除できるか。
@@ -180,30 +180,30 @@ Blockedにしたら必ず書く:
 実行手順:
 
 1. 何が進行を止めているかを確認する。未解決blocker、required CI失敗、review requested changes、権限不足、設計判断待ちを区別する。
-2. Project StatusをBlockedへ更新する。StatusなどのProject field assignmentをcomment本文へ書かない。
-3. Blocked commentを使い、理由、解除できる人、依存Issue/PR/log、次の確認タイミングを書く。解除できる人はrepo内collaboratorならGitHub mention、project/repository外のGitHub accountならprofile URL、GitHub accountがない場合はSlack/Teams profile URLまたは氏名で特定し、外部依存は必ずURL付きにする。
-4. blockerが解消したら、作業中PRがあるものはIn Reviewへ、未着手または作業再開前のものはReadyまたはIn Progressへ戻す前提条件を再確認する。必要ならUnblocked / resume commentを使う。
+2. Project Statusをblockedへ更新する。StatusなどのProject field assignmentをcomment本文へ書かない。
+3. blocked commentを使い、理由、解除できる人、依存Issue/PR/log、次の確認タイミングを書く。解除できる人はrepo内collaboratorならGitHub mention、project/repository外のGitHub accountならprofile URL、GitHub accountがない場合はSlack/Teams profile URLまたは氏名で特定し、外部依存は必ずURL付きにする。
+4. blockerが解消したら、作業中PRがあるものはin-reviewへ、未着手または作業再開前のものはreadyまたはin-progressへ戻す前提条件を再確認する。必要ならUnblocked / resume commentを使う。
 
-## Done
+## done
 
 merge queue経由でmainへmergeされ、Issueがcloseした状態。
 
-Done条件:
+done条件:
 
 - PRがmainへmerge済み。
 - linked Issueがclosed。
-- Project StatusがDone。
+- Project Statusがdone。
 
 実行手順:
 
 1. PRがmainへmerge済みであることをPR state、merge commit、mergedAtで確認する。
 2. linked Issueがclosing keywordまたは手動処理でclosedになっていることを確認する。
 3. merge queueを使ったPRではmerge_group CIとrequired checksが通ったことを確認する。
-4. Project fieldのActual Endに実終了日を記録し、StatusをDoneへ更新する。merge日やIssue close日はGitHub metadataから読む。
-5. Done commentを使い、merge、close、checks、follow-upを記録する。
-6. PR未merge、Issue open、merge日未確認のいずれかが残る場合はDoneにしない。
+4. Project fieldのActual Endに実終了日を記録し、Statusをdoneへ更新する。merge日やIssue close日はGitHub metadataから読む。
+5. done commentを使い、merge、close、checks、follow-upを記録する。
+6. PR未merge、Issue open、merge日未確認のいずれかが残る場合はdoneにしない。
 
-## Canceled
+## canceled
 
 やらない判断。理由をIssue commentまたは本文に残す。
 
@@ -218,9 +218,9 @@ Done条件:
 実行手順:
 
 1. なぜ実行しないかを確認する。duplicated、obsolete、out of scope、invalid、別Issueへ置換のいずれかに寄せる。
-2. Canceled commentを使い、代替Issue、duplicate元、方針変更の根拠がある場合はcommentにリンクする。
-3. Project StatusをCanceledへ更新し、IssueまたはPRをcloseする場合はActual EndをProject fieldへ記録する。close日はGitHub metadataから読み、Project fieldへ複製しない。不要になったblocked by / blockingやsub-issue関係が残る場合は、混乱しないよう関係整理の要否を確認する。
-4. 実装中PRがある場合は、PR closeが必要か、代替Issueへ引き継ぐかを確認してからCanceledにする。
+2. canceled commentを使い、代替Issue、duplicate元、方針変更の根拠がある場合はcommentにリンクする。
+3. Project Statusをcanceledへ更新し、IssueまたはPRをcloseする場合はActual EndをProject fieldへ記録する。close日はGitHub metadataから読み、Project fieldへ複製しない。不要になったblocked by / blockingやsub-issue関係が残る場合は、混乱しないよう関係整理の要否を確認する。
+4. 実装中PRがある場合は、PR closeが必要か、代替Issueへ引き継ぐかを確認してからcanceledにする。
 
 # Lifecycle comment templates
 
@@ -228,7 +228,7 @@ Project field metadata、具体モデル名、branch名はcomment本文へ書か
 
 冒頭の絵文字付き一文で状態を示し、その後に必要なキーだけを書く。
 
-## Inbox comment
+## inbox comment
 
 ```markdown
 📥 流入内容を整理した。
@@ -239,7 +239,7 @@ Project field metadata、具体モデル名、branch名はcomment本文へ書か
 次に確認すること: ...
 ```
 
-## Triaged comment
+## triaged comment
 
 ```markdown
 🔎 トリアージした。
@@ -249,17 +249,17 @@ Project field metadata、具体モデル名、branch名はcomment本文へ書か
 - ...
 
 未確定事項: なし / ...
-Readyへ進めない理由: なし / ...
+readyへ進めない理由: なし / ...
 ```
 
-Readyへ進められる場合は、Ready commentを使う。未確定事項がない場合は `なし` と書く。
+readyへ進められる場合は、ready commentを使う。未確定事項がない場合は `なし` と書く。
 
-## Ready comment
+## ready comment
 
 明白な場合は省略してよい。判断が揺れやすいIssue、重要Issue、blocker解消直後のIssueでは残す。
 
 ```markdown
-🟢 Ready状態になった。
+🟢 ready状態になった。
 
 確認済み:
 
@@ -271,7 +271,7 @@ Readyへ進められる場合は、Ready commentを使う。未確定事項が�
 補足: なし / ...
 ```
 
-## In Progress comment
+## in-progress comment
 
 ```markdown
 🚧 作業中の補足。
@@ -286,21 +286,21 @@ Readyへ進められる場合は、Ready commentを使う。未確定事項が�
 メモ: なし / ...
 ```
 
-## In Review comment
+## in-review comment
 
 通常は書かない。PR bodyに概要、関連Issue、スコープ、確認手順、リスク、レビュー観点を書き、`Closes #...` / `Fixes #...` / `Resolves #...` による自動追跡に任せる。
 
 PR bodyやGitHub metadataで分かる内容をcommentへ重複させない。reviewerへの一時的な補足、CIの特殊事情、外部判断待ち、通常と違う確認依頼がある場合だけ書く。
 
 ```markdown
-👀 特筆事項があるため、In Review commentを残す。
+👀 特筆事項があるため、in-review commentを残す。
 
 PR本文やGitHub metadataでは分からないこと: ...
 一時的な注意点: ...
 次に見るもの: PR checks / review thread / 外部URL
 ```
 
-## Blocked comment
+## blocked comment
 
 `解除できる人` はproject/repository内のGitHub collaboratorならGitHub mentionを書く。upstream maintainerなどproject/repository外のGitHub accountはmentionせず、GitHub profile URLまたは該当Issue/PR URLで書く。GitHub accountがない場合はSlack/TeamsのプロフィールURL、または氏名を書く。
 
@@ -325,7 +325,7 @@ PR本文やGitHub metadataでは分からないこと: ...
 再確認したこと: ...
 ```
 
-## Done comment
+## done comment
 
 ```markdown
 ✅ 完了確認。
@@ -340,10 +340,10 @@ PR本文やGitHub metadataでは分からないこと: ...
 残follow-up: なし / #...
 ```
 
-## Canceled comment
+## canceled comment
 
 ```markdown
-🛑 Canceledにします。
+🛑 canceledにします。
 
 理由: duplicated / obsolete / out of scope / invalid / replaced
 根拠: ...
@@ -352,7 +352,7 @@ PR本文やGitHub metadataでは分からないこと: ...
 
 # Lifecycle comment examples
 
-## Inbox
+## inbox
 
 ```markdown
 📥 流入内容を整理した。
@@ -363,7 +363,7 @@ PR本文やGitHub metadataでは分からないこと: ...
 次に確認すること: 一致シーンの説明、タグ、セリフ抜粋をAPIから取得できるか確認する。
 ```
 
-## Triaged
+## triaged
 
 ```markdown
 🔎 トリアージした。
@@ -374,13 +374,13 @@ PR本文やGitHub metadataでは分からないこと: ...
 - 検索rankingやプレイヤーの挙動は変更しなくてよい。
 
 未確定事項: 一致シーンの説明がない既存データのfallback表示を決める必要がある。
-Readyへ進めない理由: fallback表示が未決定。
+readyへ進めない理由: fallback表示が未決定。
 ```
 
-## Ready
+## ready
 
 ```markdown
-🟢 Ready状態になった。
+🟢 ready状態になった。
 
 確認済み:
 
@@ -392,7 +392,7 @@ Readyへ進めない理由: fallback表示が未決定。
 補足: fallbackは「未取得」と表示する方針に決定済み。
 ```
 
-## In Progress
+## in-progress
 
 ```markdown
 🚧 作業中の補足。
@@ -400,15 +400,15 @@ Readyへ進めない理由: fallback表示が未決定。
 作業中に悩んだこと、メモ、ログなどをタスクに合わせて必要に応じて残す。
 ```
 
-## In Review
+## in-review
 
 ```markdown
-👀 特筆事項がないため、In Review commentは省略する。
+👀 特筆事項がないため、in-review commentは省略する。
 
 基本的には書かない。PRやGitHub metadataで分かる内容をcommentへ重複させない。
 ```
 
-## Blocked
+## blocked
 
 ```markdown
 ⛔ ブロックに変更した。
@@ -429,7 +429,7 @@ Readyへ進めない理由: fallback表示が未決定。
 再確認したこと: fallback表示の確認手順をPR本文に反映済み。
 ```
 
-## Blocked: upstream PR待ち
+## blocked: upstream PR待ち
 
 ```markdown
 ⛔ ブロックに変更した。
@@ -458,7 +458,7 @@ Readyへ進めない理由: fallback表示が未決定。
 - 依存バージョン更新の要否をPR本文の確認手順に反映済み。
 ```
 
-## Blocked: Figma確定待ち
+## blocked: Figma確定待ち
 
 ```markdown
 ⛔ ブロックに変更した。

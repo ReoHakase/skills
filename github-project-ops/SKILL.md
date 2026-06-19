@@ -34,9 +34,9 @@ SSoTはGitHub上のProject、Issue、PRである。
 | ------------------------------------------------------------------------------------------------ | ------------------------------------- |
 | Project fields、no-label、date fields、views、copyable assets                                    | `references/project-setup.md`         |
 | WBS分解、Issue粒度、Issue body template、epic/feature/bug起票、sub-issue、dependency             | `references/issue-authoring.md`       |
-| Status遷移、Ready/In Progress/In Review/Blocked判断、lifecycle comment template、状態別例        | `references/issue-lifecycle.md`       |
+| Status遷移、ready/in-progress/in-review/blocked判断、lifecycle comment template、状態別例        | `references/issue-lifecycle.md`       |
 | Priority / Size / Complexity / Risk / Agent Tier判定                                             | `references/triage-and-agent-tier.md` |
-| PR body template、In Review comment方針、merge commit、merge queue、auto-merge、`merge_group` CI | `references/pr-and-merge.md`          |
+| PR body template、in-review comment方針、merge commit、merge queue、auto-merge、`merge_group` CI | `references/pr-and-merge.md`          |
 | skill本文、references、assetsの経験的検証                                                        | `references/empirical-validation.md`  |
 
 # 変更前に発見する値
@@ -105,7 +105,7 @@ Issue titleとbranch名を一致させる必要はない。
 
 Project fieldにあるmetadataはIssue本文、PR本文、作業開始コメントへ書かない。本文には実現内容、背景、受け入れ条件、確認手順、実装メモだけを書く。
 
-Issue時点では具体的なモデル名まで確定させない。Backlog/Triaged/ReadyではAgent Tierだけでよい。作業開始時にAgent HarnessとAgent ModelをProject fieldへ記録する。
+Issue時点では具体的なモデル名まで確定させない。backlog/triaged/readyではAgent Tierだけでよい。作業開始時にAgent HarnessとAgent ModelをProject fieldへ記録する。
 
 # Typeの定義
 
@@ -130,18 +130,18 @@ TypeはConventional Commitsのtype集合に `epic` と `spike` を足す。
 標準Status:
 
 ```text
-Inbox -> Triaged -> Ready -> In Progress -> In Review -> Done
-                        In Progress -> Blocked -> In Progress
-                        In Review -> Blocked -> In Review
-Inbox/Triaged/Ready/In Progress/In Review -> Canceled
+inbox -> triaged -> ready -> in-progress -> in-review -> done
+                        in-progress -> blocked -> in-progress
+                        in-review -> blocked -> in-review
+inbox/triaged/ready/in-progress/in-review -> canceled
 ```
 
-`Needs Info` と `Ready to Merge` は使わない。更新負荷が高く、agent運用で状態が細かくなりすぎるため。
+`needs-info` と `ready-to-merge` は使わない。更新負荷が高く、agent運用で状態が細かくなりすぎるため。
 
 作業開始時の必須操作:
 
-1. `blocked by` を確認する。未解決のblockerがある場合は作業を開始せず、StatusをBlockedに戻すか、blocker解消を開始条件にする。
-2. IssueをIn Progressにする。
+1. `blocked by` を確認する。未解決のblockerがある場合は作業を開始せず、Statusをblockedに戻すか、blocker解消を開始条件にする。
+2. Issueをin-progressにする。
 3. Assigneeを必ず設定する。
 4. agent自律作業でも、開発環境の持ち主またはreview責任者の人間をAssigneeにする。
 5. Agent Tier、Agent Harness、Agent ModelをProject fieldへ記録する。

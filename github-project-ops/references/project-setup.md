@@ -29,17 +29,19 @@ Project fields、no-label policy、date fields、views、copyable assetsを扱�
 
 推奨Project fieldsは次。
 
+Single select optionはlower-kebabにする。GitHub Projectsのfilter query、`gh` 出力後の `jq`、手作業の検索で、空白・大文字小文字・quoteの扱いを減らすためである。Field名は人間が読むためTitle Caseのままにする。
+
 | Field          | Type          | Values                                                                              |
 | -------------- | ------------- | ----------------------------------------------------------------------------------- |
-| Status         | Single select | Inbox, Triaged, Ready, In Progress, In Review, Blocked, Done, Canceled              |
+| Status         | Single select | inbox, triaged, ready, in-progress, in-review, blocked, done, canceled              |
 | Type           | Single select | epic, feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, spike |
 | Scope          | Text          | ui, api, db, infraなど。repoごとに自由定義                                          |
-| Priority       | Single select | P0-optional, P1-normal, P2-high, P3-critical                                        |
-| Size           | Single select | S0-tiny, S1-small, S2-medium, S3-large                                              |
-| Complexity     | Single select | C0-none, C1-simple, C2-moderate, C3-complex                                         |
-| Risk           | Single select | R0-none, R1-safe, R2-moderate, R3-dangerous                                         |
-| Agent Tier     | Single select | agent:fast, agent:standard, agent:frontier                                          |
-| Agent Harness  | Single select | Codex, Claude Code, Cursor, Human, Other                                            |
+| Priority       | Single select | p0-optional, p1-normal, p2-high, p3-critical                                        |
+| Size           | Single select | s0-tiny, s1-small, s2-medium, s3-large                                              |
+| Complexity     | Single select | c0-none, c1-simple, c2-moderate, c3-complex                                         |
+| Risk           | Single select | r0-none, r1-safe, r2-moderate, r3-dangerous                                         |
+| Agent Tier     | Single select | agent-fast, agent-standard, agent-frontier                                          |
+| Agent Harness  | Single select | codex, claude-code, cursor, human, other                                            |
 | Agent Model    | Text          | GPT 5.5 (xhigh), Opus 4.8 (medium), Composer 2.5など。作業開始時に記録              |
 | Reviewer Owner | Text          | agent実行環境の持ち主、またはreview責任者のGitHub login                             |
 | Branch         | Text          | 123/feat-ui-example                                                                 |
@@ -49,7 +51,7 @@ Project fields、no-label policy、date fields、views、copyable assetsを扱�
 | Actual Start   | Date          | 実作業開始日                                                                        |
 | Actual End     | Date          | 実終了日                                                                            |
 
-Issue時点では具体的なモデル名まで確定させない。Backlog/Triaged/ReadyではAgent Tierだけでよい。作業開始時にAgent HarnessとAgent ModelをProject fieldへ記録する。
+Issue時点では具体的なモデル名まで確定させない。backlog/triaged/readyではAgent Tierだけでよい。作業開始時にAgent HarnessとAgent ModelをProject fieldへ記録する。
 
 Issue/PRタイトルにTypeやScopeを入れない。TypeとScopeはProject fieldで見る。
 
@@ -61,7 +63,7 @@ Type、Source、Status、Priority、Size、Complexity、Risk、Agent TierはProj
 
 分類、状態、起票元、優先度、見積もり、agent割り当てはすべてProject fieldで表す。新しいGitHub labelは定義しない。
 
-Project fieldのfilterでIssueは絞り込めるため、labelをportable fallbackとして持たない。比較やsortでは `P2-high` の `2` のようにProject field optionの数値prefixを読む。
+Project fieldのfilterでIssueは絞り込めるため、labelをportable fallbackとして持たない。比較やsortでは `p2-high` の `2` のようにProject field optionの数値prefixを読む。
 
 既存Project fieldのoption名は自動移行しない。Project側で必要なoption移行を手動で行う。
 
@@ -73,8 +75,8 @@ Project fieldのfilterでIssueは絞り込めるため、labelをportable fallba
 
 - `Forecast Start`: 計画開始日。`WBS/ロードマップ` viewで使う。
 - `Forecast End`: 計画終了目標日。`WBS/ロードマップ` viewで使う。
-- `Actual Start`: 実作業開始日。IssueをIn Progressへ進める時に記録する。
-- `Actual End`: 実終了日。DoneまたはCanceledで終了を確認した時に記録する。
+- `Actual Start`: 実作業開始日。Issueをin-progressへ進める時に記録する。
+- `Actual End`: 実終了日。doneまたはcanceledで終了を確認した時に記録する。
 
 PR作成日、merge日、Issue/PR close日はGitHub metadataをSSoTにする。Project fieldへ複製しない。
 
@@ -95,14 +97,14 @@ repo固有に公開したい場合は、対象repoの `.github/project/views.md`
 - `マージキュー候補`
 - `Velocity`
 
-Ready、review、blocked、高難度agent向けの専用viewは作らない。必要な確認は `かんばん` のStatus、filter、sort、visible fieldsで行う。
+ready、review、blocked、高難度agent向けの専用viewは作らない。必要な確認は `かんばん` のStatus、filter、sort、visible fieldsで行う。
 
 ## かんばん
 
 目的:
 
 - 全体の進捗をStatus別に見る。
-- Ready、In Progress、In Review、Blockedの詰まりを日次で確認する。
+- ready、in-progress、in-review、blockedの詰まりを日次で確認する。
 - 作業投入、review待ち、blocker解除の入口にする。
 
 Layout:
@@ -111,7 +113,7 @@ Layout:
 
 Filter:
 
-- Project field: Status = Inbox, Triaged, Ready, In Progress, In Review, Blocked
+- Project field: Status = inbox, triaged, ready, in-progress, in-review, blocked
 
 Group:
 
@@ -139,12 +141,12 @@ Visible fields:
 
 運用ルール:
 
-- Readyに置くのは、受け入れ条件、非スコープ、確認手順、blocker解消を確認済みのIssueだけにする。
-- In Progressへ進める前にblocked byを再確認する。未解決blockerがある場合は作業開始しない。
-- In ReviewではPR本文のclosing keyword、確認手順、リスク、レビュー観点、required checksを見る。
-- Blockedではcommentに理由、解除者、依存Issue/PR/log、次の確認タイミングがあるか確認する。
-- `C3-complex` または `R3-dangerous` を含む作業は人間review責任者を明確にする。
-- DoneとCanceledは通常表示しない。完了後の観察は `Velocity` で行う。
+- readyに置くのは、受け入れ条件、非スコープ、確認手順、blocker解消を確認済みのIssueだけにする。
+- in-progressへ進める前にblocked byを再確認する。未解決blockerがある場合は作業開始しない。
+- in-reviewではPR本文のclosing keyword、確認手順、リスク、レビュー観点、required checksを見る。
+- blockedではcommentに理由、解除者、依存Issue/PR/log、次の確認タイミングがあるか確認する。
+- `c3-complex` または `r3-dangerous` を含む作業は人間review責任者を明確にする。
+- doneとcanceledは通常表示しない。完了後の観察は `Velocity` で行う。
 
 ## WBS/ロードマップ
 
@@ -162,7 +164,7 @@ Filter:
 
 - Project field: Forecast Start is not empty
 - Project field: Forecast End is not empty
-- Project field: Status = Triaged, Ready, In Progress, In Review, Blocked, Done
+- Project field: Status = triaged, ready, in-progress, in-review, blocked, done
 
 Group:
 
@@ -206,7 +208,7 @@ Layout:
 
 Filter:
 
-- Project field: Status = In Review
+- Project field: Status = in-review
 - GitHub PR: review approved
 - GitHub checks: required checks passing
 
@@ -233,7 +235,7 @@ Visible fields:
 - closing keyword、linked Issue、base/head branch、merge queue設定を確認してからauto-mergeを有効化する。
 - required checkがrerun中または失敗中なら候補にしない。
 - PR作成日、merge状態、merge日はGitHub PR metadataから読む。Project fieldへ複製しない。
-- merge後はDone条件を満たしてからActual EndをProject fieldへ記録する。
+- merge後はdone条件を満たしてからActual EndをProject fieldへ記録する。
 - Project field metadataや具体モデル名はPR本文へ書かない。
 
 ## Velocity
@@ -249,7 +251,7 @@ Layout:
 
 Filter:
 
-- Project field: Status = Done
+- Project field: Status = done
 - Project field: Actual End is not empty
 
 Group:
@@ -273,10 +275,10 @@ Visible fields:
 
 運用ルール:
 
-- Done count、Size合計、Scope別完了、Agent Tier別完了を週次で見る。
+- done count、Size合計、Scope別完了、Agent Tier別完了を週次で見る。
 - Cycle timeはActual StartからActual Endまでを見る。
 - review timeやmerge待ち時間が必要な場合は、GitHub PR metadataのcreatedAt、mergedAt、review状態から読む。
-- 厳密な見積もり契約ではなく、throughputを観察してReady投入量を調整するために使う。
+- 厳密な見積もり契約ではなく、throughputを観察してready投入量を調整するために使う。
 
 # Sprintを導入するか
 

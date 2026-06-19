@@ -4,12 +4,12 @@
     "type": "epic",
     "scope": "search",
     "body": "検索機能全体の親Issue。子Issueの完了で閉じる。",
-    "priority": "P2-high",
-    "size": "S0-tiny",
-    "complexity": "C1-simple",
-    "risk": "R1-safe",
-    "agent_tier": "agent:standard",
-    "status": "Triaged"
+    "priority": "p2-high",
+    "size": "s0-tiny",
+    "complexity": "c1-simple",
+    "risk": "r1-safe",
+    "agent_tier": "agent-standard",
+    "status": "triaged"
   },
   {
     "title": "検索レスポンスのデータ契約を定義する",
@@ -17,12 +17,12 @@
     "scope": "search",
     "parent_title": "検索機能の土台を作る",
     "body": "検索結果カードとbackendが共有するレスポンス形式を定義する。",
-    "priority": "P2-high",
-    "size": "S1-small",
-    "complexity": "C3-complex",
-    "risk": "R2-moderate",
-    "agent_tier": "agent:frontier",
-    "status": "Ready"
+    "priority": "p2-high",
+    "size": "s1-small",
+    "complexity": "c3-complex",
+    "risk": "r2-moderate",
+    "agent_tier": "agent-frontier",
+    "status": "ready"
   },
   {
     "title": "検索結果カードに一致シーンの情報を表示する",
@@ -31,11 +31,11 @@
     "parent_title": "検索機能の土台を作る",
     "blocked_by_titles": ["検索レスポンスのデータ契約を定義する"],
     "body": "検索結果カードに品番、商品名、長さ、容量、解像度、一致シーン説明、セリフ抜粋を表示する。",
-    "priority": "P2-high",
-    "size": "S2-medium",
-    "complexity": "C2-moderate",
-    "risk": "R1-safe",
-    "agent_tier": "agent:standard",
-    "status": "Ready"
+    "priority": "p2-high",
+    "size": "s2-medium",
+    "complexity": "c2-moderate",
+    "risk": "r1-safe",
+    "agent_tier": "agent-standard",
+    "status": "ready"
   }
 ]

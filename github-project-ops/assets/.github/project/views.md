@@ -7,7 +7,7 @@ GitHub Projectsのviewには説明文欄がない前提で運用する。viewの
 目的:
 
 - 全体の進捗をStatus別に見る。
-- Ready、In Progress、In Review、Blockedの詰まりを日次で確認する。
+- ready、in-progress、in-review、blockedの詰まりを日次で確認する。
 - 作業投入、review待ち、blocker解除の入口にする。
 
 Layout:
@@ -16,7 +16,7 @@ Layout:
 
 Filter:
 
-- Project field: Status = Inbox, Triaged, Ready, In Progress, In Review, Blocked
+- Project field: Status = inbox, triaged, ready, in-progress, in-review, blocked
 
 Group:
 
@@ -44,10 +44,10 @@ Visible fields:
 
 運用ルール:
 
-- Readyに置くのは、受け入れ条件、非スコープ、確認手順、blocker解消を確認済みのIssueだけにする。
-- In ReviewではPR本文のclosing keyword、確認手順、リスク、レビュー観点、required checksを見る。
-- Blockedではcommentに理由、解除者、依存Issue/PR/log、次の確認タイミングがあるか確認する。
-- DoneとCanceledは通常表示しない。
+- readyに置くのは、受け入れ条件、非スコープ、確認手順、blocker解消を確認済みのIssueだけにする。
+- in-reviewではPR本文のclosing keyword、確認手順、リスク、レビュー観点、required checksを見る。
+- blockedではcommentに理由、解除者、依存Issue/PR/log、次の確認タイミングがあるか確認する。
+- doneとcanceledは通常表示しない。
 
 # WBS/ロードマップ
 
@@ -65,7 +65,7 @@ Filter:
 
 - Project field: Forecast Start is not empty
 - Project field: Forecast End is not empty
-- Project field: Status = Triaged, Ready, In Progress, In Review, Blocked, Done
+- Project field: Status = triaged, ready, in-progress, in-review, blocked, done
 
 Group:
 
@@ -108,7 +108,7 @@ Layout:
 
 Filter:
 
-- Project field: Status = In Review
+- Project field: Status = in-review
 - GitHub PR: review approved
 - GitHub checks: required checks passing
 
@@ -135,7 +135,7 @@ Visible fields:
 - closing keyword、linked Issue、base/head branch、merge queue設定を確認してからauto-mergeを有効化する。
 - required checkがrerun中または失敗中なら候補にしない。
 - PR作成日、merge状態、merge日はGitHub PR metadataから読む。Project fieldへ複製しない。
-- merge後はDone条件を満たしてからActual EndをProject fieldへ記録する。
+- merge後はdone条件を満たしてからActual EndをProject fieldへ記録する。
 
 # Velocity
 
@@ -150,7 +150,7 @@ Layout:
 
 Filter:
 
-- Project field: Status = Done
+- Project field: Status = done
 - Project field: Actual End is not empty
 
 Group:
@@ -174,7 +174,7 @@ Visible fields:
 
 運用ルール:
 
-- Done count、Size合計、Scope別完了、Agent Tier別完了を週次で見る。
+- done count、Size合計、Scope別完了、Agent Tier別完了を週次で見る。
 - Cycle timeはActual StartからActual Endまでを見る。
 - review timeやmerge待ち時間が必要な場合は、GitHub PR metadataのcreatedAt、mergedAt、review状態から読む。
-- 厳密な見積もり契約ではなく、throughputを観察してReady投入量を調整する。
+- 厳密な見積もり契約ではなく、throughputを観察してready投入量を調整する。

@@ -3,14 +3,14 @@
     "name": "Status",
     "type": "SINGLE_SELECT",
     "options": [
-      "Inbox",
-      "Triaged",
-      "Ready",
-      "In Progress",
-      "In Review",
-      "Blocked",
-      "Done",
-      "Canceled"
+      "inbox",
+      "triaged",
+      "ready",
+      "in-progress",
+      "in-review",
+      "blocked",
+      "done",
+      "canceled"
     ]
   },
   {
@@ -39,32 +39,32 @@
   {
     "name": "Priority",
     "type": "SINGLE_SELECT",
-    "options": ["P0-optional", "P1-normal", "P2-high", "P3-critical"]
+    "options": ["p0-optional", "p1-normal", "p2-high", "p3-critical"]
   },
   {
     "name": "Size",
     "type": "SINGLE_SELECT",
-    "options": ["S0-tiny", "S1-small", "S2-medium", "S3-large"]
+    "options": ["s0-tiny", "s1-small", "s2-medium", "s3-large"]
   },
   {
     "name": "Complexity",
     "type": "SINGLE_SELECT",
-    "options": ["C0-none", "C1-simple", "C2-moderate", "C3-complex"]
+    "options": ["c0-none", "c1-simple", "c2-moderate", "c3-complex"]
   },
   {
     "name": "Risk",
     "type": "SINGLE_SELECT",
-    "options": ["R0-none", "R1-safe", "R2-moderate", "R3-dangerous"]
+    "options": ["r0-none", "r1-safe", "r2-moderate", "r3-dangerous"]
   },
   {
     "name": "Agent Tier",
     "type": "SINGLE_SELECT",
-    "options": ["agent:fast", "agent:standard", "agent:frontier"]
+    "options": ["agent-fast", "agent-standard", "agent-frontier"]
   },
   {
     "name": "Agent Harness",
     "type": "SINGLE_SELECT",
-    "options": ["Codex", "Claude Code", "Cursor", "Human", "Other"]
+    "options": ["codex", "claude-code", "cursor", "human", "other"]
   },
   {
     "name": "Agent Model",
