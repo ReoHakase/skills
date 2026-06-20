@@ -7,6 +7,7 @@ Project fields、no-label policy、date fields、views、copyable assetsを扱�
 - Copyable assets
 - Project fields
 - GitHub labels
+- Milestones
 - Date fields
 - View説明の置き場所
 - 標準view
@@ -57,6 +58,35 @@ Issue時点では具体的なモデル名まで確定させない。backlog/tria
 
 Issue/PRタイトルにTypeやScopeを入れない。TypeとScopeはProject fieldで見る。
 
+# Milestones
+
+MilestoneはGitHub native milestoneを使う。Project fieldとして複製しない。
+
+Milestoneはrelease/checkpointと締切目標を表す。先にMilestoneとdue dateを決め、その範囲に収まるようにIssue/WBSのForecast Start / Forecast Endを組む。IssueのForecastからMilestone期限を逆算しない。
+
+期限や日付はMilestone名へ入れず、GitHub Milestoneのdue dateにだけ置く。Issue本文、PR本文、Project fieldにもMilestone期限を複製しない。
+
+期限ありが基本のMilestone候補:
+
+- `First Release`: 初回利用可能版。bootstrap既定で作成する。
+- `v1 Release`: 安定版として公開・配布できる状態。
+- `仕様・デザイン確定`: 主要仕様、UI/UX、非スコープが確定した状態。
+- `データセット固定`: 学習・評価・公開対象のデータセットを固定した状態。
+- `評価完了`: 評価指標、結果、再現手順が揃った状態。
+- `論文投稿準備完了`: 論文、補足資料、artifact、チェックリストが投稿可能な状態。
+- `ポスター完成`: 掲示・発表に使えるポスターが完成した状態。
+- `投稿完了`: venue、review、archive、release先への投稿が完了した状態。
+- `一般公開`: docs、demo、artifact、release noteを含めて公開できる状態。
+
+期限未定でも使えるMilestone候補:
+
+- `法人設立`
+- `外部審査`
+- `共同研究契約`
+- `データ利用許諾`
+
+締切未定Milestoneはdue dateなしで作ってよい。ただしForecastの締切制約には使わない。
+
 # GitHub labels
 
 このskillではGitHub labelを使わない。
@@ -86,6 +116,7 @@ PR作成日、マージ日、Issue/PR close日はGitHub metadataをSSoTにする
 
 Forecast Start / Forecast Endは計画上の作業期間であり、実績ではない。
 
+- 期限付きMilestoneでは、Milestone due dateを先に決めてからIssue/WBSのForecastを組む。
 - epicのForecastは子Issue群を包む期間にする。epicと子IssueのForecastが重なるのは正常である。
 - branchable Issue同士が直列依存する場合、後続IssueのForecast Startは、すべての `blocked by` 先のForecast Endより後の日付にする。
 - GitHub ProjectsのDate fieldは時刻を持たないため、同日引き継ぎを前提にして直列IssueのForecastを同じ日に重ねない。必要ならIssueをさらに分けるか、前段のForecast Endを短くする。
@@ -196,12 +227,15 @@ Visible fields:
 - Agent Tier
 - Forecast Start
 - Forecast End
+- Milestone
 - blocked by
 - blocking
 
 運用ルール:
 
 - date fieldsは `Forecast Start` / `Forecast End` を使う。
+- Milestone due dateを先に決め、その締切目標からForecast Start / Forecast Endを組む。
+- 締切未定MilestoneはForecastの締切制約には使わない。
 - WBS番号は作らない。構造はepic/sub-issue、順序はblocked by / blockingで表す。
 - Statusは依存関係からの自動同期ではなく、運用状態として人間またはagentが確認して更新する。
 - epicのForecastは子Issue群を包む期間で、子Issueと重なってよい。

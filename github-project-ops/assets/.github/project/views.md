@@ -57,6 +57,7 @@ Visible fields:
 目的:
 
 - WBS/Gantt相当の計画表示として使う。
+- Milestoneの締切目標からIssue/WBSのForecastを確認する。
 - 作業の構造と順序を、epic、sub-issue、blocked by / blockingで見る。
 - 計画開始日と計画終了目標日を確認する。
 
@@ -89,12 +90,15 @@ Visible fields:
 - Agent Tier
 - Forecast Start
 - Forecast End
+- Milestone
 - blocked by
 - blocking
 
 運用ルール:
 
 - date fieldsは `Forecast Start` / `Forecast End` を使う。
+- Milestone due dateを先に決め、その締切目標からForecast Start / Forecast Endを組む。
+- 締切未定MilestoneはForecastの締切制約には使わない。
 - WBS番号は作らない。構造はepic/sub-issue、順序はblocked by / blockingで表す。
 - Statusは依存関係からの自動同期ではなく、運用状態として人間またはagentが確認して更新する。
 - epicのForecastは子Issue群を包む期間で、子Issueと重なってよい。

@@ -17,6 +17,7 @@ SSoTはGitHub上のProject、Issue、PRである。
 - 作業単位はGitHub Issueに置く。
 - 親子階層はsub-issueで表す。
 - 実行順序はblocked by / blockingで表す。
+- release/checkpointと締切目標はGitHub Milestoneで表す。
 - 実装差分はPRで表す。
 - main統合はマージキューで表す。
 
@@ -33,8 +34,8 @@ Project field JSONは `assets/project-fields.json` を正本にし、一括作�
 
 | Task                                                                                                | Read                                  |
 | --------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| Project fields、no-label、date fields、views、copyable assets                                       | `references/project-setup.md`         |
-| Project作成、bulk WBS setup、Project item field一括設定、GraphQL fallback、batch template           | `references/project-bootstrap.md`     |
+| Project fields、Milestone、no-label、date fields、views、copyable assets                            | `references/project-setup.md`         |
+| Project作成、Milestone作成、bulk WBS setup、Project item field一括設定、GraphQL fallback、template  | `references/project-bootstrap.md`     |
 | WBS分解、Issue粒度、Issue body template、epic/feature/bug起票、sub-issue、dependency、直列forecast  | `references/issue-authoring.md`       |
 | Status遷移、epic status、ready/blocked判断、lifecycle comment template、状態別例                    | `references/issue-lifecycle.md`       |
 | Priority / Size / Complexity / Risk / Agent Tier判定                                                | `references/triage-and-agent-tier.md` |
@@ -49,6 +50,7 @@ Issue、PR、Project itemを変更する前に、GitHub上の実状態を読む�
 
 - `OWNER/REPO`
 - Project number / owner
+- Milestone title / number / due date
 - Issue number、PR number、Issue/PR URL
 - parent / sub-issue / blocked by / blocking
 - Status、Type、Scope、Priority、Size、Complexity、Risk、Agent Tier
@@ -69,6 +71,8 @@ GitHub MCPは対話的な確認、探索、状況整理、自然言語での操�
 再現可能な操作はgh CLIで行う。
 
 - Issue作成
+- Milestone作成
+- IssueへのMilestone割当
 - sub-issue設定
 - blocked by / blocking設定
 - 紐づくブランチ作成
@@ -110,6 +114,12 @@ Issue titleとブランチ名を一致させる必要はない。
 Project fieldにあるmetadataはIssue本文、PR本文、作業開始コメントへ書かない。sub-issue、blocked by / blockingもGitHub metadataをSSoTにし、Issue本文にsub-issue一覧や依存関係sectionとして重複させない。Issue本文には検証可能な最新情報だけを書く。変更予定、注意点、未確定メモのような一時情報はコメントへ残す。
 
 Issue時点では具体的なモデル名まで確定させない。backlog/triaged/readyではAgent Tierだけでよい。作業開始時にAgent HarnessとAgent ModelをProject fieldへ記録する。
+
+# Milestone policy
+
+MilestoneはProject fieldではなく、GitHub native milestoneを使う。Milestone due dateを先に決め、その締切目標からIssue/WBSのForecast Start / Forecast Endを組む。IssueのForecastからMilestone期限を逆算しない。
+
+締切未定のMilestoneは必要に応じてdue dateなしで作ってよい。Issue本文、PR本文、Project fieldにはMilestone期限を複製しない。
 
 # Typeの定義
 

@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -36,6 +37,15 @@ FieldKind = Literal["single", "text", "date"]
 
 
 @dataclass
+class Milestone:
+    title: str
+    description: str = ""
+    due_on: str = ""
+    required_due_on: bool = False
+    number: int | None = None
+
+
+@dataclass
 class Issue:
     title: str
     body: str
@@ -51,12 +61,22 @@ class Issue:
     forecast_end: str
     source: str = "docs"
     reviewer_owner: str = ""
+    milestone: str = ""
     parent: str | None = None
     blocked_by: list[str] = field(default_factory=list)
     number: int | None = None
     url: str | None = None
     node_id: str | None = None
     item_id: str | None = None
+
+
+MILESTONES: list[Milestone] = [
+    Milestone(
+        title="First Release",
+        description="初回利用可能版。Milestone期限を先に決めてからIssue/WBSのForecastを組む。",
+        required_due_on=True,
+    )
+]
 
 
 # Issue本文の構成と記入例は ../references/issue-authoring.md を参照する。
@@ -75,6 +95,7 @@ ISSUES: list[Issue] = [
         status="triaged",
         forecast_start="2026-06-20",
         forecast_end="2026-06-27",
+        milestone="First Release",
     ),
     Issue(
         title="子Issueの例",
@@ -89,6 +110,7 @@ ISSUES: list[Issue] = [
         status="ready",
         forecast_start="2026-06-20",
         forecast_end="2026-06-23",
+        milestone="First Release",
         parent="親Issueの例",
     ),
     Issue(
@@ -104,6 +126,7 @@ ISSUES: list[Issue] = [
         status="blocked",
         forecast_start="2026-06-24",
         forecast_end="2026-06-27",
+        milestone="First Release",
         parent="親Issueの例",
         blocked_by=["子Issueの例"],
     ),
@@ -290,13 +313,15 @@ def ensure_issue_bodies(issues: dict[str, Issue]) -> None:
         )
 
 
-def parse_forecast_date(issue: Issue, field_name: str, value: str) -> date:
+def parse_iso_date(label: str, value: str) -> date:
     try:
         return date.fromisoformat(value)
     except ValueError as exc:
-        raise SystemExit(
-            f"{issue.title} の {field_name} はYYYY-MM-DDで指定してください: {value}"
-        ) from exc
+        raise SystemExit(f"{label} はYYYY-MM-DDで指定してください: {value}") from exc
+
+
+def parse_forecast_date(issue: Issue, field_name: str, value: str) -> date:
+    return parse_iso_date(f"{issue.title} の {field_name}", value)
 
 
 def forecast_range(issue: Issue) -> tuple[date, date]:
@@ -312,7 +337,47 @@ def forecast_range(issue: Issue) -> tuple[date, date]:
     return start, end
 
 
-def ensure_issue_plan(issues: dict[str, Issue]) -> None:
+def prompt_required_milestone_due_on(
+    milestone: Milestone, *, input_func: Callable[[str], str] = input
+) -> str:
+    while True:
+        value = input_func(f"{milestone.title} milestone due date (YYYY-MM-DD): ").strip()
+        if not value:
+            print(f"{milestone.title} の期限は必須です。", file=sys.stderr)
+            continue
+        parse_iso_date(f"{milestone.title} milestone due date", value)
+        return value
+
+
+def ensure_milestone_plan(
+    milestones: list[Milestone], *, input_func: Callable[[str], str] = input
+) -> dict[str, Milestone]:
+    by_title: dict[str, Milestone] = {}
+    duplicates: list[str] = []
+    for milestone in milestones:
+        if milestone.title in by_title:
+            duplicates.append(milestone.title)
+        by_title[milestone.title] = milestone
+
+    if duplicates:
+        raise SystemExit(f"Milestone titleが重複しています: {duplicates}")
+
+    for milestone in milestones:
+        if milestone.required_due_on and not milestone.due_on:
+            milestone.due_on = prompt_required_milestone_due_on(milestone, input_func=input_func)
+        if milestone.due_on:
+            parse_iso_date(f"{milestone.title} milestone due date", milestone.due_on)
+
+    return by_title
+
+
+def github_due_on(due_on: str) -> str:
+    return f"{parse_iso_date('Milestone due date', due_on).isoformat()}T23:59:59Z"
+
+
+def ensure_issue_plan(
+    issues: dict[str, Issue], milestones: dict[str, Milestone] | None = None
+) -> None:
     missing_refs: list[str] = []
     for issue in issues.values():
         if issue.parent and issue.parent not in issues:
@@ -320,6 +385,8 @@ def ensure_issue_plan(issues: dict[str, Issue]) -> None:
         for blocker_title in issue.blocked_by:
             if blocker_title not in issues:
                 missing_refs.append(f"{issue.title} blocked_by={blocker_title}")
+        if milestones is not None and issue.milestone and issue.milestone not in milestones:
+            missing_refs.append(f"{issue.title} milestone={issue.milestone}")
     if missing_refs:
         raise SystemExit(f"Issue relationの参照先が見つかりません: {missing_refs}")
 
@@ -342,23 +409,64 @@ def ensure_issue_plan(issues: dict[str, Issue]) -> None:
                 )
 
 
+def list_milestones() -> dict[str, dict[str, Any]]:
+    data = gh_json(
+        [
+            "gh",
+            "api",
+            f"repos/{REPO}/milestones",
+            "--method",
+            "GET",
+            "-f",
+            "state=all",
+            "-F",
+            "per_page=100",
+        ]
+    )
+    return {item["title"]: item for item in data}
+
+
+def create_or_reuse_milestones(milestones: dict[str, Milestone]) -> None:
+    existing = list_milestones()
+    for milestone in milestones.values():
+        match = existing.get(milestone.title)
+        if not match:
+            cmd = [
+                "gh",
+                "api",
+                f"repos/{REPO}/milestones",
+                "-f",
+                f"title={milestone.title}",
+            ]
+            if milestone.description:
+                cmd.extend(["-f", f"description={milestone.description}"])
+            if milestone.due_on:
+                cmd.extend(["-f", f"due_on={github_due_on(milestone.due_on)}"])
+            match = gh_json(cmd)
+            existing[milestone.title] = match
+        milestone.number = int(match["number"])
+
+
 def create_or_reuse_issues(issues: dict[str, Issue]) -> None:
     existing = list_issues()
     for issue in issues.values():
         match = existing.get(issue.title)
         if not match:
+            cmd = [
+                "gh",
+                "issue",
+                "create",
+                "--repo",
+                REPO,
+                "--title",
+                issue.title,
+                "--body-file",
+                "-",
+            ]
+            if issue.milestone:
+                cmd.extend(["--milestone", issue.milestone])
             out = run_gh(
-                [
-                    "gh",
-                    "issue",
-                    "create",
-                    "--repo",
-                    REPO,
-                    "--title",
-                    issue.title,
-                    "--body-file",
-                    "-",
-                ],
+                cmd,
                 input_text=issue.body,
             )
             url = out.strip().splitlines()[-1]
@@ -379,6 +487,23 @@ def create_or_reuse_issues(issues: dict[str, Issue]) -> None:
         issue.number = int(match["number"])
         issue.url = match["url"]
         issue.node_id = match["id"]
+
+
+def set_issue_milestones(issues: dict[str, Issue]) -> None:
+    for issue in issues.values():
+        if issue.milestone and issue.number:
+            run_gh(
+                [
+                    "gh",
+                    "issue",
+                    "edit",
+                    str(issue.number),
+                    "--repo",
+                    REPO,
+                    "--milestone",
+                    issue.milestone,
+                ]
+            )
 
 
 def link_issue_relations(issues: dict[str, Issue]) -> None:
@@ -510,11 +635,14 @@ def set_project_fields(issues: dict[str, Issue], fields: dict[str, dict[str, Any
 
 def main() -> None:
     issues = {issue.title: issue for issue in ISSUES}
-    ensure_issue_plan(issues)
+    milestones = ensure_milestone_plan(MILESTONES)
+    ensure_issue_plan(issues, milestones)
     ensure_issue_bodies(issues)
     project_fields = load_project_fields(PROJECT_FIELDS_PATH)
     fields = ensure_project_fields(project_fields)
+    create_or_reuse_milestones(milestones)
     create_or_reuse_issues(issues)
+    set_issue_milestones(issues)
     link_issue_relations(issues)
     add_project_items(issues)
     set_project_fields(issues, fields)

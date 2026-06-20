@@ -148,7 +148,7 @@ Issue bodyは最新の信頼できる情報源として随時更新する。受�
 
 Issue bodyに `実装メモ`、`メモ`、`注意点` のような何でも入る欄を作らない。変更予定箇所、調査中の考え、実装中の注意、未確定の案はコメントへ書く。確定した契約、受け入れ条件、非スコープ、確認手順だけをbodyへ反映する。
 
-sub-issue、blocked by / blocking、Project field、Assignee、linked branchはGitHub metadataをSSoTにする。Issue bodyにsub-issue一覧、依存関係section、field assignmentを書かない。
+Milestone、sub-issue、blocked by / blocking、Project field、Assignee、linked branchはGitHub metadataをSSoTにする。Issue bodyにMilestone、sub-issue一覧、依存関係section、field assignmentを書かない。
 
 Issue bodyやPR bodyで既存Issue/PRやcommitを参照するときは、同一repositoryなら `#123` や短いcommit SHAだけを書く。GitHubがautolinkとhover/previewで参照先を表示するため、`#123 タイトル` のようにtitleを併記しない。別repositoryのIssue/PRは `OWNER/REPO#123` と書く。参照: <https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/autolinked-references-and-urls>
 

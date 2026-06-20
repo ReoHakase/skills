@@ -9,6 +9,7 @@
     "complexity": "c1-simple",
     "risk": "r1-safe",
     "agent_tier": "agent-standard",
+    "milestone": "First Release",
     "forecast_start": "2026-06-20",
     "forecast_end": "2026-06-27",
     "status": "triaged"
@@ -24,6 +25,7 @@
     "complexity": "c3-complex",
     "risk": "r2-moderate",
     "agent_tier": "agent-frontier",
+    "milestone": "First Release",
     "forecast_start": "2026-06-20",
     "forecast_end": "2026-06-23",
     "status": "ready"
@@ -40,6 +42,7 @@
     "complexity": "c2-moderate",
     "risk": "r1-safe",
     "agent_tier": "agent-standard",
+    "milestone": "First Release",
     "forecast_start": "2026-06-24",
     "forecast_end": "2026-06-27",
     "status": "blocked"

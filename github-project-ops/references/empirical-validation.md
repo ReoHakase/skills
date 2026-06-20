@@ -15,6 +15,9 @@
 
 - Issue titleは自然な日本語か。
 - TypeとScopeがtitleではなくfieldにあるか。
+- Milestone due dateを先に確認してからIssue/WBS Forecastを組んでいるか。
+- Issue ForecastからMilestone期限を逆算していないか。
+- bootstrap既定Milestoneが期限付きの `First Release` だけになっているか。
 - Size/Complexity/Risk/Agent Tierが基準通りか。
 - 独自WBS番号やkeyを作っていないか。
 - sub-issueとblocked by/blockingを混同していないか。
@@ -39,6 +42,7 @@
 - Wrong blocker source: external blockerをIssue dependencyへ無理に変換している。
 - Overlapping forecast: 直列依存するIssueの計画期間が重なっている。
 - Wrong title: Conventional Commit風titleにしている。
+- Wrong milestone deadline: Issue ForecastからMilestone期限を推測している。
 - Wrong estimation: P/S/C/R/Agent Tierの基準違い。
 - Missing ownership: 作業開始時にAssigneeまたはReviewer Ownerがない。
 - Metadata leakage: Issue/PR本文や作業開始コメントにProject field assignmentを書いている。

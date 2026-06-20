@@ -1,6 +1,6 @@
 # Project bootstrap
 
-新規repositoryにProject、項目、WBS Issues、sub-issues、blocked by / blocking、Project item項目値をまとめて作るときに読む。
+新規repositoryにProject、Milestone、項目、WBS Issues、sub-issues、blocked by / blocking、Project item項目値をまとめて作るときに読む。
 
 # 目的
 
@@ -22,6 +22,7 @@ repositoryと既存Issueを確認する。
 ```bash
 gh repo view OWNER/REPO --json id,nameWithOwner,url,defaultBranchRef,owner,isPrivate
 gh issue list --repo OWNER/REPO --state all --limit 100 --json number,title,state,url
+gh api repos/OWNER/REPO/milestones --method GET -f state=all -F per_page=100
 gh project list --owner OWNER --format json --limit 100
 ```
 
@@ -49,6 +50,31 @@ repositoryへlinkする。
 ```bash
 gh project link PROJECT_NUMBER --owner OWNER --repo REPO_NAME
 ```
+
+# Milestones
+
+MilestoneはGitHub native milestoneを使う。Project fieldへ複製しない。
+
+bootstrap既定では `First Release` milestoneを作る。`First Release` は期限必須で、`assets/project-bootstrap-template.py` 実行時に `YYYY-MM-DD` を標準入力で聞く。締切未定Milestoneを追加する場合は、`required_due_on=False`、`due_on=""` のまま作ってよい。
+
+Milestone due dateを先に決め、その締切目標からIssue/WBSのForecast Start / Forecast Endを組む。IssueのForecastからMilestone期限を逆算しない。
+
+Milestone一覧を読む。
+
+```bash
+gh api repos/OWNER/REPO/milestones --method GET -f state=all -F per_page=100
+```
+
+Milestoneを作る。
+
+```bash
+gh api repos/OWNER/REPO/milestones \
+  -f title="First Release" \
+  -f description="初回利用可能版。Milestone期限を先に決めてからIssue/WBSのForecastを組む。" \
+  -f due_on="2026-07-31T23:59:59Z"
+```
+
+`gh` にはmilestone専用subcommandがない前提で扱う。Milestone作成はREST APIを使う。Issue作成時のMilestone割当は `gh issue create --milestone "First Release"` を使う。既存Issueへ後付けする場合は `gh issue edit ISSUE_NUMBER --milestone "First Release"` を使う。
 
 # Project fields
 
@@ -124,6 +150,9 @@ Issue本文にはProject項目の割り当て、sub-issue一覧、依存関係se
 
 `assets/project-bootstrap-template.py` はIssue作成前にローカル定義を検証する。
 
+- `First Release` のdue dateを `YYYY-MM-DD` で入力する。
+- Milestone titleの重複を作らない。
+- Issueが参照するMilestone titleは `MILESTONES` 内に置く。
 - epic IssueのStatusを `ready` にしない。
 - `blocked_by` がある初期WBS Issueを `ready` にしない。
 - Forecast Start / Forecast EndはISO日付にする。
@@ -135,6 +164,7 @@ Issue本文にはProject項目の割り当て、sub-issue一覧、依存関係se
 gh issue create \
   --repo OWNER/REPO \
   --title "自然な日本語のIssue title" \
+  --milestone "First Release" \
   --body-file -
 ```
 
@@ -295,6 +325,12 @@ gh issue view ISSUE_NUMBER \
   --json number,title,parent,blockedBy,blocking
 ```
 
+Milestones:
+
+```bash
+gh api repos/OWNER/REPO/milestones --method GET -f state=all -F per_page=100
+```
+
 repo側view説明:
 
 ```bash
@@ -304,6 +340,7 @@ test -f .github/project/views.md
 最後に、実際に作った件数を数字で確認する。
 
 ```text
+Milestones: expected First Release
 Project fields: expected 29 including built-ins
 Project items: expected created WBS issue count
 Issues: existing dashboardやdependency issueを含む場合があるため、WBS issue number rangeで確認する
