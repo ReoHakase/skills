@@ -5,6 +5,7 @@ Issue作成、WBS分解、sub-issue、blocked by / blocking、Issue bodyを書�
 # 目次
 
 - WBSと依存関係
+- 運用中のIssue追加
 - Issue粒度
 - Issue body運用
 - Issue body template
@@ -52,6 +53,8 @@ Forecast Start / Forecast Endは、Project上の計画作業期間である。�
 - 同じepic配下でも、blocked by / blockingがない子Issue同士は並列化できるため、Forecastを重ねてよい。
 - epicのForecastは子Issue群を包む期間にする。epicと子IssueのForecastが重なるのは正常である。
 
+Forecast変更はProject fieldだけで行う。Issue本文にForecastやMilestone期限を書かない。
+
 AI agentを使う前提では、並列実行可能なIssue数は無限に近いと仮定する。最適化目標は、総Issue数を減らすことではなく、完成までの直列Issue数を減らすこと。
 
 分解手順:
@@ -89,6 +92,45 @@ DB検索repositoryを追加する blocked by 検索レスポンスのcontractを
 ```
 
 contract後はUI、DB、test、docsを並列化できる。
+
+# 運用中のIssue追加
+
+bootstrap後にIssueを追加する場合も、独自WBS番号は作らない。GitHub Issue number、sub-issue、blocked by / blocking、Project fieldsをSSoTにする。
+
+追加前に親Issue、既存の子Issue、依存関係を読む。
+
+```bash
+gh issue view PARENT_NUMBER \
+  --repo OWNER/REPO \
+  --json number,title,milestone,subIssues,subIssuesSummary,blockedBy,blocking
+```
+
+新規Issueを既存epicの子として作る。
+
+```bash
+gh issue create \
+  --repo OWNER/REPO \
+  --parent PARENT_NUMBER \
+  --milestone "First Release" \
+  --title "自然な日本語のIssue title" \
+  --body-file issue.md
+```
+
+既存Issueをsub-issueへ追加する。
+
+```bash
+gh issue edit PARENT_NUMBER --repo OWNER/REPO --add-sub-issue CHILD_NUMBER
+```
+
+依存関係を後から追加する。
+
+```bash
+gh issue edit BLOCKED_NUMBER --repo OWNER/REPO --add-blocked-by BLOCKER_NUMBER
+```
+
+依存を追加したらForecastを再確認する。`BLOCKED_NUMBER` のForecast Startは、すべての未完了blockerのForecast Endより後にする。`BLOCKER_NUMBER` は後続Issueをblockingしていても、未解決のblocked byがなければreadyにできる。
+
+sub-issue追加はWBS階層の変更であり、実行順序の追加ではない。順序依存が必要なときだけblocked by / blockingを追加する。
 
 # Issue粒度
 
@@ -152,7 +194,7 @@ Milestone、sub-issue、blocked by / blocking、Project field、Assignee、linke
 
 Issue bodyやPR bodyで既存Issue/PRやcommitを参照するときは、同一repositoryなら `#123` や短いcommit SHAだけを書く。GitHubがautolinkとhover/previewで参照先を表示するため、`#123 タイトル` のようにtitleを併記しない。別repositoryのIssue/PRは `OWNER/REPO#123` と書く。参照: <https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/autolinked-references-and-urls>
 
-古いが消すと混乱する短い記述はstrikethroughで残す。
+古いが残さないと混乱する短い記述はstrikethroughで残す。
 
 ```markdown
 ~~旧APIだけを対象にする。~~
@@ -174,7 +216,7 @@ secret、credential、個人情報、公開してはいけないlogはstrikethro
 
 GitHub上の確認事項:
 
-- Issue descriptionは編集でき、edit historyは削除されない限り参照できる。参照: <https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/editing-an-issue>
+- Issue descriptionは編集でき、edit historyを参照できる。参照: <https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/editing-an-issue>
 - commentのedit historyはread権限があれば確認できる。参照: <https://docs.github.com/en/communities/moderating-comments-and-conversations/tracking-changes-in-a-comment>
 - commentの過去revisionはrendered prose diffとして表示される。参照: <https://github.blog/changelog/2018-05-23-comment-edit-history/>
 - strikethroughとcollapsed sectionはGitHub Markdownで使える。参照: <https://docs.github.com/github/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax>, <https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/quickstart-for-writing-on-github>
@@ -350,27 +392,32 @@ gh issue create \
 新規sub-issue作成:
 
 ```bash
-gh issue create --repo OWNER/REPO --parent 100 --title "子Issue" --body-file issue.md
+gh issue create --repo OWNER/REPO --parent PARENT_NUMBER --title "子Issue" --body-file issue.md
 ```
 
 既存Issueをsub-issueへ追加:
 
 ```bash
-gh issue edit 100 --repo OWNER/REPO --add-sub-issue 123
+gh issue edit PARENT_NUMBER --repo OWNER/REPO --add-sub-issue CHILD_NUMBER
 ```
 
 blocked by / blocking付きでIssue作成:
 
 ```bash
-gh issue create --repo OWNER/REPO --blocked-by 120 --blocking 140 --title "Issue" --body-file issue.md
+gh issue create \
+  --repo OWNER/REPO \
+  --blocked-by BLOCKER_NUMBER \
+  --blocking BLOCKED_NUMBER \
+  --title "Issue" \
+  --body-file issue.md
 ```
 
 既存Issueにdependencyを追加:
 
 ```bash
-gh issue edit 123 --repo OWNER/REPO --add-blocked-by 120
+gh issue edit BLOCKED_NUMBER --repo OWNER/REPO --add-blocked-by BLOCKER_NUMBER
 
-gh issue edit 120 --repo OWNER/REPO --add-blocking 123
+gh issue edit BLOCKER_NUMBER --repo OWNER/REPO --add-blocking BLOCKED_NUMBER
 ```
 
 MCPはIssue本文の不足確認、Project viewの現状把握、並列化可能なIssueの抽出に使う。再現可能な操作はgh CLIへ落とす。

@@ -1,6 +1,6 @@
 ---
 name: github-project-ops
-description: Agentで効率的に並列Issue処理することを前提に、GitHub Projects、Issues、sub-issues、blocked by/blocking、マージキュー、自動マージを使って、WBS作成、アジャイルIssue駆動開発、1 issue = 1 branch = 1 PR運用を行う日本語skill。複数人と複数agentがタスク管理のSSoTとして使う。
+description: Agentで効率的に並列Issue処理することを前提に、GitHub Projects、Milestones、Issues、sub-issues、blocked by/blocking、マージキュー、自動マージを使って、WBS作成、Project/Milestone導入・解除、アジャイルIssue駆動開発、1 issue = 1 branch = 1 PR運用を行う日本語skill。複数人と複数agentがタスク管理のSSoTとして使う。
 ---
 
 # 目的
@@ -34,12 +34,13 @@ Project field JSONは `assets/project-fields.json` を正本にし、一括作�
 
 | Task                                                                                                | Read                                  |
 | --------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| Project fields、Milestone、no-label、date fields、views、copyable assets                            | `references/project-setup.md`         |
+| Project fields、Milestone、期限変更、Forecast運用、no-label、date fields、views、copyable assets    | `references/project-setup.md`         |
 | Project作成、Milestone作成、bulk WBS setup、Project item field一括設定、GraphQL fallback、template  | `references/project-bootstrap.md`     |
-| WBS分解、Issue粒度、Issue body template、epic/feature/bug起票、sub-issue、dependency、直列forecast  | `references/issue-authoring.md`       |
+| WBS分解、Issue粒度、Issue body template、epic/feature/bug起票、sub-issue、dependency、直列Forecast  | `references/issue-authoring.md`       |
 | Status遷移、epic status、ready/blocked判断、lifecycle comment template、状態別例                    | `references/issue-lifecycle.md`       |
 | Priority / Size / Complexity / Risk / Agent Tier判定                                                | `references/triage-and-agent-tier.md` |
 | PR body template、in-review comment方針、マージコミット、マージキュー、自動マージ、`merge_group` CI | `references/pr-and-merge.md`          |
+| Project/Milestone解除、Project item削除、repo側copyable assets削除、破壊的削除の確認                | `references/uninstall.md`             |
 | skill本文、references、assetsの経験的検証                                                           | `references/empirical-validation.md`  |
 
 # 変更前に発見する値
@@ -50,6 +51,7 @@ Issue、PR、Project itemを変更する前に、GitHub上の実状態を読む�
 
 - `OWNER/REPO`
 - Project number / owner
+- Project item ID
 - Milestone title / number / due date
 - Issue number、PR number、Issue/PR URL
 - parent / sub-issue / blocked by / blocking

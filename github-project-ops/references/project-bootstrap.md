@@ -2,11 +2,13 @@
 
 新規repositoryにProject、Milestone、項目、WBS Issues、sub-issues、blocked by / blocking、Project item項目値をまとめて作るときに読む。
 
+このreferenceは初期一括作成専用である。bootstrap後のIssue追加、sub-issue追加、依存関係追加、Forecast変更は `references/issue-authoring.md` と `references/project-setup.md` を読む。Project/Milestoneを剥がす場合は `references/uninstall.md` を読む。
+
 # 目的
 
 大量のWBS起票では、GitHub UIだけで作るとProject field、親子関係、依存関係の入れ忘れが起きやすい。先にGitHub上の実状態を確認し、`gh` と `gh api graphql` で再現可能な手順へ落とす。
 
-このreferenceは実例から抽出した手順である。対象repositoryへそのまま流し込まず、`OWNER/REPO`、Project owner/number/id、Issue一覧、field値を確認してから実行する。
+このreferenceは実例から抽出した手順である。対象repositoryへそのまま流し込まず、`OWNER/REPO`、Project owner/number/id、Issue一覧、field値を確認してから実行する。運用中の変更をbootstrap templateの再実行だけで吸収しようとしない。
 
 # 事前確認
 
@@ -169,6 +171,8 @@ gh issue create \
 ```
 
 作成済みIssueを再利用する一括処理では、titleを一時照合keyにする。bootstrap対象内ではtitleを一意にする。
+
+bootstrap後にIssueを追加する場合は、既存の親Issue、sub-issue、blocked by / blocking、Milestoneを確認してから `references/issue-authoring.md` の手順で個別に追加する。
 
 # sub-issue / dependency fallback
 

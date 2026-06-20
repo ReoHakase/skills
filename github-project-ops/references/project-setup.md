@@ -9,6 +9,7 @@ Project fields、no-label policy、date fields、views、copyable assetsを扱�
 - GitHub labels
 - Milestones
 - Date fields
+- Forecast変更
 - View説明の置き場所
 - 標準view
 - Sprintを導入するか
@@ -87,6 +88,46 @@ Milestoneはrelease/checkpointと締切目標を表す。先にMilestoneとdue d
 
 締切未定Milestoneはdue dateなしで作ってよい。ただしForecastの締切制約には使わない。
 
+Milestone一覧を読む。
+
+```bash
+gh api repos/OWNER/REPO/milestones --method GET -f state=all -F per_page=100
+```
+
+Milestone due dateを変更する。
+
+```bash
+gh api repos/OWNER/REPO/milestones/MILESTONE_NUMBER \
+  --method PATCH \
+  -f due_on="2026-07-31T23:59:59Z"
+```
+
+締切未定へ戻す。
+
+```bash
+gh api repos/OWNER/REPO/milestones/MILESTONE_NUMBER \
+  --method PATCH \
+  -F due_on=null
+```
+
+既存IssueへMilestoneを割り当てる。
+
+```bash
+gh issue edit ISSUE_NUMBER --repo OWNER/REPO --milestone "First Release"
+```
+
+Milestone期限を変更した後は、そのMilestoneに属するIssueだけを見直す。
+
+```bash
+gh issue list \
+  --repo OWNER/REPO \
+  --milestone "First Release" \
+  --state all \
+  --json number,title,state,milestone
+```
+
+期限変更はMilestone due dateをSSoTにする。Issue本文、PR本文、Project fieldへMilestone期限を複製しない。Forecast Start / Forecast Endは、その期限に収まるように必要なIssueだけを更新する。
+
 # GitHub labels
 
 このskillではGitHub labelを使わない。
@@ -121,6 +162,36 @@ Forecast Start / Forecast Endは計画上の作業期間であり、実績では
 - branchable Issue同士が直列依存する場合、後続IssueのForecast Startは、すべての `blocked by` 先のForecast Endより後の日付にする。
 - GitHub ProjectsのDate fieldは時刻を持たないため、同日引き継ぎを前提にして直列IssueのForecastを同じ日に重ねない。必要ならIssueをさらに分けるか、前段のForecast Endを短くする。
 - blocked by / blockingがない子Issue同士は並列化できるため、Forecastを重ねてよい。
+
+# Forecast変更
+
+Forecast変更では、先にMilestone due date、Issue dependency、sub-issue構造を読む。Issue本文のmetadata行ではなく、Project fieldだけを更新する。
+
+```bash
+gh project field-list PROJECT_NUMBER --owner OWNER --format json --limit 100
+gh project item-list PROJECT_NUMBER --owner OWNER --format json --limit 100
+gh issue view ISSUE_NUMBER \
+  --repo OWNER/REPO \
+  --json number,title,milestone,parent,subIssuesSummary,blockedBy,blocking
+```
+
+Project itemのDate fieldを更新する。
+
+```bash
+gh api graphql -f query='
+mutation {
+  updateProjectV2ItemFieldValue(input:{
+    projectId:"PROJECT_ID",
+    itemId:"PROJECT_ITEM_ID",
+    fieldId:"FORECAST_END_FIELD_ID",
+    value:{date:"2026-07-31"}
+  }) {
+    projectV2Item { id }
+  }
+}'
+```
+
+期限変更で全Issueを機械的に同じ幅でずらさない。直列依存するbranchable Issueは重ならないようにし、並列化できるIssueはForecastを重ねてよい。epicのForecastは子Issue群を包む期間に直す。
 
 # View説明の置き場所
 
@@ -236,6 +307,7 @@ Visible fields:
 - date fieldsは `Forecast Start` / `Forecast End` を使う。
 - Milestone due dateを先に決め、その締切目標からForecast Start / Forecast Endを組む。
 - 締切未定MilestoneはForecastの締切制約には使わない。
+- Milestone due dateを変更したら、そのMilestone配下のIssueだけForecastを見直す。
 - WBS番号は作らない。構造はepic/sub-issue、順序はblocked by / blockingで表す。
 - Statusは依存関係からの自動同期ではなく、運用状態として人間またはagentが確認して更新する。
 - epicのForecastは子Issue群を包む期間で、子Issueと重なってよい。

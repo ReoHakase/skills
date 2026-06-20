@@ -99,6 +99,7 @@ Visible fields:
 - date fieldsは `Forecast Start` / `Forecast End` を使う。
 - Milestone due dateを先に決め、その締切目標からForecast Start / Forecast Endを組む。
 - 締切未定MilestoneはForecastの締切制約には使わない。
+- 期限変更時はMilestone due dateを先に更新し、ForecastはProject fieldだけを見直す。詳細手順は `github-project-ops` skillのreferenceを読む。
 - WBS番号は作らない。構造はepic/sub-issue、順序はblocked by / blockingで表す。
 - Statusは依存関係からの自動同期ではなく、運用状態として人間またはagentが確認して更新する。
 - epicのForecastは子Issue群を包む期間で、子Issueと重なってよい。
