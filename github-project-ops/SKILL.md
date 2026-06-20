@@ -35,8 +35,8 @@ Project field JSONは `assets/project-fields.json` を正本にし、一括作�
 | --------------------------------------------------------------------------------------------------- | ------------------------------------- |
 | Project fields、no-label、date fields、views、copyable assets                                       | `references/project-setup.md`         |
 | Project作成、bulk WBS setup、Project item field一括設定、GraphQL fallback、batch template           | `references/project-bootstrap.md`     |
-| WBS分解、Issue粒度、Issue body template、epic/feature/bug起票、sub-issue、dependency                | `references/issue-authoring.md`       |
-| Status遷移、ready/in-progress/in-review/blocked判断、lifecycle comment template、状態別例           | `references/issue-lifecycle.md`       |
+| WBS分解、Issue粒度、Issue body template、epic/feature/bug起票、sub-issue、dependency、直列forecast  | `references/issue-authoring.md`       |
+| Status遷移、epic status、ready/blocked判断、lifecycle comment template、状態別例                    | `references/issue-lifecycle.md`       |
 | Priority / Size / Complexity / Risk / Agent Tier判定                                                | `references/triage-and-agent-tier.md` |
 | PR body template、in-review comment方針、マージコミット、マージキュー、自動マージ、`merge_group` CI | `references/pr-and-merge.md`          |
 | skill本文、references、assetsの経験的検証                                                           | `references/empirical-validation.md`  |
@@ -131,10 +131,20 @@ TypeはConventional Commitsのtype集合に `epic` と `spike` を足す。
 
 # Issue lifecycle
 
+`ready` は「仕様が確定している」ではなく「今すぐ作業開始できる」という意味で使う。未解決の `blocked by` が作業開始を止めるIssueは `ready` にしない。
+
+`blocking` は「このIssueが後続Issueの前提である」という関係であり、`ready` と両立する。`blocked by` は「このIssueが前段Issueを待っている」というIssue間関係であり、未解決なら `blocked` にする。
+
+Statusは `blocked by` / `blocking` から自動同期しない。`blocked` にはupstream PR、Figma design、権限、CI障害、設計判断待ちなど、GitHub Issue dependencyでは表せない阻害要因も含む。Issue dependencyは構造化されたIssue間依存、Statusはかんばん上の運用状態として扱う。
+
+epic issueは原則ブランチを持たないため、`ready` にしない。epicのStatusは子Issue群の進行状態を要約するroll-upとして扱う。
+
 標準Status:
 
 ```text
 inbox -> triaged -> ready -> in-progress -> in-review -> done
+          triaged -> blocked -> ready
+                     ready -> blocked -> ready
                         in-progress -> blocked -> in-progress
                         in-review -> blocked -> in-review
 inbox/triaged/ready/in-progress/in-review -> canceled
@@ -144,7 +154,7 @@ inbox/triaged/ready/in-progress/in-review -> canceled
 
 作業開始時の必須操作:
 
-1. `blocked by` を確認する。未解決の阻害要因がある場合は作業を開始せず、Statusをblockedに戻すか、阻害要因の解消を開始条件にする。
+1. `blocked by` を確認する。未解決の阻害要因がある場合は作業を開始せず、Statusをblockedにする。
 2. Issueをin-progressにする。
 3. Assigneeを必ず設定する。
 4. agent自律作業でも、開発環境の持ち主またはレビュー責任者の人間をAssigneeにする。

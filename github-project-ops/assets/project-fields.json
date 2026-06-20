@@ -11,12 +11,12 @@
       {
         "name": "triaged",
         "color": "BLUE",
-        "description": "分類済みだが、まだ実装開始できるとは限らない。"
+        "description": "分類済み。仕様や依存の整理中、または開始可能とは限らない。"
       },
       {
         "name": "ready",
         "color": "GREEN",
-        "description": "阻害要因と受け入れ条件を確認済みで、作業開始できる。"
+        "description": "受け入れ条件と確認手順があり、未解決のblocked byがなく、作業開始できる。"
       },
       {
         "name": "in-progress",
@@ -31,7 +31,7 @@
       {
         "name": "blocked",
         "color": "RED",
-        "description": "外部依存、判断待ち、失敗対応などが解消するまで進められない。"
+        "description": "前段Issue、upstream PR、Figma design、外部依存、判断待ち、失敗対応などが解消するまで進められない。"
       },
       {
         "name": "done",

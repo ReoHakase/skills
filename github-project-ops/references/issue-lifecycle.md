@@ -12,6 +12,8 @@ Status遷移、ready/in-progress/in-review/blocked判断、lifecycle commentを�
 
 # Status一覧
 
+Statusは「仕様の成熟度」ではなく「次に何ができるか」を表す。特に `ready` は仕様確定済みの意味ではなく、agentまたは人間が今すぐ作業開始できる意味で使う。
+
 - inbox
 - triaged
 - ready
@@ -23,6 +25,28 @@ Status遷移、ready/in-progress/in-review/blocked判断、lifecycle commentを�
 
 `needs-info` と `ready-to-merge` は使わない。細かすぎる状態は更新負荷を増やし、agent運用で破綻しやすい。
 
+`blocking` と `blocked by` はStatusではなくIssue関係である。
+
+- `blocking`: このIssueが後続Issueを待たせている。未解決の前段がなければ、このIssueは `ready` にできる。
+- `blocked by`: このIssueが前段Issueを待っているIssue間関係。未解決で作業開始を止めるなら、このIssueは `blocked` にする。
+
+Statusは `blocked by` / `blocking` から自動同期しない。`blocked` にはupstream PR、Figma design、権限、CI障害、設計判断待ちなど、GitHub Issue dependencyでは表せない阻害要因も含む。Issue dependencyはIssue間の構造化された依存関係、Statusはかんばん上の運用状態として扱う。
+
+`blocked` だからといって必ず `blocked by` があるとは限らない。外部blockerはdummy Issueを作って依存関係へ押し込まず、blocked commentにURL付きで記録する。
+
+# Epic status
+
+epic issueは原則ブランチを持たない。epicのStatusは「epic自体を実装できるか」ではなく、子Issue群の進行状態を要約するroll-upとして扱う。
+
+- `inbox`: まだepicとして採用・整理していない。
+- `triaged`: 目的、境界、分割方針があり、子Issue化または着手待ちの状態。epicの通常の待機状態はこれにする。
+- `in-progress`: いずれかの子Issueがin-progress、in-review、doneになり、epic配下の作業が動いている。
+- `blocked`: epic配下で今進められる子Issueがなく、未解決の前段Issue、外部依存、設計判断待ちで止まっている。
+- `done`: epicの完了判定を満たし、必要な子Issueがdoneまたはcanceledとして整理済み。
+- `canceled`: epicごとやらない。
+
+epicは `ready` にしない。readyに見える子Issueがある場合も、作業開始対象はepicではなくbranchableな子Issueである。
+
 # 状態遷移図
 
 ```mermaid
@@ -30,12 +54,15 @@ stateDiagram-v2
     [*] --> inbox: 新規起票
     inbox --> triaged: 重要度・種類・再現性を確認
     triaged --> ready: 受け入れ条件と依存が明確
+    triaged --> blocked: 前段Issue・外部依存待ち
     ready --> InProgress: 作業開始
+    ready --> blocked: blocker判明
     InProgress --> InReview: PR作成
     InReview --> done: merge queue経由でmainへmerge
 
     InProgress --> blocked: 外部依存・設計判断・CI障害
     InReview --> blocked: review/CIで停止
+    blocked --> ready: 未着手のblocker解消
     blocked --> InProgress: 作業再開
     blocked --> InReview: PR review再開
 
@@ -83,7 +110,7 @@ stateDiagram-v2
 
 ## triaged
 
-分類済みだが、まだ作業できるとは限らない状態。
+分類済みだが、まだ作業できるとは限らない状態。仕様、受け入れ条件、確認手順が揃っていても、前段Issue待ちで作業開始できないなら `ready` ではなく `blocked` にする。
 
 満たす条件:
 
@@ -99,27 +126,27 @@ stateDiagram-v2
 2. epicまたは親Issueが必要な場合はsub-issueへ入れる。実行順序の依存はsub-issueではなくblocked by / blockingで表す。
 3. Issue本文に受け入れ条件、非スコープ、確認手順があるか確認する。依存関係は本文ではなくGitHub上のsub-issue / blocked by / blockingで確認する。
 4. 影響範囲、再現性、実装対象が曖昧な場合は、readyへ進めずtriagedのまま追加確認を残す。必要ならtriaged commentを使う。
-5. ready条件をすべて満たす場合だけreadyへ進める。
+5. ready条件をすべて満たす場合だけreadyへ進める。未解決の `blocked by` が作業開始を止める場合はblockedへ進める。
 
 ## ready
 
-agentまたは人間が作業開始できる状態。
+agentまたは人間が今すぐ作業開始できる状態。仕様確定済みというだけではreadyにしない。
 
 満たす条件:
 
 - 受け入れ条件がある。
 - 非スコープがある。
 - テストまたは確認手順がある。
-- blocked byが解消済み、または作業開始に影響しない。
+- 作業開始を止める未解決blockerがない。Issue間依存は `blocked by`、外部blockerはblocked commentで確認する。
 - Agent Tierが設定済み。
 
 実行手順:
 
 1. 受け入れ条件、非スコープ、確認手順が第三者に判定可能か読む。
-2. blocked by / blockingをGitHub上の関係で確認する。未解決blockerが作業開始に影響する場合はreadyにしない。
+2. blocked by / blockingをGitHub上の関係で確認し、blocked commentに外部blockerが残っていないか確認する。未解決blockerがある場合はreadyにしない。`blocking` はこのIssueが後続Issueを待たせている意味なので、それ自体はreadyと両立する。
 3. Agent TierがProject fieldに設定済みか確認する。Agent Harness、Agent Model、Branchは作業開始時まで確定させなくてよい。
 4. AssigneeまたはReviewer Ownerの責任者候補を確認する。まだ作業開始しない場合は、作業開始コメントを書かない。
-5. かんばん上でreadyに置くのは、受け入れ条件、確認手順、blocker解消を確認済みのIssueだけにする。判断が揺れやすい場合はready commentを使う。
+5. かんばん上でreadyに置くのは、受け入れ条件、確認手順、未解決blockerなしを確認済みのbranchable Issueだけにする。判断が揺れやすい場合はready commentを使う。
 
 ## in-progress
 
@@ -168,7 +195,7 @@ PRが作成され、reviewとCIを待っている状態。
 
 ## blocked
 
-外部依存、設計判断、CI障害、review unresolved、権限不足で進めない状態。
+前段Issue、upstream PR、Figma design、外部依存、設計判断、CI障害、review unresolved、権限不足で進めない状態。未着手Issueでも、仕様と作業内容は確定しているがblocker待ちで開始できない場合はblockedにする。
 
 blockedにしたら必ず書く:
 
@@ -179,8 +206,8 @@ blockedにしたら必ず書く:
 
 実行手順:
 
-1. 何が進行を止めているかを確認する。未解決blocker、required CI失敗、review requested changes、権限不足、設計判断待ちを区別する。
-2. Project Statusをblockedへ更新する。StatusなどのProject field assignmentをcomment本文へ書かない。
+1. 何が進行を止めているかを確認する。前段Issue待ち、未解決blocker、required CI失敗、review requested changes、権限不足、設計判断待ちを区別する。
+2. Project Statusをblockedへ更新する。StatusなどのProject field assignmentをcomment本文へ書かない。`blocked by` / `blocking` からStatusを自動同期するworkflowは作らない。
 3. blocked commentを使い、理由、解除できる人、依存Issue/PR/log、次の確認タイミングを書く。解除できる人はrepo内collaboratorならGitHub mention、project/repository外のGitHub accountならprofile URL、GitHub accountがない場合はSlack/Teams profile URLまたは氏名で特定し、外部依存は必ずURL付きにする。
 4. blockerが解消したら、作業中PRがあるものはin-reviewへ、未着手または作業再開前のものはreadyまたはin-progressへ戻す前提条件を再確認する。必要ならUnblocked / resume commentを使う。
 

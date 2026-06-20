@@ -60,7 +60,7 @@ Single select optionは、単なる文字列と次のobject形式の両方を扱
 {
   "name": "ready",
   "color": "GREEN",
-  "description": "阻害要因と受け入れ条件を確認済みで、作業開始できる。"
+  "description": "受け入れ条件と確認手順があり、未解決のblocked byがなく、作業開始できる。"
 }
 ```
 
@@ -94,11 +94,11 @@ mutation {
     fieldId:"FIELD_ID",
     singleSelectOptions:[
       {name:"inbox",color:GRAY,description:"新しく起票され、まだトリアージされていない。"},
-      {name:"triaged",color:BLUE,description:"分類済みだが、まだ実装開始できるとは限らない。"},
-      {name:"ready",color:GREEN,description:"阻害要因と受け入れ条件を確認済みで、作業開始できる。"},
+      {name:"triaged",color:BLUE,description:"分類済み。仕様や依存の整理中、または開始可能とは限らない。"},
+      {name:"ready",color:GREEN,description:"受け入れ条件と確認手順があり、未解決のblocked byがなく、作業開始できる。"},
       {name:"in-progress",color:YELLOW,description:"現在作業中。"},
       {name:"in-review",color:ORANGE,description:"プルリクエストがあり、レビュー、CI、またはマージキュー待ち。"},
-      {name:"blocked",color:RED,description:"外部依存、判断待ち、失敗対応などが解消するまで進められない。"},
+      {name:"blocked",color:RED,description:"前段Issue、upstream PR、Figma design、外部依存、判断待ち、失敗対応などが解消するまで進められない。"},
       {name:"done",color:PURPLE,description:"マージまたは完了確認済み。"},
       {name:"canceled",color:GRAY,description:"不要、無効、重複、対象外などの理由で実装せず終了。"}
     ]
@@ -121,6 +121,15 @@ mutation {
 # Issue作成
 
 Issue本文にはProject項目の割り当て、sub-issue一覧、依存関係section、実装メモを書かない。現在信頼してよい概要、背景、スコープ、非スコープ、受け入れ条件、確認手順だけを書く。sub-issue、blocked by / blocking、Project項目値はGitHubメタデータをSSoTにする。
+
+`assets/project-bootstrap-template.py` はIssue作成前にローカル定義を検証する。
+
+- epic IssueのStatusを `ready` にしない。
+- `blocked_by` がある初期WBS Issueを `ready` にしない。
+- Forecast Start / Forecast EndはISO日付にする。
+- 直列依存では、後続IssueのForecast Startをすべての `blocked_by` 先のForecast Endより後の日付にする。
+
+これは初期WBS投入前の局所検証であり、運用中のProject Statusを `blocked by` / `blocking` から自動同期するためのルールではない。upstream PR、Figma design、権限、CI障害、設計判断待ちなどでblockedになるIssueもあるため、Status更新はGitHub上の関係とblocked commentを確認して行う。
 
 ```bash
 gh issue create \

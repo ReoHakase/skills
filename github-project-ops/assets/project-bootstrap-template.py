@@ -14,6 +14,7 @@ import json
 import subprocess
 import sys
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 from textwrap import dedent
 from typing import Any, Literal
@@ -89,6 +90,22 @@ ISSUES: list[Issue] = [
         forecast_start="2026-06-20",
         forecast_end="2026-06-23",
         parent="親Issueの例",
+    ),
+    Issue(
+        title="直列の後続子Issueの例",
+        body=dedent(""" """).strip(),
+        type="feat",
+        scope="core",
+        priority="p2-high",
+        size="s1-small",
+        complexity="c2-moderate",
+        risk="r1-safe",
+        agent_tier="agent-standard",
+        status="blocked",
+        forecast_start="2026-06-24",
+        forecast_end="2026-06-27",
+        parent="親Issueの例",
+        blocked_by=["子Issueの例"],
     ),
 ]
 
@@ -273,6 +290,58 @@ def ensure_issue_bodies(issues: dict[str, Issue]) -> None:
         )
 
 
+def parse_forecast_date(issue: Issue, field_name: str, value: str) -> date:
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        raise SystemExit(
+            f"{issue.title} の {field_name} はYYYY-MM-DDで指定してください: {value}"
+        ) from exc
+
+
+def forecast_range(issue: Issue) -> tuple[date, date]:
+    if not issue.forecast_start or not issue.forecast_end:
+        raise SystemExit(f"Forecast Start / Forecast Endが未設定です: {issue.title}")
+    start = parse_forecast_date(issue, "Forecast Start", issue.forecast_start)
+    end = parse_forecast_date(issue, "Forecast End", issue.forecast_end)
+    if start > end:
+        raise SystemExit(
+            f"Forecast StartがForecast Endより後です: "
+            f"{issue.title} ({issue.forecast_start} > {issue.forecast_end})"
+        )
+    return start, end
+
+
+def ensure_issue_plan(issues: dict[str, Issue]) -> None:
+    missing_refs: list[str] = []
+    for issue in issues.values():
+        if issue.parent and issue.parent not in issues:
+            missing_refs.append(f"{issue.title} parent={issue.parent}")
+        for blocker_title in issue.blocked_by:
+            if blocker_title not in issues:
+                missing_refs.append(f"{issue.title} blocked_by={blocker_title}")
+    if missing_refs:
+        raise SystemExit(f"Issue relationの参照先が見つかりません: {missing_refs}")
+
+    for issue in issues.values():
+        if issue.type == "epic" and issue.status == "ready":
+            raise SystemExit(f"epic Issueはreadyにしません: {issue.title}")
+        if issue.blocked_by and issue.status == "ready":
+            raise SystemExit(f"blocked_byがある初期WBS Issueはreadyにしません: {issue.title}")
+
+    forecasts = {issue.title: forecast_range(issue) for issue in issues.values()}
+    for issue in issues.values():
+        issue_start, _ = forecasts[issue.title]
+        for blocker_title in issue.blocked_by:
+            _, blocker_end = forecasts[blocker_title]
+            if issue_start <= blocker_end:
+                raise SystemExit(
+                    "直列依存のForecastが重なっています: "
+                    f"{issue.title} starts {issue.forecast_start}, "
+                    f"but blocker {blocker_title} ends {issues[blocker_title].forecast_end}"
+                )
+
+
 def create_or_reuse_issues(issues: dict[str, Issue]) -> None:
     existing = list_issues()
     for issue in issues.values():
@@ -441,9 +510,10 @@ def set_project_fields(issues: dict[str, Issue], fields: dict[str, dict[str, Any
 
 def main() -> None:
     issues = {issue.title: issue for issue in ISSUES}
+    ensure_issue_plan(issues)
+    ensure_issue_bodies(issues)
     project_fields = load_project_fields(PROJECT_FIELDS_PATH)
     fields = ensure_project_fields(project_fields)
-    ensure_issue_bodies(issues)
     create_or_reuse_issues(issues)
     link_issue_relations(issues)
     add_project_items(issues)

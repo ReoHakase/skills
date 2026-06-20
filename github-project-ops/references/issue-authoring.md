@@ -37,6 +37,21 @@ blocked by / blocking:
 - あるIssueが別Issue完了まで開始できないことを示す。
 - critical pathを短くするために最小限にする。
 
+語彙を混同しない。
+
+- `blocking`: このIssueが後続Issueの前提である。未解決の前段がなければ、このIssue自体は `ready` にできる。
+- `blocked by`: このIssueが前段Issueを待っているIssue間関係。未解決で作業開始を止めるなら、このIssueは `ready` ではなく `blocked` にする。
+
+`ready` は「仕様確定済み」ではなく「今すぐ作業開始できる」という意味である。仕様、受け入れ条件、確認手順が確定していても、前段Issueの完了待ちなら `blocked` にする。
+
+Issue dependencyとStatusは自動同期しない。`blocked by` / `blocking` はGitHub Issue同士の順序依存だけに使う。upstream PR、Figma design、権限、外部tracker、設計判断待ちのような外部blockerは、dummy Issueを作ってdependencyへ押し込まず、Statusを `blocked` にしてblocked commentへURL付きで書く。
+
+Forecast Start / Forecast Endは、Project上の計画作業期間である。直列依存では期間を重ねない。
+
+- AがBを `blocked by` で待つなら、AのForecast StartはBのForecast Endより後の日付にする。
+- 同じepic配下でも、blocked by / blockingがない子Issue同士は並列化できるため、Forecastを重ねてよい。
+- epicのForecastは子Issue群を包む期間にする。epicと子IssueのForecastが重なるのは正常である。
+
 AI agentを使う前提では、並列実行可能なIssue数は無限に近いと仮定する。最適化目標は、総Issue数を減らすことではなく、完成までの直列Issue数を減らすこと。
 
 分解手順:

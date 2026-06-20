@@ -84,6 +84,13 @@ PR作成日、マージ日、Issue/PR close日はGitHub metadataをSSoTにする
 
 本文、PR body、作業開始commentにはdate field assignmentを書かない。計画/実績の期間はProject fieldで見る。
 
+Forecast Start / Forecast Endは計画上の作業期間であり、実績ではない。
+
+- epicのForecastは子Issue群を包む期間にする。epicと子IssueのForecastが重なるのは正常である。
+- branchable Issue同士が直列依存する場合、後続IssueのForecast Startは、すべての `blocked by` 先のForecast Endより後の日付にする。
+- GitHub ProjectsのDate fieldは時刻を持たないため、同日引き継ぎを前提にして直列IssueのForecastを同じ日に重ねない。必要ならIssueをさらに分けるか、前段のForecast Endを短くする。
+- blocked by / blockingがない子Issue同士は並列化できるため、Forecastを重ねてよい。
+
 # View説明の置き場所
 
 GitHub Projectsのviewには説明文欄がない前提で運用する。viewの目的、filter、運用ルールは、このfileとcopyableな `assets/.github/project/views.md` に置く。
@@ -143,7 +150,9 @@ Visible fields:
 
 運用ルール:
 
-- readyに置くのは、受け入れ条件、非スコープ、確認手順、阻害要因の解消を確認済みのIssueだけにする。
+- readyに置くのは、受け入れ条件、非スコープ、確認手順、未解決blockerなしを確認済みのbranchable Issueだけにする。仕様確定済みでも前段Issue待ちならblockedにする。
+- `blocking` はこのIssueが後続Issueの前提であるという意味なのでreadyと両立する。`blocked by` が未解決ならreadyと両立しない。
+- Statusは `blocked by` / `blocking` から自動同期しない。upstream PR、Figma design、権限、CI障害、設計判断待ちなどでblockedになるIssueもあるため、かんばんではStatusとblocked commentを一緒に読む。
 - in-progressへ進める前にblocked byを再確認する。未解決の阻害要因がある場合は作業開始しない。
 - in-reviewではPR本文のclosing keyword、確認手順、リスク、レビュー観点、required checksを見る。
 - blockedではコメントに理由、解除者、依存Issue/PR/log、次の確認タイミングがあるか確認する。
@@ -194,6 +203,10 @@ Visible fields:
 
 - date fieldsは `Forecast Start` / `Forecast End` を使う。
 - WBS番号は作らない。構造はepic/sub-issue、順序はblocked by / blockingで表す。
+- Statusは依存関係からの自動同期ではなく、運用状態として人間またはagentが確認して更新する。
+- epicのForecastは子Issue群を包む期間で、子Issueと重なってよい。
+- 直列依存するbranchable Issue同士ではForecastを重ねない。後続IssueのForecast Startは、すべての `blocked by` 先のForecast Endより後の日付にする。
+- 同じepic配下でもblocked by / blockingがない子Issue同士は並列化できるため、Forecastを重ねてよい。
 - 実績はActual Start、Actual Endで見る。ロードマップ上の計画日と混ぜない。
 - 日付変更は計画の変更として扱い、Issue本文のmetadata行ではなくProject fieldだけを更新する。
 
