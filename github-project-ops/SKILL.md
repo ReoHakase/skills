@@ -32,16 +32,16 @@ Project field JSONは `assets/project-fields.json` を正本にし、一括作�
 
 必要なreferenceだけを読む。
 
-| Task                                                                                                | Read                                  |
-| --------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| Project fields、Milestone、期限変更、Forecast運用、no-label、date fields、views、copyable assets    | `references/project-setup.md`         |
-| Project作成、Milestone作成、bulk WBS setup、Project item field一括設定、GraphQL fallback、template  | `references/project-bootstrap.md`     |
-| WBS分解、Issue粒度、Issue body template、epic/feature/bug起票、sub-issue、dependency、直列Forecast  | `references/issue-authoring.md`       |
-| Status遷移、epic status、ready/blocked判断、lifecycle comment template、状態別例                    | `references/issue-lifecycle.md`       |
-| Priority / Size / Complexity / Risk / Agent Tier判定                                                | `references/triage-and-agent-tier.md` |
-| PR body template、in-review comment方針、マージコミット、マージキュー、自動マージ、`merge_group` CI | `references/pr-and-merge.md`          |
-| Project/Milestone解除、Project item削除、repo側copyable assets削除、破壊的削除の確認                | `references/uninstall.md`             |
-| skill本文、references、assetsの経験的検証                                                           | `references/empirical-validation.md`  |
+| Task                                                                                                 | Read                                  |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Project fields、Milestone、期限変更、Forecast運用、no-label、date fields、views、copyable assets     | `references/project-setup.md`         |
+| Project作成、Milestone作成、bulk WBS setup、Project item field一括設定、GraphQL fallback、template   | `references/project-bootstrap.md`     |
+| WBS分解、Issue粒度、Issue本文テンプレート、epic/feature/bug起票、sub-issue、dependency、直列Forecast | `references/issue-authoring.md`       |
+| Status遷移、epic status、ready/blocked判断、lifecycle comment template、状態別例                     | `references/issue-lifecycle.md`       |
+| Priority / Size / Complexity / Risk / Agent Tier判定                                                 | `references/triage-and-agent-tier.md` |
+| PR body template、in-review comment方針、マージコミット、マージキュー、自動マージ、`merge_group` CI  | `references/pr-and-merge.md`          |
+| Project/Milestone解除、Project item削除、repo側copyable assets削除、破壊的削除の確認                 | `references/uninstall.md`             |
+| skill本文、references、assetsの経験的検証                                                            | `references/empirical-validation.md`  |
 
 # 変更前に発見する値
 

@@ -1,14 +1,14 @@
 # Issue authoring
 
-Issue作成、WBS分解、sub-issue、blocked by / blocking、Issue bodyを書くときに読む。
+Issue作成、WBS分解、sub-issue、blocked by / blocking、Issue本文を書くときに読む。
 
 # 目次
 
 - WBSと依存関係
 - 運用中のIssue追加
 - Issue粒度
-- Issue body運用
-- Issue body template
+- Issue本文運用
+- Issue本文テンプレート
 - 記入済み例
 - gh CLI / MCP操作
 
@@ -182,17 +182,24 @@ Issue本文に必ず書く:
 
 inboxから直接in-progressにしない。必ずtriagedまたはreadyを通す。
 
-# Issue body運用
+# Issue本文運用
 
-Issue bodyは最新の信頼できる情報源として随時更新する。受け入れ条件、非スコープ、確認手順、再現条件、成果の境界が変わった場合は、古い情報を放置せずbodyを更新する。
+Issue本文は最新の信頼できる情報源として随時更新する。受け入れ条件、非スコープ、確認手順、再現条件、成果の境界が変わった場合は、古い情報を放置せず本文を更新する。
 
-状態遷移、判断理由、阻害要因、レビュー/CI判断、close/cancel理由はコメントへ残す。bodyは現在信頼してよい内容、コメントは時系列の判断記録として分ける。
+状態遷移、判断理由、阻害要因、レビュー/CI判断、close/cancel理由はコメントへ残す。本文は現在信頼してよい内容、コメントは時系列の判断記録として分ける。
 
-Issue bodyに `実装メモ`、`メモ`、`注意点` のような何でも入る欄を作らない。変更予定箇所、調査中の考え、実装中の注意、未確定の案はコメントへ書く。確定した契約、受け入れ条件、非スコープ、確認手順だけをbodyへ反映する。
+Issue本文に `実装メモ`、`メモ`、`注意点` のような何でも入る欄を作らない。変更予定箇所、調査中の考え、実装中の注意、未確定の案はコメントへ書く。確定した契約、受け入れ条件、非スコープ、確認手順だけを本文へ反映する。
 
-Milestone、sub-issue、blocked by / blocking、Project field、Assignee、linked branchはGitHub metadataをSSoTにする。Issue bodyにMilestone、sub-issue一覧、依存関係section、field assignmentを書かない。
+Milestone、sub-issue、blocked by / blocking、Project field、Assignee、linked branchはGitHub metadataをSSoTにする。Issue本文にMilestone、sub-issue一覧、依存関係section、field assignmentを書かない。
 
-Issue bodyやPR bodyで既存Issue/PRやcommitを参照するときは、同一repositoryなら `#123` や短いcommit SHAだけを書く。GitHubがautolinkとhover/previewで参照先を表示するため、`#123 タイトル` のようにtitleを併記しない。別repositoryのIssue/PRは `OWNER/REPO#123` と書く。参照: <https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/autolinked-references-and-urls>
+Issue本文やPR本文で既存Issue/PRやcommitを参照するときは、同一repositoryなら `#123` や短いcommit SHAだけを書く。GitHubがautolinkとhover/previewで参照先を表示するため、`#123 タイトル` のようにtitleを併記しない。別repositoryのIssue/PRは `OWNER/REPO#123` と書く。参照: <https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/autolinked-references-and-urls>
+
+Issue本文には次の章を含める。
+
+- `変更ファイル`: 並列実行時に人間とagentが競合リスクを事前に予測するための章。globだけで書く。
+- `参照ドキュメント`: Issue作成時点で参照した仕様、設計、README、docsを、commit固定URLと行番号付きで残す章。参照commitは必ずSHAで残す。`origin/main` や `main` から起票する場合も、本文にはbranch名ではなく `git rev-parse origin/main` などで得たSHAを書く。
+
+PR作成時に実際の変更範囲が `変更ファイル` から大きく外れた場合は、PR本文の `Scope` または `Risk` に理由を書く。
 
 古いが残さないと混乱する短い記述はstrikethroughで残す。
 
@@ -223,7 +230,35 @@ GitHub上の確認事項:
 
 Project fieldにあるメタデータは本文へ書かない。Type、Scope、Status、Priority、Size、Complexity、Risk、Agent Tier、Agent Harness、Agent Model、Reviewer Owner、Branch、Source、Forecast Start、Forecast End、Actual Start、Actual EndはProject fieldだけに記録する。
 
-# Issue body template
+# 参照ドキュメントURL
+
+固定URLはGitHubの `blob/<commit_sha>/<path>#Lx-Ly` を使う。
+
+```text
+https://github.com/OWNER/REPO/blob/<commit_sha>/SPEC.md#L120-L180
+```
+
+更新確認はrepository全体のcompare URLを標準にする。
+
+```text
+https://github.com/OWNER/REPO/compare/<commit_sha>...main
+```
+
+特定ファイルだけを確認したい場合は、GitHub URLではなくローカル確認コマンドを補助として書く。
+
+```bash
+git diff <commit_sha>..main -- SPEC.md
+```
+
+GitHub UI上のdiff file anchorは使ってもよいが、生成が安定した仕様として扱いにくいため、skillの必須形式にはしない。
+
+参照:
+
+- <https://docs.github.com/en/pull-requests/committing-changes-to-your-project/viewing-and-comparing-commits/comparing-commits>
+- <https://docs.github.com/articles/about-comparing-branches-in-pull-requests>
+- <https://git-scm.com/docs/git-diff>
+
+# Issue本文テンプレート
 
 ```markdown
 # 概要
@@ -243,6 +278,19 @@ Project fieldにあるメタデータは本文へ書かない。Type、Scope、S
 
 - このIssueでは扱わないこと1
 - このIssueでは扱わないこと2
+
+# 変更ファイル
+
+- `src/{session,state,cli}.rs`
+- `tests/{conflict_repair,multi_window}.rs`
+- `docs/RELEASE_READINESS.md`
+
+# 参照ドキュメント
+
+https://github.com/OWNER/REPO/blob/<commit_sha>/SPEC.md#L120-L180
+https://github.com/OWNER/REPO/blob/<commit_sha>/docs/ARCHITECTURE.md#L40-L95
+
+更新確認: https://github.com/OWNER/REPO/compare/<commit_sha>...main
 
 # 受け入れ条件
 

@@ -6,6 +6,7 @@ Status遷移、ready/in-progress/in-review/blocked判断、lifecycle commentを�
 
 - Status一覧
 - 状態遷移図
+- 段階実行
 - Status別実行手順
 - Lifecycle comment templates
 - Lifecycle comment examples
@@ -75,6 +76,26 @@ stateDiagram-v2
     done --> [*]
 ```
 
+# 段階実行
+
+段階実行は、ready化済みIssueの投入順、agent数、CI負荷、競合リスクを調整するための運用である。論理依存を隠す仕組みではない。
+
+前段Issueの出力を前提にするIssueは、同時に `ready` として扱わない。必ずGitHubの `blocked by` を追加し、未解決ならStatusを `blocked` にする。
+
+第1段階:
+
+- 未解決blockerがなく、受け入れ条件、非スコープ、確認手順が揃っているready Issueを実行する。
+- `変更ファイル` が大きく重なるIssueは、必要に応じてagent数、merge順、rebase前提を調整する。
+
+第2段階:
+
+- 第1段階完了後に `blocked by` がすべてclosedになってready化したIssueを実行する。
+- 依存はないが、agent数、CI負荷、競合リスクの都合で後続に回したready Issueを実行する。
+
+禁止する表現:
+
+- 「第1段階のmerge後に前段Issueの出力を前提にするIssueを実行する」のように、Issue間依存を `blocked by` で表さない説明。
+
 # Status別実行手順
 
 ## inbox
@@ -139,14 +160,17 @@ agentまたは人間が今すぐ作業開始できる状態。仕様確定済み
 - テストまたは確認手順がある。
 - 作業開始を止める未解決blockerがない。Issue間依存は `blocked by`、外部blockerはblocked commentで確認する。
 - Agent Tierが設定済み。
+- `参照ドキュメント` の更新確認で重要変更がない、またはIssue本文かcommentを更新済み。
 
 実行手順:
 
 1. 受け入れ条件、非スコープ、確認手順が第三者に判定可能か読む。
 2. blocked by / blockingをGitHub上の関係で確認し、blocked commentに外部blockerが残っていないか確認する。未解決blockerがある場合はreadyにしない。`blocking` はこのIssueが後続Issueを待たせている意味なので、それ自体はreadyと両立する。
-3. Agent TierがProject fieldに設定済みか確認する。Agent Harness、Agent Model、Branchは作業開始時まで確定させなくてよい。
-4. AssigneeまたはReviewer Ownerの責任者候補を確認する。まだ作業開始しない場合は、作業開始コメントを書かない。
-5. かんばん上でreadyに置くのは、受け入れ条件、確認手順、未解決blockerなしを確認済みのbranchable Issueだけにする。判断が揺れやすい場合はready commentを使う。
+3. `変更ファイル` が同じshared moduleに重なるIssue同士でも、論理依存がなければ同時readyにしてよい。ただし競合リスクは段階実行、merge順、rebaseで調整する。論理依存がある場合は競合予測ではなく `blocked by` として表す。
+4. `参照ドキュメント` の更新確認で重要な変更が見つかった場合は、作業開始前にIssue本文またはcommentを更新する。
+5. Agent TierがProject fieldに設定済みか確認する。Agent Harness、Agent Model、Branchは作業開始時まで確定させなくてよい。
+6. AssigneeまたはReviewer Ownerの責任者候補を確認する。まだ作業開始しない場合は、作業開始コメントを書かない。
+7. かんばん上でreadyに置くのは、受け入れ条件、確認手順、未解決blockerなしを確認済みのbranchable Issueだけにする。判断が揺れやすい場合はready commentを使う。
 
 ## in-progress
 
@@ -165,10 +189,11 @@ agentまたは人間が今すぐ作業開始できる状態。仕様確定済み
 実行手順:
 
 1. 作業開始直前にblocked byを再確認する。未解決blockerがある場合はin-progressへ進めずblockedへ戻す。
-2. AssigneeとReviewer Ownerを確認し、agent自律作業でも人間の責任者を残す。
-3. Agent Harness、Agent Model、Branch、Actual StartをProject fieldへ記録する。具体モデル名、branch名、日付fieldはIssue本文やPR本文へ書かない。
-4. linked branchを作成し、Branch fieldとGitHub上のlinked branchが一致することを確認する。
-5. in-progress commentを使って作業開始を記録する。
+2. `参照ドキュメント` の更新確認を見る。重要変更があれば、Issue本文またはcommentを更新してから着手する。
+3. AssigneeとReviewer Ownerを確認し、agent自律作業でも人間の責任者を残す。
+4. Agent Harness、Agent Model、Branch、Actual StartをProject fieldへ記録する。具体モデル名、branch名、日付fieldはIssue本文やPR本文へ書かない。
+5. linked branchを作成し、Branch fieldとGitHub上のlinked branchが一致することを確認する。
+6. in-progress commentを使って作業開始を記録する。
 
 ## in-review
 
@@ -505,6 +530,6 @@ readyへ進めない理由: fallback表示が未決定。
 戻す状態: 作業再開。
 再確認したこと:
 
-- Issue bodyの受け入れ条件を確定デザインに合わせて更新済み。
+- Issue本文の受け入れ条件を確定デザインに合わせて更新済み。
 - 古い表示方針はdetailsに移して、現在の確認手順と混ざらないようにした。
 ```

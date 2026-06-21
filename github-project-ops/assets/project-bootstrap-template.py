@@ -308,8 +308,8 @@ def ensure_issue_bodies(issues: dict[str, Issue]) -> None:
     missing = [issue.title for issue in issues.values() if not issue.body.strip()]
     if missing:
         raise SystemExit(
-            "Issue bodyが未設定です: "
-            f"{missing}。../references/issue-authoring.md を参照してbodyを記入してください。"
+            "Issue本文が未設定です: "
+            f"{missing}。../references/issue-authoring.md を参照して本文を記入してください。"
         )
 
 

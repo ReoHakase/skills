@@ -148,7 +148,7 @@ mutation {
 
 # Issue作成
 
-Issue本文にはProject項目の割り当て、sub-issue一覧、依存関係section、実装メモを書かない。現在信頼してよい概要、背景、スコープ、非スコープ、受け入れ条件、確認手順だけを書く。sub-issue、blocked by / blocking、Project項目値はGitHubメタデータをSSoTにする。
+Issue本文にはProject項目の割り当て、sub-issue一覧、依存関係section、実装メモを書かない。現在信頼してよい概要、背景、スコープ、非スコープ、変更ファイル、参照ドキュメント、受け入れ条件、確認手順を書く。sub-issue、blocked by / blocking、Project項目値はGitHubメタデータをSSoTにする。
 
 `assets/project-bootstrap-template.py` はIssue作成前にローカル定義を検証する。
 
@@ -157,6 +157,7 @@ Issue本文にはProject項目の割り当て、sub-issue一覧、依存関係se
 - Issueが参照するMilestone titleは `MILESTONES` 内に置く。
 - epic IssueのStatusを `ready` にしない。
 - `blocked_by` がある初期WBS Issueを `ready` にしない。
+- Issue本文には `変更ファイル` と `参照ドキュメント` を含める。参照commitはbranch名ではなく実SHAにする。
 - Forecast Start / Forecast EndはISO日付にする。
 - 直列依存では、後続IssueのForecast Startをすべての `blocked_by` 先のForecast Endより後の日付にする。
 
@@ -171,6 +172,8 @@ gh issue create \
 ```
 
 作成済みIssueを再利用する一括処理では、titleを一時照合keyにする。bootstrap対象内ではtitleを一意にする。
+
+Pythonテンプレートには長いIssue本文例を置かない。初期起票用の本文は `references/issue-authoring.md` の `Issue本文テンプレート` をもとに、対象repositoryの仕様、設計、README、docsへのcommit固定URLを入れて作る。
 
 bootstrap後にIssueを追加する場合は、既存の親Issue、sub-issue、blocked by / blocking、Milestoneを確認してから `references/issue-authoring.md` の手順で個別に追加する。
 

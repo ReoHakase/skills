@@ -59,7 +59,7 @@ def test_single_select_options_keep_name_color_and_description() -> None:
 def test_empty_issue_body_stops_before_issue_creation() -> None:
     module = load_asset()
 
-    with pytest.raises(SystemExit, match="Issue bodyが未設定です"):
+    with pytest.raises(SystemExit, match="Issue本文が未設定です"):
         module.ensure_issue_bodies({"empty": module.ISSUES[0]})
 
 
