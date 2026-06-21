@@ -153,7 +153,7 @@ Project fieldのfilterでIssueは絞り込めるため、labelをportable fallba
 
 PR作成日、マージ日、Issue/PR close日はGitHub metadataをSSoTにする。Project fieldへ複製しない。
 
-本文、PR body、作業開始commentにはdate field assignmentを書かない。計画/実績の期間はProject fieldで見る。
+本文、PR本文、作業開始commentにはdate field assignmentを書かない。計画/実績の期間はProject fieldで見る。
 
 Forecast Start / Forecast Endは計画上の作業期間であり、実績ではない。
 
@@ -256,7 +256,7 @@ Visible fields:
 - `blocking` はこのIssueが後続Issueの前提であるという意味なのでreadyと両立する。`blocked by` が未解決ならreadyと両立しない。
 - Statusは `blocked by` / `blocking` から自動同期しない。upstream PR、Figma design、権限、CI障害、設計判断待ちなどでblockedになるIssueもあるため、かんばんではStatusとblocked commentを一緒に読む。
 - in-progressへ進める前にblocked byを再確認する。未解決の阻害要因がある場合は作業開始しない。
-- in-reviewではPR本文のclosing keyword、確認手順、リスク、レビュー観点、required checksを見る。
+- in-reviewではPR本文のclosing keyword、振る舞い、テストケース、確認手順、リスク、レビュー観点、required checksを見る。
 - blockedではコメントに理由、解除者、依存Issue/PR/log、次の確認タイミングがあるか確認する。
 - `c3-complex` または `r3-dangerous` を含む作業は人間のレビュー責任者を明確にする。
 - doneとcanceledは通常表示しない。完了後の観察は `Velocity` で行う。

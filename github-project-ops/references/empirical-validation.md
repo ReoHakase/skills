@@ -31,6 +31,7 @@
 - Issue/PR本文や作業開始コメントにProject field assignmentを書いていないか。
 - PR本文に具体モデル名を書いていないか。
 - PR本文にclosing keywordがあるか。
+- PR本文に振る舞いと、単体テスト/統合テスト/E2Eテストに分かれたテストケースがあるか。
 - merge queue前提のCI workflowがあるか。
 
 # 失敗分類

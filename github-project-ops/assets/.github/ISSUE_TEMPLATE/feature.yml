@@ -9,6 +9,7 @@ body:
     attributes:
       value: |
         1つのブランチと1つのPRで完了できる作業に使う。
+        Issue本文は常体で書く。丁寧体は使わない。
 
         GitHub ProjectsのメタデータはIssue本文に書かない。Type、Scope、Status、Priority、Size、Complexity、Risk、Agent Tier、Source、Agent Harness、Agent Model、Reviewer Owner、Branch、日付系項目はGitHub Projectsで設定する。
 

@@ -4,30 +4,34 @@ PR本文、in-review判断、merge commit、merge queue、auto-mergeを扱うと
 
 # 目次
 
-- PR body運用
-- PR body template
-- PR body example
+- PR本文運用
+- PR本文テンプレート
+- PR本文例
 - in-review comment方針
 - Merge policy
 - gh CLI / MCP操作
 
-# PR body運用
+# PR本文運用
 
 PR本文にはProject fieldのメタデータや具体的なagentモデル名を書かない。Agent HarnessとAgent ModelはProject fieldへ記録する。
+
+PR本文は常体で書く。論文やレポートと同じく「である」「する」「できる」を使い、丁寧体は使わない。
 
 PR本文に必須の要素:
 
 - 概要
 - 関連Issue
 - スコープ
+- 振る舞い
+- テストケース
 - 確認手順
 - リスク
 - レビュー観点
 - `Closes #<issue-number>` または同等のclosing keyword
 
-必須sectionが存在していても、`-`、`- [ ]`、`done`、`確認済み` のようなplaceholderだけなら不十分。PR作成前に、第三者が確認できる具体的な変更点、確認手順、リスク、レビュー観点が書かれているか確認する。
+必須sectionが存在していても、`-`、`- [ ]`、`done`、`確認済み` のようなplaceholderだけなら不十分。PR作成前に、第三者が確認できる具体的な変更点、振る舞い、テストケース、確認手順、リスク、レビュー観点が書かれているか確認する。
 
-PR bodyは最新状態の要約として随時更新する。確認手順、リスク、レビュー観点が変わった場合は、古い情報を放置せずbodyを更新する。
+PR本文は最新状態の要約として随時更新する。振る舞い、テストケース、確認手順、リスク、レビュー観点が変わった場合は、古い情報を放置せず本文を更新する。
 
 PR descriptionは既存PRではopening commentとして編集する。参照: <https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/getting-started/helping-others-review-your-changes>
 
@@ -35,9 +39,22 @@ Issue/PRやcommitの参照は、同一repositoryなら `#123` や短いcommit SH
 
 古いが消すと混乱する短い記述はstrikethroughで残す。長い経緯はcollapsed sectionへ移す。secret、credential、個人情報、公開してはいけないlogはstrikethroughやdetailsで残さない。
 
-# PR body template
+# 振る舞い
 
-```markdown
+`振る舞い` には、実装したものの動作確認結果を書く。
+
+- CLI変更: 実行したコマンドと出力をcode blockで書く。
+- Interactive CLI変更: asciinema、termsvgなどで色付きアニメーション画像または記録リンクを残す。
+- UI変更: component、page、主要状態のスクリーンショットまたは動画を貼る。
+- UIや視覚的な出力がない内部ロジック変更: Mermaid flowchartで変更後の流れを書く。
+
+# テストケース
+
+`テストケース` には、実装済みのテストコードのcaseごとに、自然な文章で何ができるかを書く。単体テスト、統合テスト、E2Eテストに分け、テスト対象を見出しで書く。テストファイルやcase名を添えてよいが、Project fieldやCI metadataは書かない。
+
+# PR本文テンプレート
+
+````markdown
 ## 概要
 
 - 変更点1
@@ -57,6 +74,33 @@ Closes #123
 
 - ...
 
+## 振る舞い
+
+```bash
+$ command
+実行結果を書く
+```
+
+## テストケース
+
+### 単体テスト
+
+#### `someFunc()` / `<SomeComponent>` / `useHook()`
+
+- テストケースごとに、できることを書く。
+
+### 統合テスト
+
+#### `feature flow` / `api + repository`
+
+- テストケースごとに、できることを書く。
+
+### E2Eテスト
+
+#### `/some/page/`
+
+- テストケースごとに、できることを書く。
+
 ## 確認手順
 
 - [ ] テストまたは確認1
@@ -70,22 +114,22 @@ Closes #123
 ## レビュー観点
 
 - 特に見てほしい点
-```
+````
 
-# PR body example
+# PR本文例
 
 ```markdown
-## Summary
+## 概要
 
-- 検索結果カードに品番、長さ、容量、解像度、商品名を表示しました
-- 一致シーンの時刻、説明、タグ、セリフ抜粋を表示しました
-- 未取得項目のfallback表示を追加しました
+- 検索結果カードに品番、長さ、容量、解像度、商品名を表示した
+- 一致シーンの時刻、説明、タグ、セリフ抜粋を表示した
+- 未取得項目のfallback表示を追加した
 
-## Linked Issue
+## 関連Issue
 
 Closes #123
 
-## Scope
+## スコープ
 
 実装したこと:
 
@@ -97,16 +141,43 @@ Closes #123
 - ホバー動画プレビュー
 - 検索ranking変更
 
-## Verification
+## 振る舞い
+
+検索結果fixtureでカードを表示し、品番、商品名、一致シーン、未取得fallbackを同じカード内で確認できる。
+
+![検索結果カードの確認](https://github.com/OWNER/REPO/assets/000000/search-card.png)
+
+## テストケース
+
+### 単体テスト
+
+#### `<SearchResultCard>`
+
+- 検索結果カードに作品情報と一致シーン情報を同時に表示できる。
+- 欠損データがある項目で空白ではなくfallback文言を表示できる。
+
+### 統合テスト
+
+#### `search fixture -> search results page`
+
+- fixture検索結果をページへ渡したとき、カード一覧に作品情報、一致シーン情報、fallback表示を反映できる。
+
+### E2Eテスト
+
+#### `/search`
+
+- 検索結果画面で、長い商品名を含むカードでも主要情報を崩さず表示できる。
+
+## 確認手順
 
 - [ ] fixtureで検索結果カードを表示確認
 - [ ] 長い商品名でも崩れないことを確認
 
-## Risk
+## リスク
 
 - UI表示だけの変更で、DB schemaと検索rankingには影響しない
 
-## Review Focus
+## レビュー観点
 
 - 情報量が多すぎてカードが読みにくくなっていないか
 - 未取得項目の表示が分かりやすいか
@@ -114,9 +185,9 @@ Closes #123
 
 # in-review comment方針
 
-通常はcommentを書かない。PR bodyに概要、関連Issue、スコープ、確認手順、リスク、レビュー観点を書き、`Closes #...` / `Fixes #...` / `Resolves #...` による自動追跡に任せる。
+通常はcommentを書かない。PR本文に概要、関連Issue、スコープ、振る舞い、テストケース、確認手順、リスク、レビュー観点を書き、`Closes #...` / `Fixes #...` / `Resolves #...` による自動追跡に任せる。
 
-PR bodyやGitHub metadataで分かる内容をcommentへ重複させない。reviewerへの一時的な補足、CIの特殊事情、外部判断待ち、通常と違う確認依頼がある場合だけ、`issue-lifecycle.md` のin-review commentを使う。
+PR本文やGitHub metadataで分かる内容をcommentへ重複させない。reviewerへの一時的な補足、CIの特殊事情、外部判断待ち、通常と違う確認依頼がある場合だけ、`issue-lifecycle.md` のin-review commentを使う。
 
 # Merge policy
 
@@ -209,7 +280,7 @@ gh issue develop 123 \
   --checkout
 ```
 
-完成済みのPR本文を先に作り、具体的な概要、スコープ、確認手順、リスク、レビュー観点、closing keywordがあることを確認してからPRを作成する。
+完成済みのPR本文を先に作り、具体的な概要、スコープ、振る舞い、テストケース、確認手順、リスク、レビュー観点、closing keywordがあることを確認してからPRを作成する。
 
 ```bash
 gh pr create \

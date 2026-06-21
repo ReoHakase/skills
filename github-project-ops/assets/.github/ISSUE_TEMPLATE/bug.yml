@@ -9,6 +9,7 @@ body:
     attributes:
       value: |
         1つのブランチと1つのPRで修正できる不具合に使う。
+        Issue本文は常体で書く。丁寧体は使わない。
         期待動作、実際の動作、再現手順、環境、ログまたはエラー、影響範囲、修正の受け入れ条件、確認手順を書く。
 
         GitHub ProjectsのメタデータはIssue本文に書かない。Type、Scope、Status、Priority、Size、Complexity、Risk、Agent Tier、Source、Agent Harness、Agent Model、Reviewer Owner、Branch、日付系項目はGitHub Projectsで設定する。

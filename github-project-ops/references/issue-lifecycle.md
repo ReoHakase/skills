@@ -203,6 +203,8 @@ PRが作成され、reviewとCIを待っている状態。
 
 - PRがある。
 - PR本文にclosing keywordがある。
+- 振る舞いが書かれている。
+- テストケースが単体テスト、統合テスト、E2Eテストに分かれ、テスト対象が見出しで書かれている。
 - 確認手順が書かれている。
 - リスクが書かれている。
 - 必要なreviewerが付いている。
@@ -210,7 +212,7 @@ PRが作成され、reviewとCIを待っている状態。
 実行手順:
 
 1. PR state、base/head branch、linked Issue、closing keywordを確認する。
-2. PR本文に概要、関連Issue、スコープ、確認手順、リスク、レビュー観点があるか確認する。具体モデル名やProject field metadataは本文へ書かない。
+2. PR本文に概要、関連Issue、スコープ、振る舞い、テストケース、確認手順、リスク、レビュー観点があるか確認する。具体モデル名やProject field metadataは本文へ書かない。
 3. reviewer、review decision、unresolved conversation、requested changesを確認する。
 4. CIは最新commit SHAのcheck結果を見る。失敗checkがrequiredか、optionalか、rerun中かを確認してから判断する。
 5. PR作成日やmerge状態はGitHub PR metadataから読む。Project fieldへは複製しない。
@@ -340,9 +342,9 @@ readyへ進められる場合は、ready commentを使う。未確定事項が�
 
 ## in-review comment
 
-通常は書かない。PR bodyに概要、関連Issue、スコープ、確認手順、リスク、レビュー観点を書き、`Closes #...` / `Fixes #...` / `Resolves #...` による自動追跡に任せる。
+通常は書かない。PR本文に概要、関連Issue、スコープ、振る舞い、テストケース、確認手順、リスク、レビュー観点を書き、`Closes #...` / `Fixes #...` / `Resolves #...` による自動追跡に任せる。
 
-PR bodyやGitHub metadataで分かる内容をcommentへ重複させない。reviewerへの一時的な補足、CIの特殊事情、外部判断待ち、通常と違う確認依頼がある場合だけ書く。
+PR本文やGitHub metadataで分かる内容をcommentへ重複させない。reviewerへの一時的な補足、CIの特殊事情、外部判断待ち、通常と違う確認依頼がある場合だけ書く。
 
 ```markdown
 👀 特筆事項があるため、in-review commentを残す。
