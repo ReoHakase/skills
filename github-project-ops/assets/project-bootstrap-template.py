@@ -10,10 +10,11 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import subprocess
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -34,6 +35,22 @@ OPTION_COLORS = ["GRAY", "BLUE", "GREEN", "YELLOW", "ORANGE", "RED", "PINK", "PU
 VALID_OPTION_COLORS = set(OPTION_COLORS)
 OptionSpec = str | dict[str, str]
 FieldKind = Literal["single", "text", "date"]
+
+PLACEHOLDER_VALUES = {"OWNER/REPO", "PVT_REPLACE_ME"}
+EXPECTED_DUPLICATE_MARKERS = {
+    "sub-issue": (
+        "already a sub-issue",
+        "already has this parent",
+    ),
+    "blocked-by": (
+        "already blocked by",
+        "blocking relationship already exists",
+    ),
+    "project-item": (
+        "already exists in this project",
+        "already added to this project",
+    ),
+}
 
 
 @dataclass
@@ -150,9 +167,49 @@ def gh_json(args: list[str], *, input_text: str | None = None) -> Any:
     return json.loads(run_gh(args, input_text=input_text))
 
 
-def gh_optional_json(args: list[str]) -> Any | None:
-    out = run_gh(args, check=False)
-    return json.loads(out) if out.strip() else None
+def is_expected_duplicate_error(error: dict[str, Any], operation: str) -> bool:
+    message = str(error.get("message", "")).lower()
+    return any(marker in message for marker in EXPECTED_DUPLICATE_MARKERS[operation])
+
+
+def graphql_json(
+    query: str,
+    variables: dict[str, str] | None = None,
+    *,
+    duplicate_operation: str | None = None,
+) -> dict[str, Any]:
+    args = ["gh", "api", "graphql", "-f", f"query={query}"]
+    for name, value in (variables or {}).items():
+        args.extend(["-F", f"{name}={value}"])
+
+    proc = subprocess.run(args, text=True, capture_output=True)
+    try:
+        payload = json.loads(proc.stdout) if proc.stdout.strip() else {}
+    except json.JSONDecodeError:
+        payload = {}
+    errors = payload.get("errors", []) if isinstance(payload, dict) else []
+
+    if errors:
+        if duplicate_operation and all(
+            is_expected_duplicate_error(error, duplicate_operation) for error in errors
+        ):
+            print(
+                f"警告: 既存の{duplicate_operation}関係を再利用します",
+                file=sys.stderr,
+            )
+            return payload
+        print(json.dumps(errors, ensure_ascii=False), file=sys.stderr)
+        raise SystemExit(proc.returncode or 1)
+
+    if proc.returncode != 0:
+        print("コマンド失敗:", " ".join(args), file=sys.stderr)
+        if proc.stderr.strip():
+            print(proc.stderr.strip(), file=sys.stderr)
+        raise SystemExit(proc.returncode)
+
+    if not isinstance(payload, dict):
+        raise SystemExit("GraphQL responseがobjectではありません")
+    return payload
 
 
 def load_project_fields(path: Path) -> list[dict[str, Any]]:
@@ -194,51 +251,129 @@ def option_color(option_spec: OptionSpec, idx: int) -> str:
 def option_description(option_spec: OptionSpec) -> str:
     if isinstance(option_spec, str):
         return ""
-    return option_spec.get("description", "")
+    return str(option_spec.get("description") or "")
 
 
-def has_option_metadata(options: list[OptionSpec]) -> bool:
+def option_id(option_spec: OptionSpec) -> str:
+    if isinstance(option_spec, str):
+        return ""
+    return str(option_spec.get("id") or "")
+
+
+def has_option_metadata(options: Sequence[OptionSpec]) -> bool:
     return any(
         isinstance(option_spec, dict) and ("color" in option_spec or "description" in option_spec)
         for option_spec in options
     )
 
 
-def option_names(options: list[OptionSpec]) -> list[str]:
+def option_names(options: Sequence[OptionSpec]) -> list[str]:
     return [option_name(option_spec) for option_spec in options]
 
 
 def list_project_fields() -> dict[str, dict[str, Any]]:
-    data = gh_json(
-        [
-            "gh",
-            "project",
-            "field-list",
-            PROJECT_NUMBER,
-            "--owner",
-            OWNER,
-            "--format",
-            "json",
-            "--limit",
-            "100",
-        ]
-    )
-    return {field_data["name"]: field_data for field_data in data["fields"]}
+    query = """
+    query($projectId: ID!) {
+      node(id: $projectId) {
+        ... on ProjectV2 {
+          fields(first: 100) {
+            nodes {
+              __typename
+              ... on ProjectV2Field { id name dataType }
+              ... on ProjectV2SingleSelectField {
+                id name dataType
+                options { id name color description }
+              }
+              ... on ProjectV2IterationField { id name dataType }
+            }
+            pageInfo { hasNextPage }
+          }
+        }
+      }
+    }
+    """
+    payload = graphql_json(query, {"projectId": PROJECT_ID})
+    connection = payload.get("data", {}).get("node", {}).get("fields", {})
+    if connection.get("pageInfo", {}).get("hasNextPage"):
+        raise SystemExit("Project fieldが100件を超えています。pagination対応後に実行してください。")
+    return {
+        field_data["name"]: field_data
+        for field_data in connection.get("nodes", [])
+        if field_data.get("name") and field_data.get("dataType")
+    }
 
 
-def single_select_option_literals(options: list[OptionSpec]) -> str:
-    option_literals = [
-        (
-            f"{{name:{gql_string(option_name(option_spec))},"
+def single_select_option_literals(options: Sequence[OptionSpec]) -> str:
+    option_literals = []
+    for idx, option_spec in enumerate(options):
+        existing_id = option_id(option_spec)
+        id_literal = f"id:{gql_string(existing_id)}," if existing_id else ""
+        option_literals.append(
+            f"{{{id_literal}name:{gql_string(option_name(option_spec))},"
             f"color:{option_color(option_spec, idx)},"
             f"description:{gql_string(option_description(option_spec))}}}"
         )
-        for idx, option_spec in enumerate(options)
-    ]
     return ",".join(option_literals)
 
 
-def update_single_select_options(field_id: str, options: list[OptionSpec]) -> None:
+def materialize_single_select_options(
+    desired_options: Sequence[OptionSpec],
+    current_options: list[dict[str, Any]],
+    *,
+    allow_removal: bool = False,
+) -> list[dict[str, str]]:
+    desired_names = option_names(desired_options)
+    current_names = [str(option.get("name", "")) for option in current_options]
+    if len(desired_names) != len(set(desired_names)):
+        raise SystemExit(f"single-select option名が重複しています: {desired_names}")
+    if len(current_names) != len(set(current_names)):
+        raise SystemExit(f"既存single-select option名が重複しています: {current_names}")
+
+    current_by_name = {option["name"]: option for option in current_options}
+    removed_names = sorted(set(current_by_name) - set(desired_names))
+    if removed_names and not allow_removal:
+        raise SystemExit(
+            "既存single-select optionの削除・renameはbootstrapで行いません: "
+            f"{removed_names}。値をexportした専用migrationを作成してください。"
+        )
+
+    preserved: list[dict[str, str]] = []
+    for option_spec in desired_options:
+        name = option_name(option_spec)
+        current = current_by_name.get(name, {})
+        current_id = str(current.get("id", ""))
+        if current and not current_id:
+            raise SystemExit(f"既存single-select optionにIDがありません: {name}")
+        if isinstance(option_spec, str):
+            color = str(current.get("color") or option_color(option_spec, len(preserved)))
+            description = str(current.get("description") or "")
+        else:
+            color = option_color(option_spec, len(preserved))
+            description = option_description(option_spec)
+        preserved.append(
+            {
+                "id": current_id,
+                "name": name,
+                "color": color,
+                "description": description,
+            }
+        )
+    return preserved
+
+
+def option_signatures(options: Sequence[OptionSpec]) -> list[tuple[str, str, str, str]]:
+    return [
+        (
+            option_id(option),
+            option_name(option),
+            option_color(option, idx),
+            option_description(option),
+        )
+        for idx, option in enumerate(options)
+    ]
+
+
+def update_single_select_options(field_id: str, options: Sequence[OptionSpec]) -> None:
     mutation = (
         "mutation { "
         f"updateProjectV2Field(input:{{fieldId:{gql_string(field_id)},"
@@ -246,20 +381,40 @@ def update_single_select_options(field_id: str, options: list[OptionSpec]) -> No
         "{ projectV2Field { ... on ProjectV2SingleSelectField { id name options { id name } } } } "
         "}"
     )
-    gh_json(["gh", "api", "graphql", "-f", f"query={mutation}"])
+    graphql_json(mutation)
 
 
-def ensure_project_fields(project_fields: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+def ensure_project_fields(
+    project_fields: list[dict[str, Any]],
+    *,
+    update_existing: bool = False,
+    allow_empty_project_option_migration: bool = False,
+) -> dict[str, dict[str, Any]]:
     fields = list_project_fields()
+    allow_removal = allow_empty_project_option_migration and project_item_count() == 0
     for field_data in project_fields:
         existing = fields.get(field_data["name"])
         options = field_data.get("options", [])
         if existing:
+            existing_type = existing.get("dataType")
+            if existing_type and existing_type != field_data["type"]:
+                raise SystemExit(
+                    f"既存fieldの型が一致しません: {field_data['name']} "
+                    f"({existing_type} != {field_data['type']})"
+                )
             if field_data["type"] == "SINGLE_SELECT":
-                desired_names = option_names(options)
-                current = [option["name"] for option in existing.get("options", [])]
-                if current != desired_names or has_option_metadata(options):
-                    update_single_select_options(existing["id"], options)
+                current_options = existing.get("options", [])
+                materialized = materialize_single_select_options(
+                    options, current_options, allow_removal=allow_removal
+                )
+                needs_update = option_signatures(materialized) != option_signatures(current_options)
+                if needs_update and not update_existing:
+                    raise SystemExit(
+                        f"既存fieldのoption差分があります: {field_data['name']}。"
+                        "内容を確認し、明示的な既存field更新として再実行してください。"
+                    )
+                if needs_update and update_existing:
+                    update_single_select_options(existing["id"], materialized)
             continue
 
         cmd = [
@@ -281,11 +436,13 @@ def ensure_project_fields(project_fields: list[dict[str, Any]]) -> dict[str, dic
         gh_json(cmd)
         fields = list_project_fields()
         if field_data["type"] == "SINGLE_SELECT" and has_option_metadata(options):
-            update_single_select_options(fields[field_data["name"]]["id"], options)
+            created = fields[field_data["name"]]
+            materialized = materialize_single_select_options(options, created.get("options", []))
+            update_single_select_options(created["id"], materialized)
     return list_project_fields()
 
 
-def list_issues() -> dict[str, dict[str, Any]]:
+def list_issues() -> list[dict[str, Any]]:
     data = gh_json(
         [
             "gh",
@@ -301,7 +458,139 @@ def list_issues() -> dict[str, dict[str, Any]]:
             "number,title,url,id,state",
         ]
     )
-    return {item["title"]: item for item in data}
+    return data
+
+
+def validate_configuration() -> None:
+    if REPO in PLACEHOLDER_VALUES or "/" not in REPO:
+        raise SystemExit(f"REPOを確認済みのOWNER/REPOへ置き換えてください: {REPO}")
+    if PROJECT_ID in PLACEHOLDER_VALUES or not PROJECT_ID.startswith("PVT_"):
+        raise SystemExit(f"PROJECT_IDを確認済みのnode IDへ置き換えてください: {PROJECT_ID}")
+    if not PROJECT_NUMBER.isdigit():
+        raise SystemExit(f"PROJECT_NUMBERは数字で指定してください: {PROJECT_NUMBER}")
+    if not OWNER.strip():
+        raise SystemExit("OWNERをProject owner loginまたは@meで指定してください")
+
+
+def discover_target() -> dict[str, Any]:
+    repo_owner, repo_name = REPO.split("/", 1)
+    query = """
+    query($repoOwner: String!, $repoName: String!, $projectId: ID!) {
+      viewer { login }
+      repository(owner: $repoOwner, name: $repoName) {
+        id nameWithOwner url isPrivate
+        defaultBranchRef { name }
+        projectsV2(first: 100) {
+          nodes { id number }
+          pageInfo { hasNextPage }
+        }
+      }
+      node(id: $projectId) {
+        ... on ProjectV2 {
+          id number title url
+          items(first: 1) { totalCount }
+          owner {
+            ... on Organization { login }
+            ... on User { login }
+          }
+        }
+      }
+    }
+    """
+    payload = graphql_json(
+        query,
+        {"repoOwner": repo_owner, "repoName": repo_name, "projectId": PROJECT_ID},
+    )
+    data = payload.get("data", {})
+    repository = data.get("repository")
+    project = data.get("node")
+    if not repository or not project:
+        raise SystemExit("repositoryまたはProjectを取得できませんでした")
+    if repository.get("nameWithOwner") != REPO or not repository.get("defaultBranchRef"):
+        raise SystemExit(
+            f"repositoryまたはdefault branchが一致しません: {repository.get('nameWithOwner')}"
+        )
+    expected_owner = data.get("viewer", {}).get("login") if OWNER == "@me" else OWNER.lstrip("@")
+    actual_owner = project.get("owner", {}).get("login")
+    if actual_owner != expected_owner:
+        raise SystemExit(f"Project ownerが一致しません: {actual_owner} != {expected_owner}")
+    if str(project.get("number")) != PROJECT_NUMBER or project.get("id") != PROJECT_ID:
+        raise SystemExit(
+            "Project number / IDが一致しません: "
+            f"number={project.get('number')} id={project.get('id')}"
+        )
+    if not isinstance(project.get("items", {}).get("totalCount"), int):
+        raise SystemExit("Project item countを検証できません")
+    project_connection = repository.get("projectsV2", {})
+    if project_connection.get("pageInfo", {}).get("hasNextPage"):
+        raise SystemExit("linked Projectが100件を超え、対象Projectとのlinkを検証できません")
+    linked_ids = {item.get("id") for item in project_connection.get("nodes", [])}
+    if PROJECT_ID not in linked_ids:
+        raise SystemExit(f"Projectがrepositoryへlinkされていません: {REPO} -> {PROJECT_ID}")
+    return {"repository": repository, "project": project}
+
+
+def project_item_count() -> int:
+    query = """
+    query($projectId: ID!) {
+      node(id: $projectId) {
+        ... on ProjectV2 { items(first: 1) { totalCount } }
+      }
+    }
+    """
+    payload = graphql_json(query, {"projectId": PROJECT_ID})
+    count = payload.get("data", {}).get("node", {}).get("items", {}).get("totalCount")
+    if not isinstance(count, int):
+        raise SystemExit("Project item countを検証できません")
+    return count
+
+
+def validate_issue_reuse(issues: dict[str, Issue], existing: list[dict[str, Any]]) -> None:
+    existing_by_number = {int(item["number"]): item for item in existing}
+    existing_by_title: dict[str, list[dict[str, Any]]] = {}
+    for item in existing:
+        existing_by_title.setdefault(item["title"], []).append(item)
+
+    for issue in issues.values():
+        if issue.number is not None:
+            match = existing_by_number.get(issue.number)
+            if not match:
+                raise SystemExit(
+                    f"再利用するIssueが見つかりません: #{issue.number} ({issue.title})"
+                )
+            if match["title"] != issue.title:
+                raise SystemExit(
+                    f"再利用するIssue titleが一致しません: #{issue.number} "
+                    f"{match['title']} != {issue.title}"
+                )
+        elif existing_by_title.get(issue.title):
+            urls = [item["url"] for item in existing_by_title[issue.title]]
+            raise SystemExit(
+                f"同名Issueが既にあります: {issue.title} {urls}。"
+                "再利用する場合はIssue.numberを明示してください。"
+            )
+
+
+def hydrate_explicit_issues(issues: dict[str, Issue], existing: list[dict[str, Any]]) -> None:
+    existing_by_number = {int(item["number"]): item for item in existing}
+    for issue in issues.values():
+        if issue.number is None:
+            continue
+        match = existing_by_number[issue.number]
+        issue.url = match["url"]
+        issue.node_id = match["id"]
+
+
+def index_issues(issue_specs: list[Issue]) -> dict[str, Issue]:
+    issues: dict[str, Issue] = {}
+    duplicates: list[str] = []
+    for issue in issue_specs:
+        if issue.title in issues:
+            duplicates.append(issue.title)
+        issues[issue.title] = issue
+    if duplicates:
+        raise SystemExit(f"Issue titleが重複しています: {sorted(set(duplicates))}")
+    return issues
 
 
 def ensure_issue_bodies(issues: dict[str, Issue]) -> None:
@@ -447,11 +736,11 @@ def create_or_reuse_milestones(milestones: dict[str, Milestone]) -> None:
         milestone.number = int(match["number"])
 
 
-def create_or_reuse_issues(issues: dict[str, Issue]) -> None:
-    existing = list_issues()
+def create_or_reuse_issues(issues: dict[str, Issue], existing: list[dict[str, Any]]) -> None:
+    existing_by_number = {int(item["number"]): item for item in existing}
     for issue in issues.values():
-        match = existing.get(issue.title)
-        if not match:
+        match = existing_by_number.get(issue.number) if issue.number is not None else None
+        if issue.number is None:
             cmd = [
                 "gh",
                 "issue",
@@ -483,7 +772,9 @@ def create_or_reuse_issues(issues: dict[str, Issue]) -> None:
                     "number,title,url,id",
                 ]
             )
-            existing[issue.title] = match
+            existing_by_number[number] = match
+        if match is None:
+            raise SystemExit(f"明示されたIssueを再利用できません: #{issue.number}")
         issue.number = int(match["number"])
         issue.url = match["url"]
         issue.node_id = match["id"]
@@ -517,7 +808,7 @@ def link_issue_relations(issues: dict[str, Issue]) -> None:
                 "{ clientMutationId } "
                 "}"
             )
-            gh_optional_json(["gh", "api", "graphql", "-f", f"query={mutation}"])
+            graphql_json(mutation, duplicate_operation="sub-issue")
 
     for issue in issues.values():
         for blocker_title in issue.blocked_by:
@@ -529,7 +820,19 @@ def link_issue_relations(issues: dict[str, Issue]) -> None:
                 "{ clientMutationId } "
                 "}"
             )
-            gh_optional_json(["gh", "api", "graphql", "-f", f"query={mutation}"])
+            graphql_json(mutation, duplicate_operation="blocked-by")
+
+
+def project_items_by_url(data: dict[str, Any]) -> dict[str, str]:
+    items = data.get("items", [])
+    total_count = data.get("totalCount")
+    if not isinstance(total_count, int) or total_count > len(items):
+        raise SystemExit(f"Project item一覧を全件取得できません: {len(items)} / {total_count}")
+    return {
+        item["content"]["url"]: item["id"]
+        for item in items
+        if item.get("content") and item["content"].get("url")
+    }
 
 
 def add_project_items(issues: dict[str, Issue]) -> None:
@@ -541,7 +844,7 @@ def add_project_items(issues: dict[str, Issue]) -> None:
             "{ item { id } } "
             "}"
         )
-        data = gh_optional_json(["gh", "api", "graphql", "-f", f"query={mutation}"])
+        data = graphql_json(mutation, duplicate_operation="project-item")
         item = data and data.get("data", {}).get("addProjectV2ItemById", {}).get("item")
         if item:
             issue.item_id = item["id"]
@@ -558,16 +861,12 @@ def add_project_items(issues: dict[str, Issue]) -> None:
                 "--format",
                 "json",
                 "--limit",
-                "200",
+                "1000",
             ]
         )
-        by_title = {
-            item["content"]["title"]: item["id"]
-            for item in data.get("items", [])
-            if item.get("content") and item["content"].get("title")
-        }
+        by_url = project_items_by_url(data)
         for issue in issues.values():
-            issue.item_id = issue.item_id or by_title.get(issue.title)
+            issue.item_id = issue.item_id or by_url.get(issue.url or "")
 
     missing = [issue.title for issue in issues.values() if not issue.item_id]
     if missing:
@@ -630,34 +929,297 @@ def set_project_fields(issues: dict[str, Issue], fields: dict[str, dict[str, Any
                 "}){projectV2Item{id}}"
             )
         if mutations:
-            gh_json(["gh", "api", "graphql", "-f", f"query=mutation {{ {' '.join(mutations)} }}"])
+            graphql_json(f"mutation {{ {' '.join(mutations)} }}")
 
 
-def main() -> None:
-    issues = {issue.title: issue for issue in ISSUES}
+def project_field_plan(
+    project_fields: list[dict[str, Any]],
+    current_fields: dict[str, dict[str, Any]],
+    *,
+    update_existing: bool,
+    allow_option_removal: bool = False,
+) -> tuple[list[dict[str, str]], list[str]]:
+    actions: list[dict[str, str]] = []
+    blockers: list[str] = []
+    for desired in project_fields:
+        current = current_fields.get(desired["name"])
+        if not current:
+            actions.append({"field": desired["name"], "action": "create"})
+            continue
+        if current.get("dataType") != desired["type"]:
+            blockers.append(
+                f"{desired['name']}: type {current.get('dataType')} != {desired['type']}"
+            )
+            continue
+        action = "noop"
+        if desired["type"] == "SINGLE_SELECT":
+            try:
+                materialized = materialize_single_select_options(
+                    desired.get("options", []),
+                    current.get("options", []),
+                    allow_removal=allow_option_removal,
+                )
+            except SystemExit as exc:
+                blockers.append(f"{desired['name']}: {exc}")
+                continue
+            if option_signatures(materialized) != option_signatures(current.get("options", [])):
+                if update_existing:
+                    removed = set(option_names(current.get("options", []))) - set(
+                        option_names(desired.get("options", []))
+                    )
+                    action = (
+                        "replace-options-on-empty-project"
+                        if removed
+                        else "update-preserving-option-ids"
+                    )
+                else:
+                    blockers.append(
+                        f"{desired['name']}: option差分。"
+                        "apply --update-existing-fieldsで明示してください"
+                    )
+                    continue
+        actions.append({"field": desired["name"], "action": action})
+    return actions, blockers
+
+
+def build_bootstrap_plan(context: dict[str, Any], *, update_existing: bool) -> dict[str, Any]:
+    field_actions, blockers = project_field_plan(
+        context["project_fields"],
+        context["current_fields"],
+        update_existing=update_existing,
+        allow_option_removal=context["target"]["project"]["items"]["totalCount"] == 0,
+    )
+    existing_numbers = {int(item["number"]) for item in context["existing_issues"]}
+    issue_actions = [
+        {
+            "title": issue.title,
+            "action": "reuse" if issue.number in existing_numbers else "create",
+            "number": issue.number,
+        }
+        for issue in context["issues"].values()
+    ]
+    existing_milestones = set(list_milestones())
+    milestone_actions = [
+        {
+            "title": milestone.title,
+            "action": "reuse" if milestone.title in existing_milestones else "create",
+        }
+        for milestone in context["milestones"].values()
+    ]
+    target = context["target"]
+    return {
+        "mode": "plan",
+        "target": {
+            "repository": target["repository"]["nameWithOwner"],
+            "default_branch": target["repository"]["defaultBranchRef"]["name"],
+            "project_number": target["project"]["number"],
+            "project_url": target["project"]["url"],
+        },
+        "field_actions": field_actions,
+        "milestone_actions": milestone_actions,
+        "issue_actions": issue_actions,
+        "relation_count": sum(
+            bool(issue.parent) + len(issue.blocked_by) for issue in context["issues"].values()
+        ),
+        "blockers": blockers,
+    }
+
+
+def relation_issue_numbers(value: Any) -> set[int]:
+    if value is None:
+        return set()
+    if isinstance(value, list):
+        return {
+            int(item["number"])
+            for item in value
+            if isinstance(item, dict) and item.get("number") is not None
+        }
+    if isinstance(value, dict):
+        if value.get("number") is not None:
+            return {int(value["number"])}
+        for key in ("nodes", "issues"):
+            if key in value:
+                return relation_issue_numbers(value[key])
+    return set()
+
+
+def verify_bootstrap(context: dict[str, Any]) -> dict[str, Any]:
+    issues: dict[str, Issue] = context["issues"]
+    missing_numbers = [issue.title for issue in issues.values() if issue.number is None]
+    if missing_numbers:
+        raise SystemExit(
+            f"verifyにはapply出力のIssue numberをISSUESへ保存してください: {missing_numbers}"
+        )
+
+    current_fields = list_project_fields()
+    field_actions, field_blockers = project_field_plan(
+        context["project_fields"], current_fields, update_existing=False
+    )
+    if field_blockers or any(action["action"] != "noop" for action in field_actions):
+        raise SystemExit(f"Project field検証に失敗しました: {field_blockers or field_actions}")
+
+    milestones = list_milestones()
+    milestone_errors: list[str] = []
+    for expected in context["milestones"].values():
+        actual = milestones.get(expected.title)
+        if not actual:
+            milestone_errors.append(f"missing milestone: {expected.title}")
+        elif expected.due_on and not str(actual.get("due_on", "")).startswith(expected.due_on):
+            milestone_errors.append(f"due date mismatch: {expected.title}")
+
+    existing_by_number = {
+        int(item["number"]): item for item in list_issues() if item.get("number") is not None
+    }
+    issue_errors: list[str] = []
+    relation_errors: list[str] = []
+    for issue in issues.values():
+        actual = existing_by_number.get(issue.number or 0)
+        if not actual or actual.get("title") != issue.title or actual.get("url") != issue.url:
+            issue_errors.append(f"Issue identity mismatch: {issue.title} #{issue.number}")
+            continue
+        relation_data = gh_json(
+            [
+                "gh",
+                "issue",
+                "view",
+                str(issue.number),
+                "--repo",
+                REPO,
+                "--json",
+                "number,parent,blockedBy",
+            ]
+        )
+        expected_parent = {issues[issue.parent].number} if issue.parent else set()
+        actual_parent = relation_issue_numbers(relation_data.get("parent"))
+        if actual_parent != expected_parent:
+            relation_errors.append(
+                f"parent mismatch: #{issue.number} {actual_parent} != {expected_parent}"
+            )
+        expected_blockers = {issues[title].number for title in issue.blocked_by}
+        actual_blockers = relation_issue_numbers(relation_data.get("blockedBy"))
+        if actual_blockers != expected_blockers:
+            relation_errors.append(
+                f"blockedBy mismatch: #{issue.number} {actual_blockers} != {expected_blockers}"
+            )
+
+    items = gh_json(
+        [
+            "gh",
+            "project",
+            "item-list",
+            PROJECT_NUMBER,
+            "--owner",
+            OWNER,
+            "--format",
+            "json",
+            "--limit",
+            "1000",
+        ]
+    )
+    item_urls = set(project_items_by_url(items))
+    missing_items = [issue.url for issue in issues.values() if issue.url not in item_urls]
+    errors = milestone_errors + issue_errors + relation_errors
+    if missing_items:
+        errors.append(f"missing Project items: {missing_items}")
+    if errors:
+        raise SystemExit(f"bootstrap verify failed: {errors}")
+    return {
+        "verified": True,
+        "field_count": len(context["project_fields"]),
+        "milestone_count": len(context["milestones"]),
+        "issue_count": len(issues),
+        "relation_count": sum(
+            bool(issue.parent) + len(issue.blocked_by) for issue in issues.values()
+        ),
+    }
+
+
+def prepare_bootstrap() -> dict[str, Any]:
+    validate_configuration()
+    issues = index_issues(ISSUES)
     milestones = ensure_milestone_plan(MILESTONES)
     ensure_issue_plan(issues, milestones)
     ensure_issue_bodies(issues)
     project_fields = load_project_fields(PROJECT_FIELDS_PATH)
-    fields = ensure_project_fields(project_fields)
+    target = discover_target()
+    existing_issues = list_issues()
+    validate_issue_reuse(issues, existing_issues)
+    hydrate_explicit_issues(issues, existing_issues)
+    return {
+        "issues": issues,
+        "milestones": milestones,
+        "project_fields": project_fields,
+        "current_fields": list_project_fields(),
+        "existing_issues": existing_issues,
+        "target": target,
+    }
+
+
+def apply_bootstrap(context: dict[str, Any], *, update_existing: bool) -> dict[str, Any]:
+    issues: dict[str, Issue] = context["issues"]
+    milestones: dict[str, Milestone] = context["milestones"]
+    fields = ensure_project_fields(
+        context["project_fields"],
+        update_existing=update_existing,
+        allow_empty_project_option_migration=True,
+    )
     create_or_reuse_milestones(milestones)
-    create_or_reuse_issues(issues)
+    create_or_reuse_issues(issues, context["existing_issues"])
     set_issue_milestones(issues)
     link_issue_relations(issues)
     add_project_items(issues)
     set_project_fields(issues, fields)
-    print(
-        json.dumps(
+    verification = verify_bootstrap(context)
+    return {
+        "verification": verification,
+        "issues": [
             {
-                "issue_count": len(issues),
-                "item_count": len([issue for issue in issues.values() if issue.item_id]),
-                "first_issue": min(issue.number for issue in issues.values() if issue.number),
-                "last_issue": max(issue.number for issue in issues.values() if issue.number),
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
+                "title": issue.title,
+                "number": issue.number,
+                "url": issue.url,
+                "item_id": issue.item_id,
+            }
+            for issue in issues.values()
+        ],
+    }
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    plan_parser = subparsers.add_parser("plan", help="read-onlyの変更計画をJSONで表示する")
+    plan_parser.add_argument("--update-existing-fields", action="store_true")
+    apply_parser = subparsers.add_parser("apply", help="確認済み計画を適用してverifyする")
+    apply_parser.add_argument("--update-existing-fields", action="store_true")
+    apply_parser.add_argument(
+        "--confirm",
+        required=True,
+        help="誤対象防止のため OWNER/REPO#PROJECT_NUMBER を指定する",
     )
+    subparsers.add_parser("verify", help="保存済みIssue numberを使って実状態を検証する")
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = parse_args(argv)
+    context = prepare_bootstrap()
+    if args.command == "verify":
+        result = verify_bootstrap(context)
+    else:
+        update_existing = bool(args.update_existing_fields)
+        plan = build_bootstrap_plan(context, update_existing=update_existing)
+        print(json.dumps(plan, ensure_ascii=False, indent=2))
+        if args.command == "plan":
+            return
+        if plan["blockers"]:
+            raise SystemExit(f"applyを停止しました: {plan['blockers']}")
+        expected_confirmation = f"{REPO}#{PROJECT_NUMBER}"
+        if args.confirm != expected_confirmation:
+            raise SystemExit(
+                f"確認文字列が一致しません: {args.confirm!r} != {expected_confirmation!r}"
+            )
+        result = apply_bootstrap(context, update_existing=update_existing)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

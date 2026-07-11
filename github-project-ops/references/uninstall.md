@@ -1,23 +1,26 @@
 # Uninstall
 
-Project/Milestoneを剥がすときに読む。標準は可逆優先にする。IssueやPRは閉じず、本文も原則編集しない。
+Project/Milestone運用を外すときに読む。標準は可逆優先とし、目的に応じて `detach`、`disable`、`hide`、`destroy` を選ぶ。IssueやPRは閉じず、本文も原則編集しない。
 
-# 目次
+# モード
 
-- 事前確認
-- 可逆な解除
-- repo側copyable assetsの削除
-- 破壊的な削除
-- 検証
+| モード    | 操作                                      | Project itemのfield値 | 戻し方                           |
+| --------- | ----------------------------------------- | --------------------- | -------------------------------- |
+| `detach`  | repositoryとProjectのlinkだけを外す       | 保持                  | `gh project link`                |
+| `disable` | Projectをcloseする                        | 保持                  | `gh project close --undo`        |
+| `hide`    | 対象itemをarchiveする                     | 保持                  | `gh project item-archive --undo` |
+| `destroy` | item、field、Milestone、Projectを削除する | 失われる              | exportを使った手動再構築         |
+
+`item-delete` は可逆操作ではない。field値を保持したい場合は `hide` を使う。
 
 # 事前確認
 
-GitHub上の実状態を先に読む。推測したProject number、Project item ID、Milestone numberで削除しない。
+GitHub上の実状態を先に読む。推測したProject number、Project item ID、Milestone numberで操作しない。
 
 ```bash
-gh repo view OWNER/REPO --json nameWithOwner,url,owner,isPrivate
+gh repo view OWNER/REPO --json id,nameWithOwner,url,defaultBranchRef,owner,isPrivate
 gh project view PROJECT_NUMBER --owner OWNER --format json
-gh project item-list PROJECT_NUMBER --owner OWNER --format json --limit 100
+gh project item-list PROJECT_NUMBER --owner OWNER --format json --limit 1000
 gh project field-list PROJECT_NUMBER --owner OWNER --format json --limit 100
 gh api repos/OWNER/REPO/milestones --method GET -f state=all -F per_page=100
 ```
@@ -29,26 +32,61 @@ gh issue list \
   --repo OWNER/REPO \
   --milestone "First Release" \
   --state all \
-  --json number,title,state,milestone
+  --limit 1000 \
+  --json number,title,state,url,milestone
 ```
 
-解除対象のProject item IDとIssue numberを一覧化してから実行する。Issue本文、PR本文、Project fieldへmetadataを複製しない設計なので、剥がしもGitHub metadata中心で完結させる。
+解除対象のProject URL、repository URL、Project item ID、Issue numberを一覧化し、依頼されたモードを記録してから実行する。
 
-# 可逆な解除
+# detach: repository linkを外す
 
-ProjectからIssue/PRを外す。これはIssue/PR本体を削除しない。
+Projectとitemを残したまま、repositoryからのlinkだけを外す。
 
 ```bash
-gh project item-delete PROJECT_NUMBER --owner OWNER --id PROJECT_ITEM_ID
+gh project unlink PROJECT_NUMBER --owner OWNER --repo REPO_NAME
 ```
 
-IssueのMilestoneを解除する。これはMilestone本体を削除しない。
+戻す場合:
+
+```bash
+gh project link PROJECT_NUMBER --owner OWNER --repo REPO_NAME
+```
+
+# disable: Projectを閉じる
+
+Projectをread-onlyの履歴として残し、通常運用から外す。
+
+```bash
+gh project close PROJECT_NUMBER --owner OWNER
+```
+
+戻す場合:
+
+```bash
+gh project close PROJECT_NUMBER --owner OWNER --undo
+```
+
+# hide: itemをarchiveする
+
+Project内の対象itemを非表示にする。Issue/PR本体とProject field値は保持される。
+
+```bash
+gh project item-archive PROJECT_NUMBER --owner OWNER --id PROJECT_ITEM_ID
+```
+
+戻す場合:
+
+```bash
+gh project item-archive PROJECT_NUMBER --owner OWNER --id PROJECT_ITEM_ID --undo
+```
+
+IssueからMilestone割当だけを外す場合は、Milestone本体を残す。
 
 ```bash
 gh issue edit ISSUE_NUMBER --repo OWNER/REPO --remove-milestone
 ```
 
-必要ならsub-issueやdependencyも解除する。Project/Milestoneだけを剥がす場合は、WBS構造を残してよい。
+必要な場合だけsub-issueやdependencyも解除する。Project/Milestoneだけを外す場合はWBS構造を残してよい。
 
 ```bash
 gh issue edit CHILD_NUMBER --repo OWNER/REPO --remove-parent
@@ -56,8 +94,6 @@ gh issue edit PARENT_NUMBER --repo OWNER/REPO --remove-sub-issue CHILD_NUMBER
 gh issue edit BLOCKED_NUMBER --repo OWNER/REPO --remove-blocked-by BLOCKER_NUMBER
 gh issue edit BLOCKER_NUMBER --repo OWNER/REPO --remove-blocking BLOCKED_NUMBER
 ```
-
-Project field、Milestone、sub-issue、blocked by / blockingの値をIssue本文へ退避しない。残す必要がある判断理由は、現在有効な内容だけIssue本文へ反映し、履歴はGitHub metadataとコメントで読む。
 
 # repo側copyable assetsの削除
 
@@ -79,55 +115,62 @@ Git管理下で、このskill導入専用のファイルだと確認できたも
 git rm .github/project/views.md
 ```
 
-# 破壊的な削除
+# destroy: 破壊的な削除
 
-このセクションは、可逆な解除で足りない場合だけ使う。実行前に対象一覧を出力し、Project itemやMilestoneに残っているIssue/PRがないことを確認する。
-
-Projectを削除する。
+`detach`、`disable`、`hide` で目的を満たせない場合だけ使う。削除前に復元用JSONを作り、対象を再表示し、typed confirmationを通す。
 
 ```bash
-gh project view PROJECT_NUMBER --owner OWNER --format json
+mkdir -p github-project-ops-export
+gh project view PROJECT_NUMBER --owner OWNER --format json \
+  > github-project-ops-export/project.json
+gh project item-list PROJECT_NUMBER --owner OWNER --format json --limit 1000 \
+  > github-project-ops-export/items.json
+gh project field-list PROJECT_NUMBER --owner OWNER --format json --limit 100 \
+  > github-project-ops-export/fields.json
+gh api repos/OWNER/REPO/milestones --method GET -f state=all -F per_page=100 \
+  > github-project-ops-export/milestones.json
+gh issue list --repo OWNER/REPO --state all --limit 1000 \
+  --json number,title,url,state,milestone \
+  > github-project-ops-export/issues.json
+```
+
+exportファイルを開き、Project owner、title、URL、number、repository、全item数を確認する。確認文字列はProject titleとnumberを含める。
+
+```bash
+EXPECTED="OWNER/PROJECT_TITLE#PROJECT_NUMBER"
+printf 'destroy confirmation (%s): ' "$EXPECTED"
+read -r CONFIRM
+test "$CONFIRM" = "$EXPECTED" || exit 1
+```
+
+確認後に、依頼された対象だけを削除する。Project itemを削除するとそのitemのcustom field値は失われる。
+
+```bash
+gh project item-delete PROJECT_NUMBER --owner OWNER --id PROJECT_ITEM_ID
+gh project field-delete --id FIELD_ID
+gh api repos/OWNER/REPO/milestones/MILESTONE_NUMBER --method DELETE
 gh project delete PROJECT_NUMBER --owner OWNER
 ```
 
-Milestoneを削除する。先にMilestone配下のIssueが空であることを確認する。
-
-```bash
-gh issue list \
-  --repo OWNER/REPO \
-  --milestone "First Release" \
-  --state all \
-  --json number,title,state
-
-gh api repos/OWNER/REPO/milestones/MILESTONE_NUMBER --method DELETE
-```
-
-Projectを残してfieldだけ消す場合は、field IDを確認してから削除する。GitHub既定fieldや他用途で使うfieldは消さない。
-
-```bash
-gh project field-list PROJECT_NUMBER --owner OWNER --format json --limit 100
-gh project field-delete --id FIELD_ID
-```
+GitHub既定fieldや他用途のfieldは削除しない。Milestoneは配下Issueが空であることを確認してから削除する。Projectを削除する場合は個別item/field削除を先に行う必要はない。
 
 # 検証
 
-Project itemが残っていないことを確認する。
+選んだモードに応じて、期待する状態をread-only commandで確認する。
 
 ```bash
-gh project item-list PROJECT_NUMBER --owner OWNER --format json --limit 100
+gh project view PROJECT_NUMBER --owner OWNER --format json
+gh project item-list PROJECT_NUMBER --owner OWNER --format json --limit 1000
+gh issue list --repo OWNER/REPO --state all --limit 1000 \
+  --json number,title,state,url,milestone
 ```
 
-Milestone割当が残っていないことを確認する。
+- `detach`: repositoryのlinked Project一覧に対象がない。Projectとitemは残る。
+- `disable`: Projectがclosedで、itemは残る。
+- `hide`: 対象itemがarchiveされ、unarchive可能である。
+- `destroy`: 削除対象が見つからず、export一式が手元に残る。
 
-```bash
-gh issue list \
-  --repo OWNER/REPO \
-  --milestone "First Release" \
-  --state all \
-  --json number,title,state,milestone
-```
-
-repo側copyable assetsを削除した場合は、差分を確認する。
+repo側copyable assetsを削除した場合は差分も確認する。
 
 ```bash
 git status --short

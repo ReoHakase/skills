@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -218,3 +220,303 @@ def test_serial_forecast_overlap_is_rejected() -> None:
 
     with pytest.raises(SystemExit, match="直列依存のForecastが重なっています"):
         module.ensure_issue_plan({issue.title: issue for issue in [blocker, blocked]})
+
+
+def test_existing_option_ids_are_preserved() -> None:
+    module = load_asset()
+
+    materialized = module.materialize_single_select_options(
+        [{"name": "ready", "color": "GREEN", "description": "開始可能"}],
+        [{"id": "OPT_ready", "name": "ready", "color": "BLUE", "description": "旧"}],
+    )
+
+    assert materialized == [
+        {
+            "id": "OPT_ready",
+            "name": "ready",
+            "color": "GREEN",
+            "description": "開始可能",
+        }
+    ]
+    assert 'id:"OPT_ready"' in module.single_select_option_literals(materialized)
+
+
+def test_unchanged_options_skip_update() -> None:
+    module = load_asset()
+    current = [{"id": "OPT_ready", "name": "ready", "color": "GREEN", "description": "開始可能"}]
+
+    materialized = module.materialize_single_select_options(current, current)
+
+    assert module.option_signatures(materialized) == module.option_signatures(current)
+
+
+def test_option_removal_or_rename_is_rejected() -> None:
+    module = load_asset()
+
+    with pytest.raises(SystemExit, match="削除・rename"):
+        module.materialize_single_select_options(
+            [{"name": "renamed", "color": "GREEN"}],
+            [{"id": "OPT_ready", "name": "ready", "color": "GREEN"}],
+        )
+
+
+def test_option_replacement_is_allowed_only_for_proven_empty_project() -> None:
+    module = load_asset()
+
+    materialized = module.materialize_single_select_options(
+        [{"name": "ready", "color": "GREEN"}],
+        [{"id": "OPT_todo", "name": "Todo", "color": "GRAY"}],
+        allow_removal=True,
+    )
+
+    assert materialized == [{"id": "", "name": "ready", "color": "GREEN", "description": ""}]
+
+
+def test_string_option_preserves_existing_metadata() -> None:
+    module = load_asset()
+
+    materialized = module.materialize_single_select_options(
+        ["ready"],
+        [
+            {
+                "id": "OPT_ready",
+                "name": "ready",
+                "color": "PURPLE",
+                "description": "既存説明",
+            }
+        ],
+    )
+
+    assert materialized[0]["color"] == "PURPLE"
+    assert materialized[0]["description"] == "既存説明"
+
+
+def test_duplicate_option_names_are_rejected() -> None:
+    module = load_asset()
+
+    with pytest.raises(SystemExit, match="option名が重複"):
+        module.materialize_single_select_options(["ready", "ready"], [])
+
+
+def test_existing_field_data_type_must_match(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_asset()
+    monkeypatch.setattr(
+        module,
+        "list_project_fields",
+        lambda: {"Status": {"id": "FIELD", "name": "Status", "dataType": "TEXT"}},
+    )
+
+    with pytest.raises(SystemExit, match="既存fieldの型が一致しません"):
+        module.ensure_project_fields(
+            [{"name": "Status", "type": "SINGLE_SELECT", "options": ["ready"]}]
+        )
+
+
+def test_graphql_payload_errors_fail_even_with_success_exit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_asset()
+    payload = {"data": {}, "errors": [{"message": "Resource not accessible"}]}
+    monkeypatch.setattr(
+        module.subprocess,
+        "run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=json.dumps(payload), stderr=""
+        ),
+    )
+
+    with pytest.raises(SystemExit):
+        module.graphql_json("query { viewer { login } }")
+
+
+def test_mixed_duplicate_and_permission_errors_fail(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_asset()
+    payload = {
+        "data": {},
+        "errors": [
+            {"message": "Issue is already blocked by this issue"},
+            {"message": "Resource not accessible by integration"},
+        ],
+    }
+    monkeypatch.setattr(
+        module.subprocess,
+        "run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(
+            args=[], returncode=1, stdout=json.dumps(payload), stderr=""
+        ),
+    )
+
+    with pytest.raises(SystemExit):
+        module.graphql_json("mutation { noop }", duplicate_operation="blocked-by")
+
+
+def test_expected_duplicate_relation_error_is_allowed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_asset()
+    payload = {
+        "data": {"addBlockedBy": None},
+        "errors": [{"message": "Issue is already blocked by this issue"}],
+    }
+    monkeypatch.setattr(
+        module.subprocess,
+        "run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(
+            args=[], returncode=1, stdout=json.dumps(payload), stderr=""
+        ),
+    )
+
+    assert module.graphql_json("mutation { noop }", duplicate_operation="blocked-by") == payload
+
+
+def test_template_placeholders_fail_before_gh_call(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_asset()
+    monkeypatch.setattr(module, "REPO", "OWNER/REPO")
+
+    with pytest.raises(SystemExit, match="REPOを確認済み"):
+        module.validate_configuration()
+
+
+def test_unlinked_repository_fails_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_asset()
+    monkeypatch.setattr(module, "OWNER", "@me")
+    monkeypatch.setattr(module, "REPO", "octo/repo")
+    monkeypatch.setattr(module, "PROJECT_NUMBER", "7")
+    monkeypatch.setattr(module, "PROJECT_ID", "PVT_target")
+    monkeypatch.setattr(
+        module,
+        "graphql_json",
+        lambda *_args, **_kwargs: {
+            "data": {
+                "viewer": {"login": "octo"},
+                "repository": {
+                    "id": "R_repo",
+                    "nameWithOwner": "octo/repo",
+                    "defaultBranchRef": {"name": "trunk"},
+                    "projectsV2": {
+                        "nodes": [{"id": "PVT_other", "number": 8}],
+                        "pageInfo": {"hasNextPage": False},
+                    },
+                },
+                "node": {
+                    "id": "PVT_target",
+                    "number": 7,
+                    "owner": {"login": "octo"},
+                    "url": "https://github.com/users/octo/projects/7",
+                    "items": {"totalCount": 0},
+                },
+            }
+        },
+    )
+
+    with pytest.raises(SystemExit, match="linkされていません"):
+        module.discover_target()
+
+
+def test_issue_reuse_requires_explicit_number() -> None:
+    module = load_asset()
+    issue = module.ISSUES[0]
+    existing = [
+        {
+            "number": 42,
+            "title": issue.title,
+            "url": "https://github.com/octo/repo/issues/42",
+            "id": "I_42",
+        }
+    ]
+
+    with pytest.raises(SystemExit, match="Issue.numberを明示"):
+        module.validate_issue_reuse({issue.title: issue}, existing)
+
+
+def test_duplicate_issue_titles_are_rejected() -> None:
+    module = load_asset()
+
+    with pytest.raises(SystemExit, match="Issue titleが重複"):
+        module.index_issues([module.ISSUES[0], module.ISSUES[0]])
+
+
+def test_project_item_fallback_matches_url_not_title() -> None:
+    module = load_asset()
+    data = {
+        "totalCount": 2,
+        "items": [
+            {
+                "id": "PVTI_expected",
+                "content": {
+                    "title": "同名Issue",
+                    "url": "https://github.com/octo/repo/issues/10",
+                },
+            },
+            {
+                "id": "PVTI_other",
+                "content": {
+                    "title": "同名Issue",
+                    "url": "https://github.com/octo/repo/issues/11",
+                },
+            },
+        ],
+    }
+
+    assert module.project_items_by_url(data)["https://github.com/octo/repo/issues/10"] == (
+        "PVTI_expected"
+    )
+
+
+def test_incomplete_project_item_page_is_rejected() -> None:
+    module = load_asset()
+
+    with pytest.raises(SystemExit, match="全件取得できません"):
+        module.project_items_by_url({"totalCount": 2, "items": [{"id": "one"}]})
+
+
+def test_plan_mode_never_calls_apply(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    module = load_asset()
+    monkeypatch.setattr(module, "prepare_bootstrap", lambda: {"prepared": True})
+    monkeypatch.setattr(
+        module,
+        "build_bootstrap_plan",
+        lambda *_args, **_kwargs: {"mode": "plan", "blockers": []},
+    )
+    monkeypatch.setattr(
+        module,
+        "apply_bootstrap",
+        lambda *_args, **_kwargs: pytest.fail("planからmutationへ到達した"),
+    )
+
+    module.main(["plan"])
+
+    assert '"mode": "plan"' in capsys.readouterr().out
+
+
+def test_wrong_apply_confirmation_stops_before_mutation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_asset()
+    monkeypatch.setattr(module, "REPO", "octo/repo")
+    monkeypatch.setattr(module, "PROJECT_NUMBER", "7")
+    monkeypatch.setattr(module, "prepare_bootstrap", lambda: {"prepared": True})
+    monkeypatch.setattr(
+        module,
+        "build_bootstrap_plan",
+        lambda *_args, **_kwargs: {"mode": "plan", "blockers": []},
+    )
+    monkeypatch.setattr(
+        module,
+        "apply_bootstrap",
+        lambda *_args, **_kwargs: pytest.fail("確認前にmutationへ到達した"),
+    )
+
+    with pytest.raises(SystemExit, match="確認文字列が一致しません"):
+        module.main(["apply", "--confirm", "wrong"])
+
+
+def test_copyable_ci_placeholder_fails_closed() -> None:
+    workflow = ASSET_PATH.parent / ".github" / "workflows" / "ci.yml"
+    content = workflow.read_text(encoding="utf-8")
+
+    assert "exit 1" in content

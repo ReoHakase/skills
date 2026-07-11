@@ -10,6 +10,8 @@
 
 このreferenceは実例から抽出した手順である。対象repositoryへそのまま流し込まず、`OWNER/REPO`、Project owner/number/id、Issue一覧、field値を確認してから実行する。運用中の変更をbootstrap templateの再実行だけで吸収しようとしない。
 
+実行境界は `plan -> apply -> verify` に固定する。引数なし実行や `plan` はmutationを行わない。`apply` は対象repositoryとProject numberを含むtyped confirmationが一致した場合だけ書き込み、直後に全対象をverifyする。
+
 # 事前確認
 
 GitHub CLIに `project` scope が必要である。
@@ -29,6 +31,17 @@ gh project list --owner OWNER --format json --limit 100
 ```
 
 `OWNER` が自分の場合でも、Project操作では `--owner @me` と login 名のどちらが使えるかを実コマンドで確認する。repository linkでは `--owner OWNER --repo REPO_NAME` のように login と repo 名を明示する方が誤解釈を避けやすい。
+
+`assets/project-bootstrap-template.py` はmutation前に、placeholder、Project ID/number/owner、repository node、default branch、repositoryとProjectのlink、明示した再利用Issue numberとtitleを照合する。
+
+対象を確認したらread-only planを出す。
+
+```bash
+python project-bootstrap.py plan
+python project-bootstrap.py plan --update-existing-fields
+```
+
+2行目は既存single-select fieldのmetadata更新も計画するときだけ使う。
 
 # Project作成とrepository link
 
@@ -113,7 +126,9 @@ gh project field-create PROJECT_NUMBER \
 
 Text/Date fieldは `--data-type TEXT` または `--data-type DATE` で作る。
 
-既存single select fieldのoptionを置き換える場合、またはoptionの色・説明文を反映する場合はGraphQLを使う。
+既存single select fieldのoptionを更新する場合は、同名optionの既存IDを必ず引き継ぐ。IDを省略した既存optionは、そのoptionを参照するProject itemの値をclearし得る。削除とrenameはbootstrapでは行わず、対象item/valueをexportした専用migrationへ分ける。例外は、apply直前のreadでProject item数が0だと確認できた初期Projectだけである。この場合も `--update-existing-fields` を要求し、GitHub既定Status optionをcanonical定義へ置き換える。
+
+次の例は、対象fieldにこの8 optionだけが存在し、各 `OPTION_*_ID` を事前readで取得済みの場合に限る。既存optionを省略しない。
 
 ```bash
 gh api graphql -f query='
@@ -121,14 +136,14 @@ mutation {
   updateProjectV2Field(input:{
     fieldId:"FIELD_ID",
     singleSelectOptions:[
-      {name:"inbox",color:GRAY,description:"新しく起票され、まだトリアージされていない。"},
-      {name:"triaged",color:BLUE,description:"分類済み。仕様や依存の整理中、または開始可能とは限らない。"},
-      {name:"ready",color:GREEN,description:"受け入れ条件と確認手順があり、未解決のblocked byがなく、作業開始できる。"},
-      {name:"in-progress",color:YELLOW,description:"現在作業中。"},
-      {name:"in-review",color:ORANGE,description:"プルリクエストがあり、レビュー、CI、またはマージキュー待ち。"},
-      {name:"blocked",color:RED,description:"前段Issue、upstream PR、Figma design、外部依存、判断待ち、失敗対応などが解消するまで進められない。"},
-      {name:"done",color:PURPLE,description:"マージまたは完了確認済み。"},
-      {name:"canceled",color:GRAY,description:"不要、無効、重複、対象外などの理由で実装せず終了。"}
+      {id:"OPTION_INBOX_ID",name:"inbox",color:GRAY,description:"新しく起票され、まだトリアージされていない。"},
+      {id:"OPTION_TRIAGED_ID",name:"triaged",color:BLUE,description:"分類済み。仕様や依存の整理中。"},
+      {id:"OPTION_READY_ID",name:"ready",color:GREEN,description:"開始条件が揃っている。"},
+      {id:"OPTION_IN_PROGRESS_ID",name:"in-progress",color:YELLOW,description:"現在作業中。"},
+      {id:"OPTION_IN_REVIEW_ID",name:"in-review",color:ORANGE,description:"レビュー、CI、またはmerge待ち。"},
+      {id:"OPTION_BLOCKED_ID",name:"blocked",color:RED,description:"外部要因が解消するまで進められない。"},
+      {id:"OPTION_DONE_ID",name:"done",color:PURPLE,description:"完了条件を確認済み。"},
+      {id:"OPTION_CANCELED_ID",name:"canceled",color:GRAY,description:"実施せず終了。"}
     ]
   }) {
     projectV2Field {
@@ -144,7 +159,7 @@ mutation {
 
 `assets/project-bootstrap-template.py` はこの流れを一括処理化している。テンプレートは `PROJECT_FIELDS_PATH` のJSONを読む。テンプレートだけを一時パスへコピーする場合は、`project-fields.json` も同じディレクトリへ置くか、`PROJECT_FIELDS_PATH` を元アセットの絶対パスへ向ける。
 
-項目作成時は選択肢名だけをCLIへ渡し、メタデータ付き選択肢定義がある場合はGraphQLで色と説明文を上書きする。
+項目作成時は選択肢名だけをCLIへ渡し、作成後に取得したoption IDを付けて色と説明文を上書きする。既存fieldの差分は `--update-existing-fields` なしでは停止する。同名optionのID、順序、色、説明が一致する場合は更新しない。
 
 # Issue作成
 
@@ -171,7 +186,7 @@ gh issue create \
   --body-file -
 ```
 
-作成済みIssueを再利用する一括処理では、titleを一時照合keyにする。bootstrap対象内ではtitleを一意にする。
+作成済みIssueはtitleだけで再利用しない。`Issue.number` に確認済みnumberを明示し、実Issueのtitleと一致した場合だけ再利用する。number未指定の同名Issueが存在する場合は停止する。bootstrap対象内のtitle重複もIssue作成前に拒否する。
 
 Pythonテンプレートには長いIssue本文例を置かない。初期起票用の本文は `references/issue-authoring.md` の `Issue本文テンプレート` をもとに、対象repositoryの仕様、設計、README、docsへのcommit固定URLを入れて作る。
 
@@ -221,7 +236,7 @@ mutation {
 }'
 ```
 
-既に同じ関係がある場合、GitHubは重複系の検証エラーを返す。bootstrap再実行では警告として扱い、最後に実状態を検証する。
+既に同じ関係がある場合、GitHubは重複系の検証エラーを返す。bootstrap再実行では操作別に既知のduplicate errorだけを警告として扱う。duplicateと権限・schema errorが混在する場合を含め、その他はfail-closedで停止する。apply後は全対象IssueのparentとblockedByを再取得して一致を確認する。
 
 # Project item追加とfield値設定
 
@@ -291,6 +306,23 @@ mutation {
 
 大量設定では `assets/project-bootstrap-template.py` をコピーまたは一時ファイルへ展開し、対象リポジトリ用に編集する。Projectフィールドは `assets/project-fields.json` を読み込ませる。`ISSUES` の `body` は `dedent("""...""").strip()` で書き、長い文字列連結にしない。PythonテンプレートにはIssue本文例を置かず、本文の構成と記入例は `references/issue-authoring.md` を参照する。空のbodyは未設定として扱い、Issue作成前に停止する。
 
+planの `blockers` が空であることを確認してからapplyする。確認文字列は設定したrepositoryとProject numberそのものを使う。
+
+```bash
+python project-bootstrap.py apply \
+  --confirm "OWNER/REPO#PROJECT_NUMBER"
+```
+
+既存fieldの安全なmetadata更新も承認した場合だけ、applyにも同じflagを付ける。
+
+```bash
+python project-bootstrap.py apply \
+  --update-existing-fields \
+  --confirm "OWNER/REPO#PROJECT_NUMBER"
+```
+
+apply出力のIssue number、URL、Project item IDはmanifestとして保存し、再実行前に各 `Issue.number` へ反映する。途中失敗時はtitle照合で続行せず、出力とGitHub実状態を読み、明示numberを設定してplanから再開する。
+
 # Project views
 
 GitHub Projects API / `gh project` にはview作成・view編集のmutationやsubcommandが公開されていない前提で扱う。view名、目的、filter、group、sort、visible fieldsは `assets/.github/project/views.md` を対象repoの `.github/project/views.md` へコピーして残す。
@@ -303,6 +335,14 @@ Project UI上では次の4 viewだけを作る。
 - `Velocity`
 
 # 検証
+
+applyは完了直後にverifyを自動実行する。別processで再検証する場合は、apply出力のIssue numberを `ISSUES` へ保存してから実行する。
+
+```bash
+python project-bootstrap.py verify
+```
+
+verifyは全canonical field/type/options、Milestoneとdue date、全Issue identity、全parent/blockedBy、全Issue URLに対応するProject itemをread-onlyで確認する。代表Issueだけのspot checkで完了扱いにしない。
 
 Project fields:
 
@@ -348,7 +388,7 @@ test -f .github/project/views.md
 
 ```text
 Milestones: expected First Release
-Project fields: expected 29 including built-ins
+Project fields: assets/project-fields.jsonの全canonical fieldと必要なbuilt-in field
 Project items: expected created WBS issue count
 Issues: existing dashboardやdependency issueを含む場合があるため、WBS issue number rangeで確認する
 ```
