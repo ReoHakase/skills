@@ -16,6 +16,12 @@ FIELDS_PATH = Path(__file__).with_name("project-fields.json")
 BACKLOG_PATH = Path(__file__).with_name("backlog.flat.json")
 FORMS_DIR = Path(__file__).parent / ".github" / "ISSUE_TEMPLATE"
 PR_TEMPLATE_PATH = Path(__file__).parent / ".github" / "pull_request_template.md"
+VIEWS_PATH = Path(__file__).parent / ".github" / "project" / "views.md"
+VIEWS_JSON_PATH = Path(__file__).with_name("project-views.json")
+SKILL_PATH = Path(__file__).parents[1] / "SKILL.md"
+PROJECT_BOOTSTRAP_REFERENCE = Path(__file__).parents[1] / "references" / "project-bootstrap.md"
+PR_AND_MERGE_REFERENCE = Path(__file__).parents[1] / "references" / "pr-and-merge.md"
+ISSUE_LIFECYCLE_REFERENCE = Path(__file__).parents[1] / "references" / "issue-lifecycle.md"
 PINNED_DOCUMENT = (
     "https://github.com/OWNER/REPO/blob/0123456789abcdef0123456789abcdef01234567/docs/spec.md"
 )
@@ -1047,6 +1053,387 @@ def test_unlinked_repository_fails_preflight(monkeypatch: pytest.MonkeyPatch) ->
         module.discover_target()
 
 
+def test_rest_api_args_pin_current_api_version() -> None:
+    module = load_asset()
+
+    args = module.rest_api_args("repos/octo/repo/issue-types")
+
+    assert args[:4] == ["gh", "api", "--method", "GET"]
+    assert f"X-GitHub-Api-Version: {module.REST_API_VERSION}" in args
+
+
+def test_optional_rest_read_only_treats_404_as_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_asset()
+    monkeypatch.setattr(
+        module.subprocess,
+        "run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(
+            args=[], returncode=1, stdout="", stderr="gh: Not Found (HTTP 404)"
+        ),
+    )
+
+    assert module.gh_json_or_none(["gh", "api", "missing"]) is None
+
+
+def test_optional_rest_read_fails_closed_on_permission_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_asset()
+    monkeypatch.setattr(
+        module.subprocess,
+        "run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(
+            args=[], returncode=1, stdout="", stderr="gh: Forbidden (HTTP 403)"
+        ),
+    )
+
+    with pytest.raises(SystemExit):
+        module.gh_json_or_none(["gh", "api", "forbidden"])
+
+
+def test_user_owned_repository_skips_organization_capability_calls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_asset()
+    monkeypatch.setattr(
+        module,
+        "gh_json_or_none",
+        lambda _args: pytest.fail("個人所有リポジトリで組織APIを呼び出した"),
+    )
+    target = {
+        "repository": {
+            "owner": {"login": "octo", "__typename": "User"},
+            "visibility": "PUBLIC",
+        }
+    }
+
+    capabilities = module.discover_repository_capabilities(target)
+
+    assert capabilities["repository_issue_types"] == []
+    assert capabilities["organization_issue_fields"] == []
+
+
+def test_organization_capabilities_include_types_fields_and_plan(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_asset()
+    responses = {
+        "repos/OWNER/REPO/issue-types": [{"name": "feat"}],
+        "orgs/octo/issue-fields": [{"id": 10, "name": "Scope", "data_type": "text"}],
+        "orgs/octo": {"plan": {"name": "enterprise"}},
+    }
+    monkeypatch.setattr(
+        module,
+        "gh_json_or_none",
+        lambda args: responses[args[-1]],
+    )
+    target = {
+        "repository": {
+            "owner": {"login": "octo", "__typename": "Organization"},
+            "visibility": "PRIVATE",
+        }
+    }
+
+    capabilities = module.discover_repository_capabilities(target)
+
+    assert capabilities["repository_issue_types"] == [{"name": "feat"}]
+    assert capabilities["organization_issue_fields"][0]["name"] == "Scope"
+    assert capabilities["organization_plan"] == "enterprise"
+
+
+def test_complete_repository_issue_types_replace_project_type_field() -> None:
+    module = load_asset()
+    fields = module.load_project_fields(FIELDS_PATH)
+    type_spec = next(field for field in fields if field["name"] == "Type")
+    type_names = module.option_names(type_spec["options"])
+    capabilities = {
+        "repository_owner_type": "Organization",
+        "repository_issue_types": [{"name": name} for name in type_names],
+        "organization_issue_fields": [],
+    }
+
+    strategy = module.metadata_strategy(fields, capabilities)
+
+    assert strategy["type_source"] == "organization-type"
+    assert strategy["native_type_map"] == {name: name for name in type_names}
+    assert "Type" not in {field["name"] for field in strategy["project_fields"]}
+    assert strategy["blockers"] == []
+
+
+def test_partial_repository_issue_types_keep_project_type_field() -> None:
+    module = load_asset()
+    fields = module.load_project_fields(FIELDS_PATH)
+    capabilities = {
+        "repository_owner_type": "Organization",
+        "repository_issue_types": [{"name": "feat"}, {"name": "fix"}],
+        "organization_issue_fields": [],
+    }
+
+    strategy = module.metadata_strategy(fields, capabilities)
+
+    assert strategy["type_source"] == "project"
+    assert "Type" in {field["name"] for field in strategy["project_fields"]}
+
+
+def test_organization_issue_field_is_not_used_as_type_fallback() -> None:
+    module = load_asset()
+    fields = module.load_project_fields(FIELDS_PATH)
+    type_spec = next(field for field in fields if field["name"] == "Type")
+    capabilities = {
+        "repository_owner_type": "Organization",
+        "repository_issue_types": [{"name": "feat"}],
+        "organization_issue_fields": [
+            {
+                "id": 10,
+                "name": "Type",
+                "data_type": "single_select",
+                "options": [{"name": name} for name in module.option_names(type_spec["options"])],
+            }
+        ],
+    }
+
+    strategy = module.metadata_strategy(fields, capabilities)
+
+    assert strategy["type_source"] == "project"
+    assert "Type" in {field["name"] for field in strategy["project_fields"]}
+    assert "Type" not in strategy["organization_issue_fields"]
+    assert "Issue TypeまたはProject Typeと衝突" in strategy["blockers"][0]
+
+
+def test_compatible_organization_issue_field_replaces_project_field() -> None:
+    module = load_asset()
+    fields = module.load_project_fields(FIELDS_PATH)
+    capabilities = {
+        "repository_owner_type": "Organization",
+        "repository_issue_types": [],
+        "organization_issue_fields": [
+            {"id": 10, "name": "Scope", "data_type": "text"},
+        ],
+    }
+
+    strategy = module.metadata_strategy(fields, capabilities)
+
+    assert strategy["organization_issue_fields"]["Scope"]["id"] == 10
+    assert "Scope" not in {field["name"] for field in strategy["project_fields"]}
+    assert strategy["blockers"] == []
+
+
+def test_organization_issue_field_option_order_does_not_change_compatibility() -> None:
+    module = load_asset()
+    desired = {
+        "name": "Priority",
+        "type": "SINGLE_SELECT",
+        "options": ["p1-normal", "p2-high"],
+    }
+    actual = {
+        "name": "Priority",
+        "data_type": "single_select",
+        "options": [{"name": "p2-high"}, {"name": "p1-normal"}],
+    }
+
+    assert module.organization_issue_field_matches(desired, actual)
+
+
+def test_public_project_requires_public_organization_issue_field() -> None:
+    module = load_asset()
+    desired = {"name": "Scope", "type": "TEXT"}
+    organization_only = {
+        "name": "Scope",
+        "data_type": "text",
+        "visibility": "organization_members_only",
+    }
+    public = {"name": "Scope", "data_type": "text", "visibility": "all"}
+
+    assert not module.organization_issue_field_matches(
+        desired, organization_only, project_public=True
+    )
+    assert module.organization_issue_field_matches(desired, public, project_public=True)
+
+
+def test_conflicting_organization_issue_field_blocks_project_duplicate() -> None:
+    module = load_asset()
+    fields = module.load_project_fields(FIELDS_PATH)
+    capabilities = {
+        "repository_owner_type": "Organization",
+        "repository_issue_types": [],
+        "organization_issue_fields": [
+            {
+                "id": 11,
+                "name": "Effort",
+                "data_type": "single_select",
+                "options": [{"name": "High"}, {"name": "Low"}],
+            }
+        ],
+    }
+
+    strategy = module.metadata_strategy(fields, capabilities)
+
+    assert any("Effort" in blocker for blocker in strategy["blockers"])
+    assert "Effort" not in {field["name"] for field in strategy["project_fields"]}
+
+
+def test_mixed_project_item_owners_block_organization_metadata() -> None:
+    module = load_asset()
+    fields = module.load_project_fields(FIELDS_PATH)
+    capabilities = {
+        "repository_owner": "octo-org",
+        "repository_owner_type": "Organization",
+        "repository_issue_types": [],
+        "organization_issue_fields": [],
+    }
+
+    strategy = module.metadata_strategy(fields, capabilities, {"octo-org", "another-owner"})
+
+    assert strategy["type_source"] == "project"
+    assert strategy["organization_issue_fields"] == {}
+    assert "複数所有者" in strategy["blockers"][0]
+
+
+def test_pull_request_project_items_block_organization_metadata() -> None:
+    module = load_asset()
+    fields = module.load_project_fields(FIELDS_PATH)
+    capabilities = {
+        "repository_owner": "octo-org",
+        "repository_owner_type": "Organization",
+        "repository_issue_types": [],
+        "organization_issue_fields": [],
+    }
+
+    strategy = module.metadata_strategy(fields, capabilities, {"octo-org"}, {"PullRequest"})
+
+    assert "Issue Fieldを持てない" in strategy["blockers"][0]
+
+
+@pytest.mark.parametrize(
+    ("capabilities", "expected_mode"),
+    [
+        (
+            {"repository_owner_type": "User", "repository_visibility": "PUBLIC"},
+            "protected-branch",
+        ),
+        (
+            {"repository_owner_type": "Organization", "repository_visibility": "PUBLIC"},
+            "merge-queue",
+        ),
+        (
+            {
+                "repository_owner_type": "Organization",
+                "repository_visibility": "PRIVATE",
+                "organization_plan": "enterprise",
+            },
+            "merge-queue",
+        ),
+        (
+            {
+                "repository_owner_type": "Organization",
+                "repository_visibility": "PRIVATE",
+                "organization_plan": "team",
+            },
+            "protected-branch",
+        ),
+        (
+            {
+                "repository_owner_type": "Organization",
+                "repository_visibility": "PRIVATE",
+                "organization_plan": "",
+            },
+            "undetermined",
+        ),
+    ],
+)
+def test_merge_integration_recommendation_obeys_repository_capability(
+    capabilities: dict[str, Any], expected_mode: str
+) -> None:
+    module = load_asset()
+
+    result = module.merge_integration_recommendation(capabilities)
+
+    assert result["recommended_mode"] == expected_mode
+    assert result["configuration_verified"] is False
+
+
+def test_native_issue_type_and_organization_fields_use_supported_commands(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_asset()
+    issue = make_issue(module, "metadata", number=42)
+    commands: list[list[str]] = []
+    requests: list[tuple[list[str], str | None]] = []
+    monkeypatch.setattr(
+        module,
+        "run_gh",
+        lambda args, **_kwargs: commands.append(args) or "",
+    )
+    monkeypatch.setattr(
+        module,
+        "gh_json",
+        lambda args, *, input_text=None: requests.append((args, input_text)) or [],
+    )
+
+    module.set_native_issue_types({issue.title: issue}, {"feat": "Feature"})
+    module.set_organization_issue_fields(
+        {issue.title: issue},
+        {"Scope": {"id": 10, "name": "Scope", "data_type": "text"}},
+    )
+
+    assert commands[0][-2:] == ["--type", "Feature"]
+    assert "issue-field-values" in requests[0][0][-3]
+    assert json.loads(requests[0][1] or "{}")["issue_field_values"] == [
+        {"field_id": 10, "value": "core"}
+    ]
+
+
+def test_project_item_field_values_read_back_supported_value_types(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_asset()
+    captured: list[tuple[str, dict[str, Any] | None]] = []
+    monkeypatch.setattr(
+        module,
+        "graphql_json",
+        lambda query, variables=None, **_kwargs: (
+            captured.append((query, variables))
+            or {
+                "data": {
+                    "node": {
+                        "f0": {
+                            "__typename": "ProjectV2ItemFieldSingleSelectValue",
+                            "name": "ready",
+                        },
+                        "f1": {
+                            "__typename": "ProjectV2ItemFieldTextValue",
+                            "text": "core",
+                        },
+                        "f2": {
+                            "__typename": "ProjectV2ItemFieldNumberValue",
+                            "number": 3.0,
+                        },
+                        "f3": {
+                            "__typename": "ProjectV2ItemFieldDateValue",
+                            "date": "2026-06-22",
+                        },
+                    }
+                }
+            }
+        ),
+    )
+
+    values = module.project_item_field_values(
+        "PVTI_item", ["Status", "Scope", "Effort", "Forecast Start"]
+    )
+
+    assert values == {
+        "Status": "ready",
+        "Scope": "core",
+        "Effort": 3.0,
+        "Forecast Start": "2026-06-22",
+    }
+    assert captured[0][1] == {"itemId": "PVTI_item"}
+    assert 'fieldValueByName(name:"Status")' in captured[0][0]
+
+
 def test_issue_reuse_requires_explicit_number() -> None:
     module = load_asset()
     issue = module.ISSUES[0]
@@ -1104,6 +1491,44 @@ def test_incomplete_project_item_page_is_rejected() -> None:
         module.project_items_by_url({"totalCount": 2, "items": [{"id": "one"}]})
 
 
+def test_project_item_owner_logins_detect_cross_owner_content() -> None:
+    module = load_asset()
+    data = {
+        "totalCount": 2,
+        "items": [
+            {
+                "id": "one",
+                "content": {"url": "https://github.com/octo-org/repo/issues/1"},
+            },
+            {
+                "id": "two",
+                "content": {"url": "https://github.com/other/repo/pull/2"},
+            },
+        ],
+    }
+
+    assert module.project_item_owner_logins(data) == {"octo-org", "other"}
+
+
+def test_incompatible_project_item_types_detect_pull_requests_and_drafts() -> None:
+    module = load_asset()
+    data = {
+        "items": [
+            {
+                "type": "Issue",
+                "content": {"url": "https://github.com/octo/repo/issues/1"},
+            },
+            {
+                "type": "PullRequest",
+                "content": {"url": "https://github.com/octo/repo/pull/2"},
+            },
+            {"type": "DraftIssue", "content": None},
+        ]
+    }
+
+    assert module.incompatible_project_item_types(data) == {"PullRequest", "DraftIssue"}
+
+
 def test_plan_mode_never_calls_apply(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -1145,6 +1570,178 @@ def test_wrong_apply_confirmation_stops_before_mutation(
 
     with pytest.raises(SystemExit, match="確認文字列が一致しません"):
         module.main(["apply", "--confirm", "wrong"])
+
+
+def test_project_views_only_use_supported_project_filters() -> None:
+    text = VIEWS_PATH.read_text(encoding="utf-8")
+
+    assert "GitHub PR: レビュー承認済み" not in text
+    assert "GitHub checks: required checks passing" not in text
+    assert "- blocked by" not in text
+    assert "- blocking" not in text
+    assert "is:issue is:open status:in-review" in text
+    assert "Linked pull requests" in text
+    assert "Reviewers" in text
+    assert "gh pr view" in text
+    assert "gh pr checks PR_NUMBER --repo OWNER/REPO --required" in text
+
+
+def test_project_view_definitions_are_machine_readable_and_match_documentation() -> None:
+    module = load_asset()
+    views = module.load_project_views(VIEWS_JSON_PATH)
+    documentation = VIEWS_PATH.read_text(encoding="utf-8")
+
+    assert [view["name"] for view in views] == [
+        "かんばん",
+        "WBS/ロードマップ",
+        "マージ候補",
+        "Velocity",
+    ]
+    for view in views:
+        assert view["filter"] in documentation
+
+
+@pytest.mark.parametrize(
+    ("owner", "expected"),
+    [
+        (
+            {"__typename": "Organization", "login": "octo"},
+            "orgs/octo/projectsV2/7/views",
+        ),
+        (
+            {"__typename": "User", "login": "octo", "fullDatabaseId": "42"},
+            "users/42/projectsV2/7/views",
+        ),
+    ],
+)
+def test_project_view_endpoint_uses_project_owner_type(
+    owner: dict[str, Any], expected: str
+) -> None:
+    module = load_asset()
+
+    assert module.project_view_endpoint({"project": {"owner": owner, "number": 7}}) == expected
+
+
+def test_project_view_plan_creates_missing_and_reuses_exact_views() -> None:
+    module = load_asset()
+    desired = [
+        {"name": "かんばん", "layout": "board", "filter": "status:ready"},
+        {"name": "マージ候補", "layout": "table", "filter": "status:in-review"},
+    ]
+    current = [
+        {
+            "name": "かんばん",
+            "layout": "BOARD_LAYOUT",
+            "filter": "status:ready",
+        }
+    ]
+
+    actions, blockers = module.project_view_plan(desired, current)
+
+    assert [action["action"] for action in actions] == ["noop", "create"]
+    assert blockers == []
+
+
+def test_project_view_plan_blocks_incompatible_same_name() -> None:
+    module = load_asset()
+    desired = [{"name": "かんばん", "layout": "board", "filter": "status:ready"}]
+    current = [
+        {
+            "name": "かんばん",
+            "layout": "TABLE_LAYOUT",
+            "filter": "status:done",
+        }
+    ]
+
+    actions, blockers = module.project_view_plan(desired, current)
+
+    assert actions == []
+    assert "正規定義と一致しません" in blockers[0]
+
+
+def test_project_view_plan_preserves_extra_views_and_requires_manual_decision() -> None:
+    module = load_asset()
+    desired = [{"name": "かんばん", "layout": "board", "filter": "status:ready"}]
+    current = [{"name": "個別分析", "layout": "TABLE_LAYOUT", "filter": "status:done"}]
+
+    actions, blockers = module.project_view_plan(desired, current)
+
+    assert actions[0]["action"] == "create"
+    assert "標準外" in blockers[0]
+
+
+def test_project_view_creation_uses_rest_body_without_unsupported_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_asset()
+    requests: list[tuple[list[str], str | None]] = []
+    monkeypatch.setattr(
+        module,
+        "gh_json",
+        lambda args, *, input_text=None: requests.append((args, input_text)) or {},
+    )
+
+    module.create_project_views(
+        [
+            {
+                "name": "かんばん",
+                "layout": "board",
+                "filter": "status:ready",
+                "action": "create",
+            }
+        ],
+        "orgs/octo/projectsV2/7/views",
+    )
+
+    body = json.loads(requests[0][1] or "{}")
+    assert body == {"name": "かんばん", "layout": "board", "filter": "status:ready"}
+    assert "X-GitHub-Api-Version: 2026-03-10" in requests[0][0]
+
+
+def test_project_view_creation_uses_current_rest_endpoint() -> None:
+    text = PROJECT_BOOTSTRAP_REFERENCE.read_text(encoding="utf-8")
+
+    assert "orgs/ORG/projectsV2/PROJECT_NUMBER/views" in text
+    assert "users/USER_ID/projectsV2/PROJECT_NUMBER/views" in text
+    assert "X-GitHub-Api-Version: 2026-03-10" in text
+    assert "view作成・view編集のmutationやsubcommandが公開されていない" not in text
+
+
+def test_default_branch_is_discovered_instead_of_hardcoded_main() -> None:
+    skill = SKILL_PATH.read_text(encoding="utf-8")
+    merge_reference = PR_AND_MERGE_REFERENCE.read_text(encoding="utf-8")
+    lifecycle = ISSUE_LIFECYCLE_REFERENCE.read_text(encoding="utf-8")
+
+    assert "--base main" not in merge_reference
+    assert "defaultBranchRef.name" in merge_reference
+    assert "main統合" not in skill
+    assert "経由でmainへ" not in skill
+    assert "default branchへ" not in lifecycle
+
+
+def test_merge_queue_has_capability_fallback() -> None:
+    text = PR_AND_MERGE_REFERENCE.read_text(encoding="utf-8")
+
+    assert "組織所有の公開リポジトリ" in text
+    assert "GitHub Enterprise Cloud" in text
+    assert "個人所有" in text
+    assert "保護ブランチ" in text
+    assert "マージキューを利用できる場合だけRequire merge queue" in text
+
+
+def test_pull_request_flow_starts_as_draft_and_verifies_ready_state() -> None:
+    text = PR_AND_MERGE_REFERENCE.read_text(encoding="utf-8")
+
+    assert "--draft" in text
+    assert "gh pr ready PR_NUMBER" in text
+    assert "--json isDraft,headRefOid,reviewDecision,statusCheckRollup" in text
+
+
+def test_skill_declares_runtime_compatibility() -> None:
+    text = SKILL_PATH.read_text(encoding="utf-8")
+
+    assert "compatibility:" in text.split("---", 2)[1]
+    assert "Project権限とIssue書き込み権限で認証済みの現行gh CLI" in text
 
 
 def test_copyable_ci_placeholder_fails_closed() -> None:

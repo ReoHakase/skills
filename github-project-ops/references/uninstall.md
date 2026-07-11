@@ -68,7 +68,7 @@ gh project close PROJECT_NUMBER --owner OWNER --undo
 
 # hide: itemをarchiveする
 
-Project内の対象itemを非表示にする。Issue/PR本体とProject field値は保持される。
+Project内の対象項目を非表示にする。Issue/PR本体と、選択した構造化項目の値は保持される。
 
 ```bash
 gh project item-archive PROJECT_NUMBER --owner OWNER --id PROJECT_ITEM_ID

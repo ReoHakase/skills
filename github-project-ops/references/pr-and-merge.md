@@ -27,7 +27,7 @@ PRを作成しただけでは `in-review` にしない。Draft解除とレビュ
 
 # PR本文運用
 
-PR本文にはProject fieldのメタデータや具体的なエージェントモデル名を書かない。Agent HarnessとAgent ModelはProject fieldへ記録する。
+PR本文には構造化項目のメタデータや具体的なエージェントモデル名を書かない。Agent HarnessとAgent Modelは、それぞれ選択した正本へ記録する。
 
 PR本文は常体で書く。論文やレポートと同じく「である」「する」「できる」を使い、丁寧体は使わない。
 
@@ -67,7 +67,7 @@ Issue、PR、コミットの参照は、同一リポジトリなら `#123` や�
 
 # 確認結果
 
-`確認結果` には、変更に適用できる自動テストと手動確認だけを書く。単体、結合、E2Eのすべてを一律に要求しない。実行したコマンドまたは操作、結果、対象となる受け入れ条件を示す。適用できるが未実施の確認は、確認名と理由を書く。Project fieldやCIメタデータは複製しない。
+`確認結果` には、変更に適用できる自動テストと手動確認だけを書く。単体、結合、E2Eのすべてを一律に要求しない。実行したコマンドまたは操作、結果、対象となる受け入れ条件を示す。適用できるが未実施の確認は、確認名と理由を書く。構造化項目やCIメタデータは複製しない。
 
 # PR本文テンプレート
 
@@ -102,7 +102,7 @@ Closes #123
 
 実施した確認:
 
-- `command` — 結果を書く
+- `<確認コマンド>` — 結果を書く
 
 未実施の確認と理由:
 
@@ -212,39 +212,39 @@ Closes #123
 
 PR本文やGitHubメタデータで分かる内容をコメントへ重複させない。レビュアーへの一時的な補足、CIの特殊事情、外部判断待ち、通常と違う確認依頼がある場合だけ、`lifecycle-comments.md` のレビュー中コメントを使う。
 
-# Merge policy
+# マージ方針
 
-mainを壊さずに、複数PRを自動で高速に流す。PR単体のCIだけでなく、実際にmainへ入る直前の合成状態でもCIを通すことで、mainの安定性を保つ。
+既定ブランチを壊さずにPRを流す。方式は固定せず、所有者種別、公開範囲、組織の契約プランを先に読む。
 
-採用する運用は、merge commit + merge queue + auto-merge。
+```bash
+DEFAULT_BRANCH=$(gh repo view OWNER/REPO --json defaultBranchRef --jq '.defaultBranchRef.name')
+gh api --method GET -H "X-GitHub-Api-Version: 2026-03-10" repos/OWNER/REPO
+gh api --method GET -H "X-GitHub-Api-Version: 2026-03-10" orgs/ORG
+```
 
-merge commit:
+| 利用資格                                                    | 推奨する統合方式                                       |
+| ----------------------------------------------------------- | ------------------------------------------------------ |
+| 組織所有の公開リポジトリ                                    | マージコミット + マージキュー + 自動マージ             |
+| GitHub Enterprise Cloud組織所有の非公開・internalリポジトリ | マージコミット + マージキュー + 自動マージ             |
+| 個人所有またはマージキュー非対応と確認済みのリポジトリ      | マージコミット + 保護ブランチ + 利用可能なら自動マージ |
+| 契約プランや利用資格を確認できないリポジトリ                | 未決定。確認できるまで停止                             |
 
-- PRの統合点をmain履歴に残す方式。
-- squashやrebaseではなく、PRブランチをmerge commitで取り込む。
+この表は利用資格から出す推奨値であり、設定済みという証拠ではない。既定ブランチに適用されるruleset、ブランチ保護、リポジトリのマージ設定、CI定義を読む。
 
-merge queue:
+```bash
+gh api --method GET -H "X-GitHub-Api-Version: 2026-03-10" \
+  "repos/OWNER/REPO/rulesets?includes_parents=true"
+gh api --method GET -H "X-GitHub-Api-Version: 2026-03-10" \
+  "repos/OWNER/REPO/branches/$DEFAULT_BRANCH/protection"
+gh api --method GET -H "X-GitHub-Api-Version: 2026-03-10" \
+  "repos/OWNER/REPO/contents/.github/workflows?ref=$DEFAULT_BRANCH"
+```
 
-- 承認済みPRをすぐmainへ入れず、順番にキューへ入れる。
-- 最新mainと先行PR込みの状態でCIを通してからマージする。
+一覧に出たrulesetは各IDの詳細も読む。マージキュー方式ではRequire merge queue、自動マージ、PRと `merge_group` の必須検査を確認する。代替方式ではPR必須、必須レビュー、必須検査、会話解決、直接push禁止をrulesetまたはブランチ保護で確認する。設定確認・変更に必要な権限、通常の自動マージの利用可否も別に確認する。必要な保護を強制できない、または権限不足で確認できない場合は、Issue投入前に停止する。
 
-auto-merge:
+全方式で、既定ブランチへの直接pushを禁止し、PR、必須レビュー、必須検査、会話解決をrulesetまたはbranch protectionで要求する。マージコミットを使い、squash/rebaseマージとRequire linear historyは標準では使わない。
 
-- 条件を満たしたPRを人間が手動でマージせず、自動的にmerge queueへ流す。
-
-main保護:
-
-- mainには直接pushしない。
-- PR経由にする。
-- required checksを必須にする。
-- reviewを必須にする。
-- conversation解決を必須にする。
-- merge queueを必須にする。
-- Require linear historyは使わない。
-
-merge commit運用ではlinear historyと衝突するため、Require linear historyを有効にしない。
-
-全checkを次の両方で実行する。
+マージキューを利用できる場合だけRequire merge queueを有効化し、全必須検査を次の両方で実行する。
 
 ```yaml
 on:
@@ -254,33 +254,15 @@ on:
 ```
 
 - `pull_request`: PR単体の早期フィードバック。
-- `merge_group`: merge queue上で実際にmainへ入る候補状態の最終確認。
+- `merge_group`: マージキュー上で実際に既定ブランチへ入る候補状態の最終確認。
 
-PR単体ではCIが通っていても、先行PRと組み合わせると壊れることがあるため、merge_groupでも同じcheckを走らせる。
+PR単体ではCIが通っていても、先行PRと組み合わせると壊れることがあるため、`merge_group` でも同じ必須検査を走らせる。マージキュー非対応時は `pull_request` の必須検査を合格条件にし、Require merge queueを設定しない。
 
-`Maximum group size = 100`は採用してよい。これはPR単位の厳密な切り分けより、queue throughputを優先する設定。ただし、CIを1回にまとめる設定ではない。required checksを通過した後に、base branchへ一度にmergeできるPR数の上限を決める設定である。
+`Maximum group size = 100` はマージキュー利用時に採用してよい。これはCIを1回にまとめる設定ではなく、必須検査を通過した後に既定ブランチへ一度にマージできるPR数の上限である。
 
-GitHub nativeのmerge queueだけでは、特定のPR群を明示的に1つのmerge groupへ固定し、CIも1回だけにすることはできない。epic branchは使わない。
+GitHub標準のマージキューだけでは、特定のPR群を明示的に1つのmerge groupへ固定し、CIも1回だけにすることはできない。epicブランチは使わない。
 
-通常運用:
-
-- 各PRをmain向けに出す。
-- merge queueに任せる。
-- CIはPRごと、merge_groupごとに走る。
-
-CI 1回を厳密に優先したい場合は、最初から1つの大きめPRにまとめる。
-
-概念整理:
-
-| 段階                   | 目的                                       |
-| ---------------------- | ------------------------------------------ |
-| PR CI                  | そのPR単体が壊れていないか早めに確認する   |
-| merge queue            | mainへ入れる順序を管理する                 |
-| merge_group CI         | 最新mainと先行PR込みでも壊れないか確認する |
-| Maximum group size 100 | CI削減ではなく、merge throughputを上げる   |
-| merge commit           | main履歴にPRの統合点を残す                 |
-
-repository設定は次を標準にする。
+リポジトリ設定は次を標準にする。
 
 ```text
 allow_merge_commit = true
@@ -289,17 +271,27 @@ allow_rebase_merge = false
 allow_auto_merge = true
 ```
 
-branch protectionまたはrulesetでRequire merge queueを有効化する。GitHub UIまたはruleset APIで設定する。
+マージ候補の確認はProject filterへ承認状態や検査結果を書かず、PRごとに次を読む。
+
+```bash
+gh pr view PR_NUMBER \
+  --repo OWNER/REPO \
+  --json baseRefName,headRefName,isDraft,reviewDecision,statusCheckRollup,mergeable,mergeStateStatus,autoMergeRequest
+gh pr checks PR_NUMBER --repo OWNER/REPO --required
+```
+
+`statusCheckRollup` は検査全体の把握に使い、必須検査だけの合否は `gh pr checks --required` で判定する。
 
 # gh CLI / MCP操作
 
-linked branch作成:
+紐づくブランチの作成:
 
 ```bash
+DEFAULT_BRANCH=$(gh repo view OWNER/REPO --json defaultBranchRef --jq '.defaultBranchRef.name')
 gh issue develop 123 \
   --repo OWNER/REPO \
   --name "123/feat-ui-search-cards" \
-  --base main \
+  --base "$DEFAULT_BRANCH" \
   --checkout
 ```
 
@@ -308,10 +300,18 @@ gh issue develop 123 \
 ```bash
 gh pr create \
   --repo OWNER/REPO \
-  --base main \
+  --base "$DEFAULT_BRANCH" \
   --head "123/feat-ui-search-cards" \
+  --draft \
   --title "検索結果カードで一致シーンの無音プレビューを表示する" \
   --body-file pr.md
+```
+
+実装と適用対象の検査が終わったら、Draftを解除して状態を再確認する。この確認が終わるまではIssueを `in-review` にしない。
+
+```bash
+gh pr ready PR_NUMBER --repo OWNER/REPO
+gh pr view PR_NUMBER --repo OWNER/REPO --json isDraft,headRefOid,reviewDecision,statusCheckRollup
 ```
 
 PR本文には必ず次のいずれかを含める。
@@ -322,10 +322,19 @@ Fixes #123
 Resolves #123
 ```
 
-merge queue運用では、条件を満たしたPRにauto-mergeを有効化する。
+能力確認後に自動マージを利用する場合は、条件を満たしたPRで有効化する。マージキュー必須ブランチなら `gh` がキュー投入または自動マージ予約へ切り替える。
 
 ```bash
 gh pr merge 123 --repo OWNER/REPO --auto --merge
 ```
 
-MCPはPR review結果の要約、CI失敗原因の整理、Project viewの現状把握に使う。再現可能な操作はgh CLIへ落とす。
+保護ブランチ経路で通常の自動マージを利用できない場合だけ、レビュー、最新コミットの必須検査、会話解決、マージ可能状態を再確認した権限保持者が手動マージする。`--admin` で保護を迂回しない。
+
+```bash
+gh pr checks 123 --repo OWNER/REPO --required
+gh pr view 123 --repo OWNER/REPO \
+  --json headRefOid,reviewDecision,mergeable,mergeStateStatus,isDraft
+gh pr merge 123 --repo OWNER/REPO --merge
+```
+
+MCPはPRレビュー結果の要約、CI失敗原因の整理、Project viewの現状把握に使う。再現可能な操作はgh CLIへ落とす。

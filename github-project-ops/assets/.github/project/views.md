@@ -1,6 +1,8 @@
-# Project views の設定例
+# Projectビューの設定例
 
-GitHub Projectsのviewには説明文欄がない前提で運用する。viewの目的、filter、運用ルールは、このfileまたはrepo側の `.github/project/views.md` に保存する。
+GitHub Projectsのビューには説明文欄がないため、ビューの目的、フィルター、運用規則をこのファイルに保存する。
+
+ビュー名、レイアウト、フィルターの機械可読な正本は `../../project-views.json` である。対象リポジトリへコピーした後は、この文書を人間向けの正本として残し、作成時のJSONとの不一致を作らない。
 
 # Project運用設定
 
@@ -20,204 +22,128 @@ Agent枠上限: 1
 マージ予備日: 1稼働日
 ```
 
-実装WIPは `min(Agent枠上限, 作業環境枠上限)` で導出し、未設定の枠/WIP上限は各1として扱う。Effortは実装、直接確認、テスト、ドキュメント、通常のレビュー修正を含み、待ち時間を含めない。epicはEffortを持たず、末端Issueだけを合計する。Sizeは順序尺度なので合計しない。
+実装WIPは `min(Agent枠上限, 作業環境枠上限)` で導出し、未設定の枠とWIP上限は各1として扱う。Effortは実装、直接確認、テスト、ドキュメント、通常のレビュー修正を含み、待ち時間を含めない。`epic` はEffortを持たず、末端Issueだけを合計する。Sizeは順序尺度なので合計しない。
+
+# 項目の正本
+
+標準ビューのProject項目はIssueを主体とする。PRを別のProject項目として管理せず、Issueの組み込み列 `Linked pull requests` と `Reviewers` から関連PRとレビュー状況を読む。承認、検査、マージ可否の詳細はPR自体で確認する。
+
+組織所有リポジトリでは、導入前に組織のIssue TypesとIssue Fieldsを検出する。同じ意味と値域を持つ項目がある場合はそれを正本とし、同義のProject独自項目を作らない。個人所有ProjectではProject独自項目を正本とする。
+
+# 作成APIとUIの分担
+
+API版 `2026-03-10` のREST APIによるProjectビュー作成で設定するのは、ビュー名、`layout`、`filter`、`visible_fields` である。`visible_fields` は `table` と `board` でのみ指定でき、`roadmap` では指定できない。表示項目は名前ではなく項目IDを渡す。
+
+グループ化、並び替え、ボードの列、ロードマップの日付項目と表示項目は、作成後にGitHubのUIで設定する。REST APIの作成要求にグループ化や並び替えを混ぜない。
+
+参照: <https://docs.github.com/en/rest/projects/views?apiVersion=2026-03-10>
 
 # かんばん
 
 目的:
 
-- 全体の進捗をStatus別に見る。
-- ready、in-progress、in-review、blockedの詰まりを日次で確認する。
-- 作業投入、review待ち、blocker解除の入口にする。
+- 全体の進捗と、`ready`、`in-progress`、`in-review`、`blocked` の詰まりを日次で確認する。
+- 作業投入、レビュー待ち、阻害要因解除の入口にする。
 
-Layout:
+REST APIで設定:
 
-- board
+- `layout`: `board`
+- `filter`: `is:issue is:open status:inbox,triaged,ready,in-progress,in-review,blocked`
+- `visible_fields`: Typeの正本、Scopeの正本、Priority、Size、Effort、Estimate Confidence、Complexity、Risk、Agent Tier、Agent Run、Assignees、Reviewer Owner、Branch、Actual Start、Linked pull requests、Reviewers
 
-Filter:
+UIで後設定:
 
-- Project field: Status = inbox, triaged, ready, in-progress, in-review, blocked
+- 列: Status
+- 並び替え: Priorityの降順、Riskの降順、更新日時の昇順
 
-Group:
+運用規則:
 
-- Status
-
-Sort:
-
-- Priority desc
-- Risk desc
-- updated asc
-
-Visible fields:
-
-- Type
-- Scope
-- Priority
-- Size
-- Effort
-- Estimate Confidence
-- Complexity
-- Risk
-- Agent Tier
-- Agent Run
-- Assignee
-- Reviewer Owner
-- Branch
-- Actual Start
-
-運用ルール:
-
-- readyに置くのは、受け入れ条件、非スコープ、確認手順、未解決blockerなしを確認済みの実行対象末端Issueだけにする。仕様確定済みでも前段Issue待ちならblockedにする。
-- `blocking` はこのIssueが後続Issueの前提であるという意味なのでreadyと両立する。`blocked by` が未解決ならreadyと両立しない。
-- Statusは `blocked by` / `blocking` から自動同期しない。upstream PR、Figma design、権限、担当外のCI基盤障害、設計判断待ちなどでblockedになるIssueもあるため、かんばんではStatusとblockedコメントを一緒に読む。
-- in-progressへ進める前にblocked byを再確認する。未解決の阻害要因がある場合は作業開始しない。
-- 実装WIPが上限なら新しい作業権を取得しない。レビュー、重いCI/共有環境、マージ待ちの下流WIPも確認する。
-- 作業権取得の勝者だけがAgent Runを設定し、リポジトリ差分を作る場合は独立worktreeを作る。
-- in-reviewではPR本文のclosing keyword、確認手順、リスク、レビュー観点、required checksを見る。
-- blockedではcommentに理由、解除者、依存Issue/PR/log、次の確認タイミングがあるか確認する。
-- doneとcanceledは通常表示しない。
+- `ready` に置くのは、受け入れ条件、非スコープ、確認手順、未解決の阻害要因がないことを確認済みの実行対象末端Issueだけにする。
+- Issue間の依存関係はIssue自体で確認する。`blocked by` と `blocking` を表示項目やフィルターとして扱わない。
+- 実装WIPが上限なら新しい作業権を取得しない。レビュー、重いCI・共有環境、マージ待ちの下流WIPも確認する。
+- `in-review` では `Linked pull requests` と `Reviewers` からPRを開き、本文、レビュー、検査を確認する。
+- `done` と `canceled` は通常表示しない。
 
 # WBS/ロードマップ
 
 目的:
 
 - WBS/Gantt相当の計画表示として使う。
-- Milestoneの締切目標からIssue/WBSのForecastを確認する。
-- 作業の構造と順序を、epic、sub-issue、blocked by / blockingで見る。
 - 計画開始日と計画終了目標日を確認する。
+- 構造と順序はIssueの親子関係と依存関係から読む。
 
-Layout:
+REST APIで設定:
 
-- roadmap
+- `layout`: `roadmap`
+- `filter`: `is:issue -no:"Forecast Start" -no:"Forecast End" status:triaged,ready,in-progress,in-review,blocked,done`
+- `visible_fields`: 指定しない。`roadmap` は作成APIの `visible_fields` 対象外
 
-Filter:
+UIで後設定:
 
-- Project field: Forecast Start is not empty
-- Project field: Forecast End is not empty
-- Project field: Status = triaged, ready, in-progress, in-review, blocked, done
+- 日付項目: Forecast Start、Forecast End
+- グループ化: Scopeの正本
+- 並び替え: Forecast Startの昇順、Forecast Endの昇順、Priorityの降順
+- 表示項目: Typeの正本、Scopeの正本、Priority、Effort、Estimate Confidence、Risk、Agent Tier、Forecast Start、Forecast End、Milestone、Linked pull requests
 
-Group:
+運用規則:
 
-- Scope
+- Milestoneの期日を先に決め、その期限目標からForecast StartとForecast Endを組む。
+- 親IssueのForecastは子Issue群を包む期間とし、子Issueと重なってよい。
+- 直列依存する末端Issue同士ではForecastを重ねない。後続Issueはすべての前段IssueのForecast Endより後の稼働日に開始する。
+- Issue間の親子関係と依存関係はIssue自体で確認し、ビューの表示項目に擬似列を追加しない。
 
-Sort:
-
-- Forecast Start asc
-- Forecast End asc
-- Priority desc
-
-Visible fields:
-
-- Type
-- Scope
-- Priority
-- Effort
-- Estimate Confidence
-- Risk
-- Agent Tier
-- Forecast Start
-- Forecast End
-- Milestone
-- blocked by
-- blocking
-
-運用ルール:
-
-- date fieldsは `Forecast Start` / `Forecast End` を使う。
-- Milestone due dateを先に決め、その締切目標からForecast Start / Forecast Endを組む。
-- 締切未定MilestoneはForecastの締切制約には使わない。
-- 期限変更時はMilestone due dateを先に更新し、ForecastはProject fieldだけを見直す。詳細手順は `github-project-ops` skillのreferenceを読む。
-- WBS番号は作らない。構造はepic/sub-issue、順序はblocked by / blockingで表す。
-- Statusは依存関係からの自動同期ではなく、運用状態として人間またはagentが確認して更新する。
-- epicのForecastは子Issue群を包む期間で、子Issueと重なってよい。
-- 直列依存するブランチ作成型Issue同士ではForecastを重ねない。後続IssueのForecast Startは、すべての `blocked by` 先のForecast Endより後の日付にする。
-- 依存関係、変更競合グラフ、実装/レビュー/CI/マージ容量が許すIssueだけForecastを重ねてよい。
-- Forecastは稼働日で扱い、レビュー、重いCI、マージの予備日を含める。Milestone期限を超える場合はscope、期限、依存関係、容量を見直す。
-- 実績はActual Start、Actual Endで見る。
-
-# マージキュー候補
+# マージ候補
 
 目的:
 
-- auto-mergeまたはmerge queue投入候補のPRを確認する。
-- review承認済みでrequired checksが揃ったPRをmainへ流す。
+- `in-review` のIssueのうち、マージ候補を絞り込むための一覧にする。マージキュー対応時も非対応時も同じビューを使う。
+- ビュー上の表示だけでマージ可能と判定しない。
 
-Layout:
+REST APIで設定:
 
-- table
+- `layout`: `table`
+- `filter`: `is:issue is:open status:in-review`
+- `visible_fields`: Typeの正本、Scopeの正本、Priority、Risk、Reviewer Owner、Branch、Linked pull requests、Reviewers
 
-Filter:
+UIで後設定:
 
-- Project field: Status = in-review
-- GitHub PR: レビュー承認済み
-- GitHub checks: required checks passing
+- グループ化: Risk
+- 並び替え: Priorityの降順、更新日時の昇順
 
-Group:
+運用規則:
 
-- Risk
+- `Linked pull requests` から対象PRを開く。`Reviewers` は入口として使い、承認状況の最終判定はPR自体で行う。
+- レビュー承認、必須検査、マージ可否、Draft状態、基点・作業ブランチは `gh pr view` で別に確認する。
 
-Sort:
+```bash
+gh pr view PR_NUMBER \
+  --repo OWNER/REPO \
+  --json reviewDecision,statusCheckRollup,mergeable,mergeStateStatus,isDraft,baseRefName,headRefName
+gh pr checks PR_NUMBER --repo OWNER/REPO --required
+```
 
-- Priority desc
-- updated asc
-
-Visible fields:
-
-- Type
-- Scope
-- Priority
-- Risk
-- Reviewer Owner
-- Branch
-
-運用ルール:
-
-- closing keyword、linked Issue、base/head branch、merge queue設定を確認してからauto-mergeを有効化する。
-- required checkがrerun中または失敗中なら候補にしない。
-- PR作成日、merge状態、merge日はGitHub PR metadataから読む。Project fieldへ複製しない。
-- merge後はdone条件を満たしてからActual EndをProject fieldへ記録する。
+- `statusCheckRollup` は検査全体の把握に使い、必須検査だけの合否は `gh pr checks --required` で判定する。必須検査が実行中または失敗中なら候補から外す。マージ後は型別完了条件を満たしてからActual Endを記録する。
 
 # Velocity
 
 目的:
 
 - 完了量、サイクルタイム、レビュー時間を週次で観察する。
-- agent投入量とmerge queueの詰まりをふりかえる。
+- エージェント投入量とマージ待ちの詰まりを振り返る。
 
-Layout:
+REST APIで設定:
 
-- table
+- `layout`: `table`
+- `filter`: `is:issue status:done -no:"Actual End"`
+- `visible_fields`: Typeの正本、Scopeの正本、Size、Effort、Estimate Confidence、Complexity、Risk、Agent Tier、Actual Start、Actual End、Linked pull requests、Reviewers
 
-Filter:
+UIで後設定:
 
-- Project field: Status = done
-- Project field: Actual End is not empty
+- グループ化: Scopeの正本
+- 並び替え: Actual Endの降順
 
-Group:
+運用規則:
 
-- Scope
-
-Sort:
-
-- Actual End desc
-
-Visible fields:
-
-- Type
-- Scope
-- Size
-- Effort
-- Estimate Confidence
-- Complexity
-- Risk
-- Agent Tier
-- Actual Start
-- Actual End
-
-運用ルール:
-
-- done件数、末端IssueのEffort合計、Size区分別件数、Scope別完了、Agent Tier別完了を週次で見る。
-- Estimate Confidence別にForecast超過率とサイクルタイムを観察する。Actual Start / Actual Endは待ち時間を含むため、実Effortとは扱わない。Sizeは合計しない。
-- Cycle timeはActual StartからActual Endまでを見る。
-- レビュー時間やマージ待ち時間が必要な場合は、GitHub PRメタデータのcreatedAt、mergedAt、レビュー状態から読む。
-- 厳密な見積もり契約ではなく、throughputを観察してready投入量を調整する。
+- `done` 件数、末端IssueのEffort合計、Size区分別件数、Scope別完了、Agent Tier別完了を週次で見る。
+- Sizeは合計しない。Actual Start / Actual Endは待ち時間を含むため、実Effortとは扱わない。
+- レビュー時間やマージ待ち時間は、`Linked pull requests` からPRを開き、作成日時、マージ日時、レビュー状態を読む。

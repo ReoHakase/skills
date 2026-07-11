@@ -63,7 +63,7 @@ Forecast Start / Forecast Endは、Project上の計画作業期間である。�
 - 同じepic配下でも、依存関係、変更競合、実装/レビュー/CI/マージ容量が許す子IssueだけForecastを重ねてよい。
 - epicのForecastは子Issue群を包む期間にする。epicと子IssueのForecastが重なるのは正常である。
 
-Forecast変更はProject fieldだけで行う。Issue本文にForecastやMilestone期限を書かない。
+Forecast変更は、導入時に選択した構造化項目の正本だけで行う。Issue本文にForecastやMilestone期限を書かない。
 
 並列実行可能数はエージェント、worktree、レビュアー、重いCI、共有フィクスチャ、マージ待ちの各WIP上限で有限である。最適化目標は直列依存を減らしつつ、後段を詰まらせない範囲で `ready` Issueを投入することにする。
 
@@ -87,23 +87,23 @@ Epic: 検索機能を全部作る
 
 ```text
 Epic: 検索機能
-  - 検索レスポンスのcontractを定義する
-  - DB検索repositoryとunit testを追加する
+  - 検索レスポンスの契約を定義する
+  - DB検索のリポジトリ層と単体テストを追加する
   - 検索結果カード、UIテスト、操作説明を追加する
 ```
 
 依存:
 
 ```text
-検索結果カードを表示する blocked by 検索レスポンスのcontractを定義する
-DB検索repositoryを追加する blocked by 検索レスポンスのcontractを定義する
+検索結果カードを表示する blocked by 検索レスポンスの契約を定義する
+DB検索のリポジトリ層を追加する blocked by 検索レスポンスの契約を定義する
 ```
 
-contract後は変更競合とWIP上限を確認し、DBの末端IssueとUIの末端Issueを別の実行Waveまたは同じ実行Waveへ配置する。
+契約確定後は変更競合とWIP上限を確認し、DBの末端IssueとUIの末端Issueを別の実行Waveまたは同じ実行Waveへ配置する。
 
 # 運用中のIssue追加
 
-bootstrap後にIssueを追加する場合も、独自WBS番号は作らない。GitHub Issue number、sub-issue、blocked by / blocking、Project fieldsをSSoTにする。
+初期構築後にIssueを追加する場合も、独自WBS番号は作らない。GitHub Issue番号、sub-issue、blocked by / blocking、選択した構造化項目の正本をSSoTにする。
 
 追加前に親Issue、既存の子Issue、依存関係を読む。
 
@@ -147,8 +147,8 @@ sub-issue追加はWBS階層の変更であり、実行順序の追加ではな�
 - 1 PRで閉じられる。
 - 受け入れ条件が第三者に判定可能。
 - titleが自然な日本語で、何が変わるか分かる。
-- TypeとScopeはProject fieldに入っている。
-- 正のEffortとEstimate ConfidenceがProject fieldに入っている。
+- TypeとScopeが、それぞれ選択した正本に入っている。
+- 正のEffortとEstimate Confidenceが、それぞれ選択した正本に入っている。
 - 主componentが1つ、またはinterface境界が1つ。
 - 非スコープが明記されている。
 - 必要なblocked by / blockingがGitHub上の関係として設定されている。
@@ -181,7 +181,7 @@ bug Issueには必ず再現条件を書く。
 - 影響範囲
 - 修正の受け入れ条件
 
-デバッグログ、チャット、問い合わせからIssueを起こす場合は、最初はStatusを `inbox` にする。SourceはProject fieldに入れる。Issue本文にはSourceなどのProject field値を書かない。
+デバッグログ、チャット、問い合わせからIssueを起こす場合は、最初はStatusを `inbox` にする。Sourceは選択した正本に入れる。Issue本文にはSourceなどの構造化項目値を書かない。
 
 Issue本文に必ず書く:
 
@@ -203,7 +203,7 @@ Issue本文は常体で書く。論文やレポートと同じく「である」
 
 Issue本文に `実装メモ`、`メモ`、`注意点` のような何でも入る欄を作らない。変更予定箇所、調査中の考え、実装中の注意、未確定の案はコメントへ書く。確定した契約、受け入れ条件、非スコープ、確認手順だけを本文へ反映する。
 
-Milestone、sub-issue、blocked by / blocking、Project field、Assignee、紐づくブランチはGitHubメタデータをSSoTにする。Issue本文にMilestone、sub-issue一覧、依存関係の節、Project field値を書かない。
+Milestone、sub-issue、blocked by / blocking、構造化項目、Assignee、紐づくブランチはGitHubメタデータをSSoTにする。Issue本文にMilestone、sub-issue一覧、依存関係の節、構造化項目値を書かない。
 
 Issue本文やPR本文で既存Issue、PR、コミットを参照するときは、同一リポジトリなら `#123` や短いコミットSHAだけを書く。GitHubが自動リンクとプレビューで参照先を表示するため、`#123 タイトル` のようにタイトルを併記しない。別リポジトリのIssue/PRは `OWNER/REPO#123` と書く。参照: <https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/autolinked-references-and-urls>
 
@@ -254,7 +254,7 @@ GitHub上の確認事項:
 - コメントの過去版は文章の差分として表示される。参照: <https://github.blog/changelog/2018-05-23-comment-edit-history/>
 - 取り消し線と折りたたみ欄はGitHub Markdownで使える。参照: <https://docs.github.com/github/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax>, <https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/quickstart-for-writing-on-github>
 
-Project fieldにあるメタデータは本文へ書かない。Type、Scope、Status、Priority、Size、Effort、Estimate Confidence、Complexity、Risk、Agent Tier、Agent Harness、Agent Model、Agent Run、Reviewer Owner、Branch、Source、Forecast Start、Forecast End、Actual Start、Actual EndはProject fieldだけに記録する。
+構造化項目にあるメタデータは本文へ書かない。StatusはProject項目へ、Type、Scope、Priority、Size、Effort、Estimate Confidence、Complexity、Risk、Agent Tier、Agent Harness、Agent Model、Agent Run、Reviewer Owner、Branch、Source、Forecast Start、Forecast End、Actual Start、Actual Endは導入時に選択した正本だけへ記録する。
 
 # 参照ドキュメントURL
 
@@ -264,16 +264,17 @@ Project fieldにあるメタデータは本文へ書かない。Type、Scope、S
 https://github.com/OWNER/REPO/blob/<commit_sha>/SPEC.md#L120-L180
 ```
 
-更新確認はrepository全体のcompare URLを標準にする。
+更新確認はリポジトリ全体の比較URLを標準にする。
 
 ```text
-https://github.com/OWNER/REPO/compare/<commit_sha>...main
+https://github.com/OWNER/REPO/compare/<commit_sha>...<default-branch>
 ```
 
 特定ファイルだけを確認したい場合は、GitHub URLではなくローカル確認コマンドを補助として書く。
 
 ```bash
-git diff <commit_sha>..main -- SPEC.md
+DEFAULT_BRANCH=$(gh repo view OWNER/REPO --json defaultBranchRef --jq '.defaultBranchRef.name')
+git diff <commit_sha>.."origin/$DEFAULT_BRANCH" -- SPEC.md
 ```
 
 GitHub UI上のdiff file anchorは使ってもよいが、生成が安定した仕様として扱いにくいため、skillの必須形式にはしない。
@@ -311,7 +312,7 @@ GitHub UI上のdiff file anchorは使ってもよいが、生成が安定した�
 https://github.com/OWNER/REPO/blob/<commit_sha>/SPEC.md#L120-L180
 https://github.com/OWNER/REPO/blob/<commit_sha>/docs/ARCHITECTURE.md#L40-L95
 
-更新確認: https://github.com/OWNER/REPO/compare/<commit_sha>...main
+更新確認: https://github.com/OWNER/REPO/compare/<commit_sha>...<default-branch>
 
 # 受け入れ条件
 

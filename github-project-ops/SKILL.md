@@ -1,6 +1,7 @@
 ---
 name: github-project-ops
 description: Agentで効率的に並列Issue処理することを前提に、GitHub Projects、Milestones、Issues、sub-issues、blocked by/blocking、マージキュー、自動マージを使って、WBS作成、Project/Milestone導入・解除、アジャイルIssue駆動開発、1 issue = 1 branch = 1 PR運用を行う日本語skill。複数人と複数agentがタスク管理のSSoTとして使う。
+compatibility: GitHub.com、git、Python 3.10+、Project権限とIssue書き込み権限で認証済みの現行gh CLIを想定する。組織Issue Type、組織Issue Field、マージキューは確認済みの機能だけを使う。不在・非対応ならProject項目や保護ブランチを候補にし、権限不足、定義衝突、不可視、確認不能なら停止する。
 ---
 
 # 目的
@@ -17,12 +18,12 @@ SSoTはGitHub上のProject、Issue、PRである。
 - 作業単位はGitHub Issueに置く。
 - 親子階層はsub-issueで表す。
 - 実行順序はblocked by / blockingで表す。
-- release/checkpointと締切目標はGitHub Milestoneで表す。
+- リリース、確認点、締切目標はGitHub Milestoneで表す。
 - 実装差分はPRで表す。
-- main統合はマージキューで表す。
+- 既定ブランチへの統合は、利用可能ならマージキュー、利用不可なら必須検査付き保護ブランチで表す。
 
-`assets/` は、対象repositoryへコピーして使う設定・サンプルデータ、または対象repositoryに合わせて編集して使うtemplateを置く。Issue Forms、PR template、merge_group対応CI、Project view説明、Project field JSON、backlog JSON、bulk bootstrap用templateはここに置く。
-Project field JSONは `assets/project-fields.json` を正本にし、一括作成テンプレートはこのJSONを読む。
+`assets/` は、対象リポジトリへコピーして使う設定・サンプルデータ、または対象リポジトリに合わせて編集して使うテンプレートを置く。Issue Forms、PRテンプレート、`merge_group` 対応CI、Projectビュー説明、Project項目・ビューJSON、初期Issue一覧JSON、一括作成用テンプレートはここに置く。
+Project項目は `assets/project-fields.json`、ビューの作成可能な設定は `assets/project-views.json` を正本にし、一括作成テンプレートは両方のJSONを読む。
 
 `references/` は、agentが必要に応じて読む手順、判断基準、template、記入済み例を置く。templateと記入済み例はuse-caseごとのreference内で隣接させる。
 
@@ -51,7 +52,11 @@ Issue、PR、Project itemを変更する前に、GitHub上の実状態を読む�
 最低限確認する値:
 
 - `OWNER/REPO`
+- リポジトリとProjectの所有者種別、公開範囲、契約プラン
 - Project number / owner
+- 既定ブランチ
+- 組織Issue Type / Issue FieldとProject fieldの正本分担
+- マージキューの利用資格、実際の設定状態、代替経路
 - Project item ID
 - Milestone title / number / due date
 - Issue number、PR number、Issue/PR URL
@@ -126,11 +131,11 @@ flowchart TD
 
 # Issue / PR invariants
 
-1つのブランチ可能Issueは1つのブランチを持つ。1つのブランチは1つのPRに対応する。PR本文は必ず `Closes #<issue-number>`、`Fixes #<issue-number>`、`Resolves #<issue-number>` のいずれかを含む。
+1つのブランチ作成型Issueは1つのブランチを持つ。1つのブランチは1つのPRに対応する。PR本文は `Closes #<issue-number>`、`Fixes #<issue-number>`、`Resolves #<issue-number>` のいずれかで、対応するブランチ作成型Issueを正確に1件だけ閉じる。
 
 epic issueは原則ブランチを持たない。spike issueは調査成果物を閉じるPRを持ってよい。
 
-IssueタイトルとPRタイトルは、Conventional Commits風にしない。TypeとScopeはProject fieldへ書くため、titleには書かない。titleには、何ができるようになるか、何が直るかを自然な日本語で書く。
+IssueタイトルとPRタイトルは、Conventional Commits風にしない。TypeとScopeは選択した正本へ書くため、タイトルには書かない。タイトルには、何ができるようになるか、何が直るかを自然な日本語で書く。
 
 Issue本文とPR本文は常体で書く。論文やレポートと同じく「である」「する」「できる」を使い、丁寧体は使わない。
 
@@ -152,19 +157,21 @@ Issue本文やPR本文で既存Issue/PRやコミットを参照するときは�
 
 Issue titleとブランチ名を一致させる必要はない。
 
-# Project metadata policy
+# Projectメタデータ方針
 
-このskillではGitHub labelを使わない。Type、Source、Status、Priority、Size、Effort、Estimate Confidence、Complexity、Risk、Agent TierはProject fieldをSSoTにする。
+このスキルではGitHubラベルを使わない。リポジトリが組織所有なら、利用できる組織Issue Typeと組織Issue Fieldを先に読む。Typeは正規Type一式が揃う場合だけ組織Issue Typeを使い、それ以外はProject Typeを使う。Type以外のIssue Fieldは項目ごとに同名・同型・同じ選択肢・必要な公開範囲を確認し、一致する項目だけを正本にする。対応項目が存在しない場合はProject項目へ切り替える。権限不足、同名定義の衝突、公開範囲の不一致、確認不能では推測せず停止する。Statusは常にProject項目に置く。
 
-Project fieldにあるメタデータはIssue本文、PR本文へ書かない。sub-issue、blocked by / blockingもGitHubメタデータをSSoTにし、Issue本文にsub-issue一覧や依存関係sectionとして重複させない。Issue本文には検証可能な最新情報だけを書く。作業権取得コメントだけは競合解決と監査のため、外部情報を含まない実行IDをProject fieldと重複してよい。非公開タスクURLは書かない。
+Source、Priority、Size、Effort、Estimate Confidence、Complexity、Risk、Agent Tierなどは、上記の項目ごとの正本判定結果に従う。
 
-Issue時点では具体的なモデル名まで確定させず、Agent Tierを設定する。作業権取得成功時にAgent Harness、Agent Model、Agent RunをProject fieldへ記録する。
+組織Issue FieldまたはProject項目を正本にしたメタデータはIssue本文、PR本文へ書かない。sub-issue、blocked by / blockingもGitHubメタデータをSSoTにし、Issue本文にsub-issue一覧や依存関係の節として重複させない。Issue本文には検証可能な最新情報だけを書く。作業権取得コメントだけは競合解決と監査のため、外部情報を含まない実行IDをAgent Runと重複してよい。非公開タスクURLは書かない。
+
+Issue時点では具体的なモデル名まで確定させず、Agent Tierを設定する。作業権取得成功時にAgent Harness、Agent Model、Agent Runを、それぞれ選択した正本へ記録する。
 
 # Milestone policy
 
-MilestoneはProject fieldではなく、GitHub native milestoneを使う。Milestone due dateを先に決め、その締切目標からIssue/WBSのForecast Start / Forecast Endを組む。IssueのForecastからMilestone期限を逆算しない。
+MilestoneはProject項目ではなく、GitHub標準のMilestoneを使う。Milestoneの期限を先に決め、その締切目標からIssue/WBSのForecast Start / Forecast Endを組む。IssueのForecastからMilestone期限を逆算しない。
 
-締切未定のMilestoneは必要に応じてdue dateなしで作ってよい。Issue本文、PR本文、Project fieldにはMilestone期限を複製しない。
+締切未定のMilestoneは必要に応じて期限なしで作ってよい。Issue本文、PR本文、Project項目にはMilestone期限を複製しない。
 
 # Typeの定義
 
@@ -210,8 +217,8 @@ stateDiagram-v2
     InProgress --> InReview: PRをレビュー可能にする
     InProgress --> done: PRなし成果の完了確認
     InProgress --> blocked: 外部依存・権限・基盤障害
-    InReview --> done: merge queue経由でmainへmerge
-    InReview --> InProgress: requested changes・修正可能なCI失敗
+    InReview --> done: 統合・Issue終了・受け入れ確認・Actual End
+    InReview --> InProgress: 修正要求・修正可能なCI失敗・競合
     InReview --> blocked: 外部判断・CI基盤障害
 
     blocked --> ready: 未着手blocker解消
@@ -240,14 +247,15 @@ stateDiagram-v2
 
 作業権取得、引き継ぎ、無効判定、実行Wave N、型別完了の詳細は `references/issue-lifecycle.md` を読む。コメントを書き込む時だけ `references/lifecycle-comments.md` を追加で読む。
 
-# Merge policy
+# マージ方針
 
-採用するmain統合方式は、マージコミット + マージキュー + 自動マージ。
+既定ブランチへの統合方式は、対象リポジトリの能力確認後に決める。
 
 - マージコミットを使う。
 - squashマージとrebaseマージは標準運用では使わない。
 - Require linear historyは使わない。
-- mainへ直接pushしない。
-- PR単体CIとmerge_group CIを両方走らせる。
-- 承認済みPRは自動マージを有効化してマージキューへ流す。
+- 既定ブランチへ直接pushしない。
+- マージキューを利用できる場合は、PR単体CIと `merge_group` CIを両方走らせ、承認済みPRに自動マージを設定する。
+- マージキューを利用できない場合は、保護ブランチまたはrulesetでPR、必須レビュー、必須検査、会話解決を強制する。通常の自動マージも利用できなければ、条件を再確認した権限保持者が保護を迂回せず手動マージする。
+- 所有形態と契約プランから分かるのは利用資格だけである。ruleset、ブランチ保護、必須検査、CI起動条件を読み、推奨方式が実際に設定済みと確認するまでIssueを投入しない。どちらの保護方式も強制できない場合は停止する。
 - マージキューのMaximum group sizeは100を許容する。ただしCIを1回にまとめる設定ではない。

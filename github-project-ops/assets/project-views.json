@@ -1,0 +1,22 @@
+[
+  {
+    "name": "かんばん",
+    "layout": "board",
+    "filter": "is:issue is:open status:inbox,triaged,ready,in-progress,in-review,blocked"
+  },
+  {
+    "name": "WBS/ロードマップ",
+    "layout": "roadmap",
+    "filter": "is:issue -no:\"Forecast Start\" -no:\"Forecast End\" status:triaged,ready,in-progress,in-review,blocked,done"
+  },
+  {
+    "name": "マージ候補",
+    "layout": "table",
+    "filter": "is:issue is:open status:in-review"
+  },
+  {
+    "name": "Velocity",
+    "layout": "table",
+    "filter": "is:issue status:done -no:\"Actual End\""
+  }
+]

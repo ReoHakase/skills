@@ -47,11 +47,11 @@ Priorityは重要度。0が最低、3が最高。p1-normalとp2-highが通常作
 
 ## p3-critical
 
-最重要。放置するとmain、release、利用者、セキュリティ、データ、開発全体に重大影響がある。
+最重要。放置すると既定ブランチ、リリース、利用者、セキュリティ、データ、開発全体に重大影響がある。
 
 判定基準:
 
-- mainが壊れている。
+- 既定ブランチが壊れている。
 - releaseを止めている。
 - データ破壊、認証、漏洩、重大障害に関係する。
 - 多数のIssueをblockしている。
@@ -157,7 +157,7 @@ Riskは壊した場合の影響度。
 ほぼ無リスク。
 
 - docs、コメント、表示文言など。
-- mainや利用者データに影響しない。
+- 既定ブランチや利用者データに影響しない。
 
 ## r1-safe
 
@@ -179,13 +179,13 @@ Riskは壊した場合の影響度。
 
 高リスク。
 
-- main破壊、データ破壊、セキュリティ、不可逆migration、大規模infra、release停止に関係する。
+- 既定ブランチ破壊、データ破壊、セキュリティ、不可逆な移行、大規模基盤、リリース停止に関係する。
 - 人間review ownerを必ず明示する。
 - frontier agentまたは人間主導を使う。
 
 # Effort
 
-Effortは正のNumberで記録する理想作業時間である。Projectごとに単位を固定し、標準は `ideal-hours` とする。実装、直接確認、テスト、docs更新、通常見込むreview修正を含める。CI待ち、外部判断待ち、review待ち、merge queue待ちは含めない。
+Effortは正のNumberで記録する理想作業時間である。Projectごとに単位を固定し、標準は `ideal-hours` とする。実装、直接確認、テスト、文書更新、通常見込むレビュー修正を含める。CI待ち、外部判断待ち、レビュー待ち、マージ待ちは含めない。
 
 - ブランチ作成型Issue、spike、リポジトリ差分なしIssueには、`ready` へ進める前にEffortを設定する。
 - epicのEffortは空欄にする。集計は実行対象の末端Issueだけで行い、親子で二重計上しない。
@@ -255,5 +255,5 @@ Agent Tierだけを手動で上書きしない。より強い段階が必要な�
 状態は次のように戻す。
 
 - `ready` 以前は `triaged` へ戻す。
-- `in-progress` / `in-review` は自動マージを止める。リポジトリ内で修正可能なら `in-progress`、外部判断待ちなら `blocked` にする。
+- `in-progress` / `in-review` は進行中のマージ処理を止める。リポジトリ内で修正可能なら `in-progress`、外部判断待ちなら `blocked` にする。
 - `done` / `canceled` をreopenする場合は、以前のActual Start / Actual Endを再開コメントへ残して両fieldをclearし、`triaged` にする。Agent Runは新しく作業権を取得するまで空欄にする。

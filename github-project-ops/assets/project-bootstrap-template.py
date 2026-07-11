@@ -34,6 +34,8 @@ HOLIDAYS: set[str] = set()
 # テンプレートだけを一時パスへコピーする場合は、project-fields.jsonも同じディレクトリへ置くか、
 # この値を絶対パスへ置き換える。
 PROJECT_FIELDS_PATH = Path(__file__).resolve().with_name("project-fields.json")
+PROJECT_VIEWS_PATH = Path(__file__).resolve().with_name("project-views.json")
+REST_API_VERSION = "2026-03-10"
 
 
 OPTION_COLORS = ["GRAY", "BLUE", "GREEN", "YELLOW", "ORANGE", "RED", "PINK", "PURPLE"]
@@ -44,8 +46,18 @@ FieldValue = str | float
 
 PLACEHOLDER_VALUES = {"OWNER/REPO", "PVT_REPLACE_ME"}
 ESTIMATE_CONFIDENCE_OPTIONS = {"ec0-low", "ec1-medium", "ec2-high"}
+PROJECT_ONLY_FIELD_NAMES = {"Status"}
+VIEW_LAYOUTS = {"board", "roadmap", "table"}
+GRAPHQL_VIEW_LAYOUTS = {
+    "BOARD_LAYOUT": "board",
+    "ROADMAP_LAYOUT": "roadmap",
+    "TABLE_LAYOUT": "table",
+}
 MARKDOWN_HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$")
 DOCUMENT_REFERENCE_RE = re.compile(r"https://[^/\s]+/[^/\s]+/[^/\s]+/blob/([^/\s]+)/[^\s)>]+")
+PROJECT_ITEM_OWNER_RE = re.compile(
+    r"^https://github\.com/(?P<owner>[^/]+)/[^/]+/(?:issues|pull)/\d+$"
+)
 FORBIDDEN_BODY_HEADINGS = {
     "依存関係",
     "プロジェクトフィールド",
@@ -225,6 +237,33 @@ def gh_json(args: list[str], *, input_text: str | None = None) -> Any:
     return json.loads(run_gh(args, input_text=input_text))
 
 
+def rest_api_args(endpoint: str, *, method: str = "GET") -> list[str]:
+    return [
+        "gh",
+        "api",
+        "--method",
+        method,
+        "-H",
+        f"X-GitHub-Api-Version: {REST_API_VERSION}",
+        endpoint,
+    ]
+
+
+def gh_json_or_none(args: list[str]) -> Any | None:
+    proc = subprocess.run(args, text=True, capture_output=True)
+    if proc.returncode != 0:
+        message = (proc.stderr or proc.stdout).strip()
+        if "HTTP 404" in message:
+            return None
+        print("コマンド失敗:", " ".join(args), file=sys.stderr)
+        print(message, file=sys.stderr)
+        raise SystemExit(proc.returncode)
+    try:
+        return json.loads(proc.stdout)
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"GitHub API応答が正しいJSONではありません: {' '.join(args)}") from exc
+
+
 def is_expected_duplicate_error(error: dict[str, Any], operation: str) -> bool:
     message = str(error.get("message", "")).lower()
     return any(marker in message for marker in EXPECTED_DUPLICATE_MARKERS[operation])
@@ -283,6 +322,44 @@ def load_project_fields(path: Path) -> list[dict[str, Any]]:
     if not isinstance(data, list):
         raise SystemExit(f"Project field定義はlistである必要があります: {path}")
     return data
+
+
+def load_project_views(path: Path) -> list[dict[str, str]]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise SystemExit(
+            f"Projectビュー定義が見つかりません: {path}。"
+            "project-views.jsonをテンプレートと同じディレクトリへ置くか、"
+            "PROJECT_VIEWS_PATHを設定してください。"
+        ) from exc
+    if not isinstance(data, list):
+        raise SystemExit(f"Projectビュー定義は配列である必要があります: {path}")
+
+    views: list[dict[str, str]] = []
+    names: set[str] = set()
+    for raw_view in data:
+        if not isinstance(raw_view, dict):
+            raise SystemExit(f"Projectビュー定義がオブジェクトではありません: {raw_view}")
+        name = raw_view.get("name")
+        layout = raw_view.get("layout")
+        filter_query = raw_view.get("filter")
+        if (
+            not isinstance(name, str)
+            or not name
+            or not isinstance(layout, str)
+            or not layout
+            or not isinstance(filter_query, str)
+            or not filter_query
+        ):
+            raise SystemExit(f"Projectビューのname/layout/filterが不足しています: {raw_view}")
+        if layout not in VIEW_LAYOUTS:
+            raise SystemExit(f"未対応のProjectビューレイアウトです: {layout}")
+        if name in names:
+            raise SystemExit(f"Projectビュー名が重複しています: {name}")
+        names.add(name)
+        views.append({"name": name, "layout": layout, "filter": filter_query})
+    return views
 
 
 def gql_string(value: str) -> str:
@@ -540,7 +617,8 @@ def discover_target() -> dict[str, Any]:
     query($repoOwner: String!, $repoName: String!, $projectId: ID!) {
       viewer { login }
       repository(owner: $repoOwner, name: $repoName) {
-        id nameWithOwner url isPrivate
+        id nameWithOwner url isPrivate visibility
+        owner { login __typename }
         defaultBranchRef { name }
         projectsV2(first: 100) {
           nodes { id number }
@@ -549,11 +627,12 @@ def discover_target() -> dict[str, Any]:
       }
       node(id: $projectId) {
         ... on ProjectV2 {
-          id number title url
+          id number title url public
           items(first: 1) { totalCount }
           owner {
+            __typename
             ... on Organization { login }
-            ... on User { login }
+            ... on User { login fullDatabaseId }
           }
         }
       }
@@ -570,7 +649,7 @@ def discover_target() -> dict[str, Any]:
         raise SystemExit("repositoryまたはProjectを取得できませんでした")
     if repository.get("nameWithOwner") != REPO or not repository.get("defaultBranchRef"):
         raise SystemExit(
-            f"repositoryまたはdefault branchが一致しません: {repository.get('nameWithOwner')}"
+            f"リポジトリまたは既定ブランチが一致しません: {repository.get('nameWithOwner')}"
         )
     expected_owner = data.get("viewer", {}).get("login") if OWNER == "@me" else OWNER.lstrip("@")
     actual_owner = project.get("owner", {}).get("login")
@@ -590,6 +669,343 @@ def discover_target() -> dict[str, Any]:
     if PROJECT_ID not in linked_ids:
         raise SystemExit(f"Projectがrepositoryへlinkされていません: {REPO} -> {PROJECT_ID}")
     return {"repository": repository, "project": project}
+
+
+def discover_repository_capabilities(target: dict[str, Any]) -> dict[str, Any]:
+    repository = target["repository"]
+    project = target.get("project", {})
+    owner = repository.get("owner", {})
+    owner_login = str(owner.get("login", ""))
+    owner_type = str(owner.get("__typename", ""))
+    visibility = str(repository.get("visibility", "")).upper()
+    capabilities: dict[str, Any] = {
+        "repository_owner": owner_login,
+        "repository_owner_type": owner_type,
+        "repository_visibility": visibility,
+        "project_owner": str(project.get("owner", {}).get("login", "")),
+        "project_owner_type": str(project.get("owner", {}).get("__typename", "")),
+        "project_public": bool(project.get("public", False)),
+        "repository_issue_types": [],
+        "organization_issue_fields": [],
+        "organization_plan": "",
+    }
+    if owner_type != "Organization":
+        return capabilities
+
+    capabilities["repository_issue_types"] = gh_json_or_none(
+        rest_api_args(f"repos/{REPO}/issue-types")
+    )
+    capabilities["organization_issue_fields"] = gh_json_or_none(
+        rest_api_args(f"orgs/{owner_login}/issue-fields")
+    )
+    if visibility != "PUBLIC":
+        organization = gh_json_or_none(rest_api_args(f"orgs/{owner_login}"))
+        if isinstance(organization, dict):
+            capabilities["organization_plan"] = str(
+                (organization.get("plan") or {}).get("name", "")
+            )
+    return capabilities
+
+
+def merge_integration_recommendation(
+    capabilities: dict[str, Any],
+) -> dict[str, str | bool | None]:
+    owner_type = capabilities.get("repository_owner_type")
+    visibility = str(capabilities.get("repository_visibility", "")).upper()
+    plan = str(capabilities.get("organization_plan", "")).casefold()
+    if owner_type != "Organization":
+        return {
+            "recommended_mode": "protected-branch",
+            "merge_queue_eligible": False,
+            "configuration_verified": False,
+            "reason": "マージキューは組織所有リポジトリだけで利用できます",
+        }
+    if visibility == "PUBLIC":
+        return {
+            "recommended_mode": "merge-queue",
+            "merge_queue_eligible": True,
+            "configuration_verified": False,
+            "reason": "組織所有の公開リポジトリです",
+        }
+    if "enterprise" in plan or plan == "business_plus":
+        return {
+            "recommended_mode": "merge-queue",
+            "merge_queue_eligible": True,
+            "configuration_verified": False,
+            "reason": "GitHub Enterprise Cloud組織の非公開リポジトリです",
+        }
+    if not plan:
+        return {
+            "recommended_mode": "undetermined",
+            "merge_queue_eligible": None,
+            "configuration_verified": False,
+            "reason": "組織の契約プランを確認できないため統合方式を決定できません",
+        }
+    return {
+        "recommended_mode": "protected-branch",
+        "merge_queue_eligible": False,
+        "configuration_verified": False,
+        "reason": "非公開リポジトリでEnterprise Cloud利用を確認できません",
+    }
+
+
+def project_view_endpoint(target: dict[str, Any]) -> str:
+    project = target["project"]
+    owner = project.get("owner", {})
+    owner_type = owner.get("__typename")
+    owner_login = owner.get("login")
+    project_number = project.get("number")
+    if not isinstance(owner_login, str) or not owner_login or not isinstance(project_number, int):
+        raise SystemExit("Projectビュー作成に必要な所有者またはProject番号がありません")
+    if owner_type == "Organization":
+        return f"orgs/{owner_login}/projectsV2/{project_number}/views"
+    if owner_type == "User":
+        owner_id = str(owner.get("fullDatabaseId", ""))
+        if not owner_id.isdigit():
+            raise SystemExit("個人所有Projectの数値ユーザーIDを取得できません")
+        return f"users/{owner_id}/projectsV2/{project_number}/views"
+    raise SystemExit(f"未対応のProject所有者種別です: {owner_type}")
+
+
+def list_project_views() -> list[dict[str, Any]]:
+    query = """
+    query($projectId: ID!) {
+      node(id: $projectId) {
+        ... on ProjectV2 {
+          views(first: 100) {
+            nodes { id number name layout filter }
+            pageInfo { hasNextPage }
+          }
+        }
+      }
+    }
+    """
+    payload = graphql_json(query, {"projectId": PROJECT_ID})
+    connection = payload.get("data", {}).get("node", {}).get("views", {})
+    if connection.get("pageInfo", {}).get("hasNextPage"):
+        raise SystemExit("Projectビューが100件を超えています。ページング対応後に実行してください。")
+    nodes = connection.get("nodes", [])
+    if not isinstance(nodes, list):
+        raise SystemExit("Projectビュー一覧の応答が配列ではありません")
+    return [view for view in nodes if isinstance(view, dict)]
+
+
+def project_view_plan(
+    desired_views: list[dict[str, str]], current_views: list[dict[str, Any]]
+) -> tuple[list[dict[str, str]], list[str]]:
+    current_by_name: dict[str, list[dict[str, Any]]] = {}
+    for current in current_views:
+        name = current.get("name")
+        if isinstance(name, str):
+            current_by_name.setdefault(name, []).append(current)
+
+    actions: list[dict[str, str]] = []
+    blockers: list[str] = []
+    desired_names = {view["name"] for view in desired_views}
+    extra_names = sorted(name for name in current_by_name if name not in desired_names)
+    if extra_names:
+        blockers.append(
+            f"標準外のProjectビューがあります。内容を確認してUIで整理してください: {extra_names}"
+        )
+    for desired in desired_views:
+        matches = current_by_name.get(desired["name"], [])
+        if not matches:
+            actions.append({**desired, "action": "create"})
+            continue
+        if len(matches) > 1:
+            blockers.append(f"同名のProjectビューが複数あります: {desired['name']}")
+            continue
+        current = matches[0]
+        current_layout = GRAPHQL_VIEW_LAYOUTS.get(str(current.get("layout", "")))
+        current_filter = str(current.get("filter") or "")
+        if current_layout != desired["layout"] or current_filter != desired["filter"]:
+            blockers.append(
+                f"既存Projectビューが正規定義と一致しません: {desired['name']} "
+                f"({current_layout}, {current_filter!r})"
+            )
+            continue
+        actions.append({**desired, "action": "noop"})
+    return actions, blockers
+
+
+def create_project_views(actions: list[dict[str, str]], endpoint: str) -> None:
+    for action in actions:
+        if action["action"] != "create":
+            continue
+        body = {
+            "name": action["name"],
+            "layout": action["layout"],
+            "filter": action["filter"],
+        }
+        gh_json(
+            [*rest_api_args(endpoint, method="POST"), "--input", "-"],
+            input_text=json.dumps(body, ensure_ascii=False),
+        )
+
+
+def verify_project_views(desired_views: list[dict[str, str]]) -> int:
+    actions, blockers = project_view_plan(desired_views, list_project_views())
+    pending = [action["name"] for action in actions if action["action"] != "noop"]
+    if blockers or pending:
+        raise SystemExit(f"Projectビュー検証に失敗しました: {blockers or pending}")
+    return len(actions)
+
+
+def organization_issue_field_matches(
+    desired: dict[str, Any], actual: dict[str, Any], *, project_public: bool = False
+) -> bool:
+    if project_public and actual.get("visibility") != "all":
+        return False
+    expected_type = {
+        "SINGLE_SELECT": "single_select",
+        "TEXT": "text",
+        "NUMBER": "number",
+        "DATE": "date",
+    }[desired["type"]]
+    if str(actual.get("data_type", "")).casefold() != expected_type:
+        return False
+    if desired["type"] != "SINGLE_SELECT":
+        return True
+    expected_options = option_names(desired.get("options", []))
+    actual_options = [str(option.get("name", "")) for option in actual.get("options", [])]
+    return len(actual_options) == len(set(actual_options)) and set(actual_options) == set(
+        expected_options
+    )
+
+
+def metadata_strategy(
+    project_fields: list[dict[str, Any]],
+    capabilities: dict[str, Any],
+    project_item_owners: set[str] | None = None,
+    incompatible_project_item_types: set[str] | None = None,
+) -> dict[str, Any]:
+    blockers: list[str] = []
+    repository_types = capabilities.get("repository_issue_types")
+    organization_fields = capabilities.get("organization_issue_fields")
+    is_organization = capabilities.get("repository_owner_type") == "Organization"
+    repository_owner = str(capabilities.get("repository_owner", "")).casefold()
+    project_owner = str(capabilities.get("project_owner", "")).casefold()
+    project_owner_type = str(capabilities.get("project_owner_type", ""))
+    project_public = bool(capabilities.get("project_public", False))
+    foreign_owners = {
+        owner for owner in (project_item_owners or set()) if owner.casefold() != repository_owner
+    }
+
+    if is_organization and foreign_owners:
+        return {
+            "project_fields": project_fields,
+            "organization_issue_fields": {},
+            "type_source": "project",
+            "native_type_map": {},
+            "blockers": [
+                "複数所有者のIssueがProjectに混在しています。"
+                f"Projectを所有者単位に分けてください: {sorted(foreign_owners)}"
+            ],
+        }
+    if is_organization and incompatible_project_item_types:
+        return {
+            "project_fields": project_fields,
+            "organization_issue_fields": {},
+            "type_source": "project",
+            "native_type_map": {},
+            "blockers": [
+                "組織Issue Fieldを持てないProject項目が混在しています。"
+                "IssueだけのProjectへ分けてください: "
+                f"{sorted(incompatible_project_item_types)}"
+            ],
+        }
+    if (
+        is_organization
+        and project_owner
+        and (project_owner_type != "Organization" or project_owner != repository_owner)
+    ):
+        return {
+            "project_fields": project_fields,
+            "organization_issue_fields": {},
+            "type_source": "project",
+            "native_type_map": {},
+            "blockers": [
+                "組織Issue Fieldを使うProjectの所有組織がリポジトリ所有者と一致しません: "
+                f"{project_owner or project_owner_type} != {repository_owner}"
+            ],
+        }
+
+    if is_organization and repository_types is None:
+        blockers.append("リポジトリで利用できる組織Issue Typeを読み取れません")
+        repository_types = []
+    if is_organization and organization_fields is None:
+        blockers.append("組織Issue Fieldを読み取れません")
+        organization_fields = []
+    if not isinstance(repository_types, list):
+        blockers.append("リポジトリIssue Typeの応答が配列ではありません")
+        repository_types = []
+    if not isinstance(organization_fields, list):
+        blockers.append("組織Issue Fieldの応答が配列ではありません")
+        organization_fields = []
+
+    type_spec = next(field for field in project_fields if field["name"] == "Type")
+    canonical_types = option_names(type_spec.get("options", []))
+    repository_type_by_name = {
+        str(issue_type.get("name", "")).casefold(): str(issue_type.get("name", ""))
+        for issue_type in repository_types
+        if isinstance(issue_type, dict)
+    }
+    use_native_type = bool(canonical_types) and all(
+        issue_type.casefold() in repository_type_by_name for issue_type in canonical_types
+    )
+    native_type_map = (
+        {
+            issue_type: repository_type_by_name[issue_type.casefold()]
+            for issue_type in canonical_types
+        }
+        if use_native_type
+        else {}
+    )
+
+    organization_field_by_name = {
+        str(field_data.get("name", "")): field_data
+        for field_data in organization_fields
+        if isinstance(field_data, dict)
+    }
+    selected_project_fields: list[dict[str, Any]] = []
+    selected_organization_fields: dict[str, dict[str, Any]] = {}
+    for desired in project_fields:
+        name = desired["name"]
+        actual = organization_field_by_name.get(name) if is_organization else None
+        if name == "Type":
+            if actual is not None:
+                blockers.append(
+                    "組織Issue FieldのTypeは正本にしません。"
+                    "Issue TypeまたはProject Typeと衝突するため、"
+                    "組織項目を改名または削除してください"
+                )
+            if use_native_type:
+                continue
+            selected_project_fields.append(desired)
+            continue
+        if name in PROJECT_ONLY_FIELD_NAMES or actual is None:
+            selected_project_fields.append(desired)
+            continue
+        if organization_issue_field_matches(desired, actual, project_public=project_public):
+            selected_organization_fields[name] = actual
+            continue
+        blockers.append(
+            f"同名の組織Issue Fieldが正規定義またはProject公開範囲と一致しません: "
+            f"{name} (type={actual.get('data_type')}, visibility={actual.get('visibility')})"
+        )
+
+    if use_native_type:
+        type_source = "organization-type"
+    else:
+        type_source = "project"
+
+    return {
+        "project_fields": selected_project_fields,
+        "organization_issue_fields": selected_organization_fields,
+        "type_source": type_source,
+        "native_type_map": native_type_map,
+        "blockers": blockers,
+    }
 
 
 def project_item_count() -> int:
@@ -1257,6 +1673,37 @@ def project_item_records_by_url(data: dict[str, Any]) -> dict[str, dict[str, Any
     }
 
 
+def project_item_owner_logins(data: dict[str, Any]) -> set[str]:
+    owners: set[str] = set()
+    for url in project_item_records_by_url(data):
+        match = PROJECT_ITEM_OWNER_RE.fullmatch(url)
+        if match:
+            owners.add(match.group("owner").casefold())
+    return owners
+
+
+def incompatible_project_item_types(data: dict[str, Any]) -> set[str]:
+    incompatible: set[str] = set()
+    for item in data.get("items", []):
+        if not isinstance(item, dict):
+            incompatible.add("unknown")
+            continue
+        content = item.get("content")
+        url = content.get("url") if isinstance(content, dict) else None
+        item_type = str(item.get("type") or "")
+        if item_type.casefold() == "issue":
+            continue
+        if item_type:
+            incompatible.add(item_type)
+        elif isinstance(url, str) and "/issues/" in url:
+            continue
+        elif isinstance(url, str) and "/pull/" in url:
+            incompatible.add("PullRequest")
+        else:
+            incompatible.add("DraftOrUnknown")
+    return incompatible
+
+
 def list_project_items() -> dict[str, Any]:
     return gh_json(
         [
@@ -1359,7 +1806,7 @@ def set_project_fields(issues: dict[str, Issue], fields: dict[str, dict[str, Any
     for issue in issues.values():
         mutations = []
         for idx, (field_name, kind, value) in enumerate(field_values(issue)):
-            if value is None or value == "":
+            if field_name not in field_ids or value is None or value == "":
                 continue
             mutations.append(
                 f"m{idx}:updateProjectV2ItemFieldValue(input:{{"
@@ -1371,6 +1818,49 @@ def set_project_fields(issues: dict[str, Issue], fields: dict[str, dict[str, Any
             )
         if mutations:
             graphql_json(f"mutation {{ {' '.join(mutations)} }}")
+
+
+def set_native_issue_types(issues: dict[str, Issue], native_type_map: dict[str, str]) -> None:
+    for issue in issues.values():
+        run_gh(
+            [
+                "gh",
+                "issue",
+                "edit",
+                str(issue.number),
+                "--repo",
+                REPO,
+                "--type",
+                native_type_map[issue.type],
+            ]
+        )
+
+
+def set_organization_issue_fields(
+    issues: dict[str, Issue], organization_fields: dict[str, dict[str, Any]]
+) -> None:
+    for issue in issues.values():
+        values: list[dict[str, Any]] = []
+        for field_name, _kind, value in field_values(issue):
+            field_data = organization_fields.get(field_name)
+            if field_data is None or value is None or value == "":
+                continue
+            field_id = field_data.get("id")
+            if not isinstance(field_id, int):
+                raise SystemExit(f"組織Issue Fieldの数値IDを取得できません: {field_name}")
+            values.append({"field_id": field_id, "value": value})
+        if values:
+            gh_json(
+                [
+                    *rest_api_args(
+                        f"repos/{REPO}/issues/{issue.number}/issue-field-values",
+                        method="POST",
+                    ),
+                    "--input",
+                    "-",
+                ],
+                input_text=json.dumps({"issue_field_values": values}, ensure_ascii=False),
+            )
 
 
 def project_field_plan(
@@ -1424,11 +1914,14 @@ def project_field_plan(
 
 
 def build_bootstrap_plan(context: dict[str, Any], *, update_existing: bool) -> dict[str, Any]:
-    field_actions, blockers = project_field_plan(
+    field_actions, field_blockers = project_field_plan(
         context["project_fields"],
         context["current_fields"],
         update_existing=update_existing,
         allow_option_removal=context["target"]["project"]["items"]["totalCount"] == 0,
+    )
+    view_actions, view_blockers = project_view_plan(
+        context["project_views"], context["current_views"]
     )
     existing_numbers = {int(item["number"]) for item in context["existing_issues"]}
     issue_actions = [
@@ -1439,6 +1932,34 @@ def build_bootstrap_plan(context: dict[str, Any], *, update_existing: bool) -> d
         }
         for issue in context["issues"].values()
     ]
+    strategy = context["metadata_strategy"]
+    metadata_updates = []
+    for issue in context["issues"].values():
+        values = {
+            field_name: value
+            for field_name, _kind, value in field_values(issue)
+            if value not in (None, "")
+        }
+        metadata_updates.append(
+            {
+                "title": issue.title,
+                "native_issue_type": (
+                    strategy["native_type_map"].get(issue.type)
+                    if strategy["type_source"] == "organization-type"
+                    else None
+                ),
+                "organization_issue_fields": {
+                    name: values[name]
+                    for name in strategy["organization_issue_fields"]
+                    if name in values
+                },
+                "project_fields": {
+                    field["name"]: values[field["name"]]
+                    for field in context["project_fields"]
+                    if field["name"] in values
+                },
+            }
+        )
     existing_milestones = set(list_milestones())
     milestone_actions = [
         {
@@ -1453,16 +1974,31 @@ def build_bootstrap_plan(context: dict[str, Any], *, update_existing: bool) -> d
         "target": {
             "repository": target["repository"]["nameWithOwner"],
             "default_branch": target["repository"]["defaultBranchRef"]["name"],
+            "repository_owner_type": target["repository"]["owner"]["__typename"],
+            "repository_visibility": target["repository"]["visibility"],
             "project_number": target["project"]["number"],
             "project_url": target["project"]["url"],
+            "project_owner_type": target["project"]["owner"]["__typename"],
+            "project_public": target["project"]["public"],
+            "project_view_endpoint": project_view_endpoint(target),
         },
+        "metadata_sources": {
+            "type": strategy["type_source"],
+            "project_item_owners": context["project_item_owners"],
+            "incompatible_project_item_types": context["incompatible_project_item_types"],
+            "organization_issue_fields": sorted(strategy["organization_issue_fields"]),
+            "project_fields": [field["name"] for field in context["project_fields"]],
+        },
+        "merge_integration": context["merge_integration"],
         "field_actions": field_actions,
+        "view_actions": view_actions,
         "milestone_actions": milestone_actions,
         "issue_actions": issue_actions,
+        "metadata_updates": metadata_updates,
         "relation_count": sum(
             bool(issue.parent) + len(issue.blocked_by) for issue in context["issues"].values()
         ),
-        "blockers": blockers,
+        "blockers": [*strategy["blockers"], *field_blockers, *view_blockers],
     }
 
 
@@ -1484,8 +2020,74 @@ def relation_issue_numbers(value: Any) -> set[int]:
     return set()
 
 
+def list_issue_field_values(issue_number: int) -> list[dict[str, Any]]:
+    payload = gh_json(
+        [
+            *rest_api_args(f"repos/{REPO}/issues/{issue_number}/issue-field-values"),
+            "-F",
+            "per_page=100",
+        ]
+    )
+    if not isinstance(payload, list):
+        raise SystemExit(f"組織Issue Field値の応答が配列ではありません: #{issue_number}")
+    return payload
+
+
+def normalized_issue_field_value(record: dict[str, Any]) -> Any:
+    if record.get("data_type") == "single_select":
+        return (record.get("single_select_option") or {}).get("name")
+    return record.get("value")
+
+
+def project_item_field_values(item_id: str, field_names: Sequence[str]) -> dict[str, Any]:
+    if not field_names:
+        return {}
+    selections = []
+    for idx, field_name in enumerate(field_names):
+        selections.append(
+            f"f{idx}:fieldValueByName(name:{gql_string(field_name)}){{"
+            "__typename "
+            "... on ProjectV2ItemFieldSingleSelectValue { name } "
+            "... on ProjectV2ItemFieldTextValue { text } "
+            "... on ProjectV2ItemFieldNumberValue { number } "
+            "... on ProjectV2ItemFieldDateValue { date }"
+            "}"
+        )
+    payload = graphql_json(
+        "query($itemId: ID!) { "
+        "node(id: $itemId) { "
+        "... on ProjectV2Item { "
+        f"{' '.join(selections)}"
+        " } } }",
+        {"itemId": item_id},
+    )
+    node = payload.get("data", {}).get("node")
+    if not isinstance(node, dict):
+        raise SystemExit(f"Project項目値を取得できません: {item_id}")
+
+    values: dict[str, Any] = {}
+    value_keys = {
+        "ProjectV2ItemFieldSingleSelectValue": "name",
+        "ProjectV2ItemFieldTextValue": "text",
+        "ProjectV2ItemFieldNumberValue": "number",
+        "ProjectV2ItemFieldDateValue": "date",
+    }
+    for idx, field_name in enumerate(field_names):
+        record = node.get(f"f{idx}")
+        if record is None:
+            values[field_name] = None
+            continue
+        if not isinstance(record, dict) or record.get("__typename") not in value_keys:
+            raise SystemExit(f"未対応のProject項目値です: {field_name} {record}")
+        values[field_name] = record.get(value_keys[str(record["__typename"])])
+    return values
+
+
 def verify_bootstrap(context: dict[str, Any]) -> dict[str, Any]:
     issues: dict[str, Issue] = context["issues"]
+    strategy = context["metadata_strategy"]
+    if strategy["blockers"]:
+        raise SystemExit(f"メタデータ正本の検証に失敗しました: {strategy['blockers']}")
     missing_numbers = [issue.title for issue in issues.values() if issue.number is None]
     if missing_numbers:
         raise SystemExit(
@@ -1498,6 +2100,7 @@ def verify_bootstrap(context: dict[str, Any]) -> dict[str, Any]:
     )
     if field_blockers or any(action["action"] != "noop" for action in field_actions):
         raise SystemExit(f"Project field検証に失敗しました: {field_blockers or field_actions}")
+    view_count = verify_project_views(context["project_views"])
 
     milestones = list_milestones()
     milestone_errors: list[str] = []
@@ -1511,13 +2114,35 @@ def verify_bootstrap(context: dict[str, Any]) -> dict[str, Any]:
     existing_by_number = {
         int(item["number"]): item for item in list_issues() if item.get("number") is not None
     }
+    items = list_project_items()
+    item_records = project_item_records_by_url(items)
     issue_errors: list[str] = []
+    metadata_errors: list[str] = []
     relation_errors: list[str] = []
     for issue in issues.values():
         actual = existing_by_number.get(issue.number or 0)
         if not actual or actual.get("title") != issue.title or actual.get("url") != issue.url:
             issue_errors.append(f"Issue identity mismatch: {issue.title} #{issue.number}")
             continue
+        item_record = item_records.get(issue.url or "")
+        if item_record is None:
+            metadata_errors.append(f"missing Project item: {issue.url}")
+        else:
+            expected_project_values = {
+                field_name: expected_value
+                for field_name, _kind, expected_value in field_values(issue)
+                if field_name in {field["name"] for field in context["project_fields"]}
+                and expected_value not in (None, "")
+            }
+            actual_project_values = project_item_field_values(
+                str(item_record["id"]), list(expected_project_values)
+            )
+            for field_name, expected_value in expected_project_values.items():
+                if actual_project_values.get(field_name) != expected_value:
+                    metadata_errors.append(
+                        f"Project field mismatch: #{issue.number} {field_name} "
+                        f"{actual_project_values.get(field_name)!r} != {expected_value!r}"
+                    )
         relation_data = gh_json(
             [
                 "gh",
@@ -1527,9 +2152,16 @@ def verify_bootstrap(context: dict[str, Any]) -> dict[str, Any]:
                 "--repo",
                 REPO,
                 "--json",
-                "number,parent,blockedBy",
+                "number,parent,blockedBy,issueType",
             ]
         )
+        if strategy["type_source"] == "organization-type":
+            actual_type = (relation_data.get("issueType") or {}).get("name")
+            expected_type = strategy["native_type_map"][issue.type]
+            if actual_type != expected_type:
+                metadata_errors.append(
+                    f"Issue Type mismatch: #{issue.number} {actual_type} != {expected_type}"
+                )
         expected_parent = {issues[issue.parent].number} if issue.parent else set()
         actual_parent = relation_issue_numbers(relation_data.get("parent"))
         if actual_parent != expected_parent:
@@ -1542,18 +2174,30 @@ def verify_bootstrap(context: dict[str, Any]) -> dict[str, Any]:
             relation_errors.append(
                 f"blockedBy mismatch: #{issue.number} {actual_blockers} != {expected_blockers}"
             )
+        organization_fields = strategy["organization_issue_fields"]
+        if organization_fields:
+            actual_values = {
+                str(record.get("issue_field_name", "")): normalized_issue_field_value(record)
+                for record in list_issue_field_values(int(issue.number or 0))
+            }
+            for field_name, _kind, expected_value in field_values(issue):
+                if field_name not in organization_fields or expected_value in (None, ""):
+                    continue
+                if actual_values.get(field_name) != expected_value:
+                    metadata_errors.append(
+                        f"Issue Field mismatch: #{issue.number} {field_name} "
+                        f"{actual_values.get(field_name)!r} != {expected_value!r}"
+                    )
 
-    items = list_project_items()
-    item_urls = set(project_items_by_url(items))
-    missing_items = [issue.url for issue in issues.values() if issue.url not in item_urls]
-    errors = milestone_errors + issue_errors + relation_errors
-    if missing_items:
-        errors.append(f"missing Project items: {missing_items}")
+    errors = milestone_errors + issue_errors + metadata_errors + relation_errors
     if errors:
         raise SystemExit(f"bootstrap verify failed: {errors}")
     return {
         "verified": True,
-        "field_count": len(context["project_fields"]),
+        "project_field_count": len(context["project_fields"]),
+        "organization_issue_field_count": len(strategy["organization_issue_fields"]),
+        "type_source": strategy["type_source"],
+        "view_count": view_count,
         "milestone_count": len(context["milestones"]),
         "issue_count": len(issues),
         "relation_count": sum(
@@ -1568,20 +2212,37 @@ def prepare_bootstrap(issue_specs: list[Issue] | None = None) -> dict[str, Any]:
     milestones = ensure_milestone_plan(MILESTONES)
     ensure_issue_plan(issues, milestones)
     ensure_issue_bodies(issues)
-    project_fields = load_project_fields(PROJECT_FIELDS_PATH)
+    canonical_project_fields = load_project_fields(PROJECT_FIELDS_PATH)
+    project_views = load_project_views(PROJECT_VIEWS_PATH)
     target = discover_target()
+    capabilities = discover_repository_capabilities(target)
     existing_issues = list_issues()
     validate_issue_reuse(issues, existing_issues)
     hydrate_explicit_issues(issues, existing_issues)
     project_items = list_project_items()
+    project_item_owners = project_item_owner_logins(project_items)
+    incompatible_item_types = incompatible_project_item_types(project_items)
+    strategy = metadata_strategy(
+        canonical_project_fields,
+        capabilities,
+        project_item_owners,
+        incompatible_item_types,
+    )
     validate_reused_done_blockers(issues, existing_issues, project_items)
     return {
         "issues": issues,
         "milestones": milestones,
-        "project_fields": project_fields,
+        "project_fields": strategy["project_fields"],
         "current_fields": list_project_fields(),
+        "project_views": project_views,
+        "current_views": list_project_views(),
+        "metadata_strategy": strategy,
+        "capabilities": capabilities,
+        "merge_integration": merge_integration_recommendation(capabilities),
         "existing_issues": existing_issues,
         "project_items": project_items,
+        "project_item_owners": sorted(project_item_owners),
+        "incompatible_project_item_types": sorted(incompatible_item_types),
         "target": target,
     }
 
@@ -1589,13 +2250,25 @@ def prepare_bootstrap(issue_specs: list[Issue] | None = None) -> dict[str, Any]:
 def apply_bootstrap(context: dict[str, Any], *, update_existing: bool) -> dict[str, Any]:
     issues: dict[str, Issue] = context["issues"]
     milestones: dict[str, Milestone] = context["milestones"]
+    if context["metadata_strategy"]["blockers"]:
+        raise SystemExit(
+            f"メタデータ正本の衝突を解消してください: {context['metadata_strategy']['blockers']}"
+        )
+    view_actions, view_blockers = project_view_plan(context["project_views"], list_project_views())
+    if view_blockers:
+        raise SystemExit(f"Projectビューの衝突を解消してください: {view_blockers}")
     fields = ensure_project_fields(
         context["project_fields"],
         update_existing=update_existing,
         allow_empty_project_option_migration=True,
     )
+    create_project_views(view_actions, project_view_endpoint(context["target"]))
     create_or_reuse_milestones(milestones)
     create_or_reuse_issues(issues, context["existing_issues"])
+    strategy = context["metadata_strategy"]
+    if strategy["type_source"] == "organization-type":
+        set_native_issue_types(issues, strategy["native_type_map"])
+    set_organization_issue_fields(issues, strategy["organization_issue_fields"])
     set_issue_milestones(issues)
     link_issue_relations(issues)
     add_project_items(issues)

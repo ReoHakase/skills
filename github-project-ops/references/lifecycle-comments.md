@@ -5,7 +5,7 @@ Issueのライフサイクルコメントを書くときに読む。Status判定
 
 # 方針
 
-- GitHubメタデータとProject fieldをコメントへ重複させない。
+- GitHubメタデータと選択した構造化項目の値をコメントへ重複させない。
 - 具体的なagentモデル名、branch名、Statusなどのfield assignmentは原則書かない。
 - 例外として、作業権取得、引き継ぎ、解放では競合判定に必要なAgent Runの実行IDとGitHub上の証跡を書く。
 - 外部依存はIssue、PR、CI run、log、design、chat threadなど、後から開けるURLで示す。

@@ -1,40 +1,61 @@
-# Project bootstrap
+# Project初期構築
 
-新規repositoryにProject、Milestone、項目、WBS Issues、sub-issues、blocked by / blocking、Project item項目値をまとめて作るときに読む。
+新規リポジトリにProject、Milestone、項目、WBS Issue、sub-issue、blocked by / blocking、Project項目値をまとめて作るときに読む。
 
-このreferenceは初期一括作成専用である。bootstrap後のIssue追加、sub-issue追加、依存関係追加、Forecast変更は `references/issue-authoring.md` と `references/project-setup.md` を読む。Project/Milestoneを剥がす場合は `references/uninstall.md` を読む。
+この参照資料は初期一括作成専用である。初期構築後のIssue追加、sub-issue追加、依存関係追加、Forecast変更は `references/issue-authoring.md` と `references/project-setup.md` を読む。Project/Milestoneを外す場合は `references/uninstall.md` を読む。
 
 # 目的
 
-大量のWBS起票では、GitHub UIだけで作るとProject field、親子関係、依存関係の入れ忘れが起きやすい。先にGitHub上の実状態を確認し、`gh` と `gh api graphql` で再現可能な手順へ落とす。
+大量のWBS起票では、GitHub UIだけで作るとProject項目、親子関係、依存関係の入れ忘れが起きやすい。先にGitHub上の実状態を確認し、`gh` と `gh api graphql` で再現可能な手順へ落とす。
 
-このreferenceは実例から抽出した手順である。対象repositoryへそのまま流し込まず、`OWNER/REPO`、Project owner/number/id、Issue一覧、field値を確認してから実行する。運用中の変更をbootstrap templateの再実行だけで吸収しようとしない。
+この参照資料は実例から抽出した手順である。対象リポジトリへそのまま流し込まず、`OWNER/REPO`、Projectの所有者・番号・ID、Issue一覧、項目値を確認してから実行する。運用中の変更を初期構築テンプレートの再実行だけで吸収しようとしない。
 
-実行境界は `plan -> apply -> verify` に固定する。引数なし実行や `plan` はmutationを行わない。`apply` は対象repositoryとProject numberを含むtyped confirmationが一致した場合だけ書き込み、直後に全対象をverifyする。
+実行境界は `plan -> apply -> verify` に固定する。`plan` は書き込みを行わない。`apply` は対象リポジトリとProject番号を含む確認文字列が一致した場合だけ書き込み、直後に全対象を `verify` する。
 
 # 事前確認
 
-GitHub CLIに `project` scope が必要である。
+GitHub CLIに `project` 権限が必要である。
 
 ```bash
 gh auth status
 gh auth refresh -s project
 ```
 
-repositoryと既存Issueを確認する。
+リポジトリと既存Issueを確認する。
 
 ```bash
 gh repo view OWNER/REPO --json id,nameWithOwner,url,defaultBranchRef,owner,isPrivate
+DEFAULT_BRANCH=$(gh repo view OWNER/REPO --json defaultBranchRef --jq '.defaultBranchRef.name')
+gh api --method GET -H "X-GitHub-Api-Version: 2026-03-10" repos/OWNER/REPO
 gh issue list --repo OWNER/REPO --state all --limit 100 --json number,title,state,url
 gh api repos/OWNER/REPO/milestones --method GET -f state=all -F per_page=100
 gh project list --owner OWNER --format json --limit 100
 ```
 
-`OWNER` が自分の場合でも、Project操作では `--owner @me` と login 名のどちらが使えるかを実コマンドで確認する。repository linkでは `--owner OWNER --repo REPO_NAME` のように login と repo 名を明示する方が誤解釈を避けやすい。
+REST応答の所有者種別 `owner.type`、公開範囲 `visibility`、組織の契約プラン `plan.name` から能力を判定する。組織所有リポジトリでは次も読み、組織Issue Type / Issue FieldとProject項目を同義で二重作成しない。
 
-`assets/project-bootstrap-template.py` はmutation前に、placeholder、Project ID/number/owner、repository node、default branch、repositoryとProjectのlink、明示した再利用Issue numberとtitleを照合する。
+```bash
+gh api --method GET \
+  -H "X-GitHub-Api-Version: 2026-03-10" \
+  repos/OWNER/REPO/issue-types
 
-対象を確認したらread-only planを出す。
+gh api --method GET \
+  -H "X-GitHub-Api-Version: 2026-03-10" \
+  orgs/ORG/issue-fields
+```
+
+- 正規のType一式がリポジトリのIssue Typeに揃う場合は組織Issue Typeを正本にし、それ以外はProject Typeを使う。組織Issue FieldをTypeの代用にはしない。同名の組織Issue Fieldがある場合は表示上も衝突するため停止する。
+- 同名・同型・同じ選択肢の組織Issue Fieldがある場合は、その項目を正本にする。
+- 公開ProjectまたはEnterprise Managed Usersのinternal Projectでは、`visibility: all` の組織Issue Fieldだけを使う。組織内限定項目は表示できないため停止する。
+- 個人所有または組織側に対応項目がない場合はProject項目へ切り替える。
+- 同名だが型または選択肢が異なる場合、読み取り権限がなく404になる場合は、推測で続行せず正本の衝突として停止する。
+- 既存Projectに対象組織以外のIssue、PR、Draft Issue、削除済み項目があれば、組織項目では全行を表せないため停止する。対象組織のIssueだけを持つProjectへ分けてから再実行する。
+
+`OWNER` が自分の場合でも、Project操作では `--owner @me` とログイン名のどちらが使えるかを実コマンドで確認する。リポジトリとの紐づけでは `--owner OWNER --repo REPO_NAME` のようにログイン名とリポジトリ名を明示する方が誤解釈を避けやすい。
+
+`assets/project-bootstrap-template.py` は書き込み前に、プレースホルダー、ProjectのID・番号・所有者・公開範囲、リポジトリのnode ID、既定ブランチ、リポジトリとProjectの紐づけ、組織メタデータ能力、明示した再利用Issueの番号とタイトルを照合する。`plan` には採用したメタデータ正本、利用資格に基づく推奨マージ方式、全項目値更新を表示する。推奨方式は設定済みという意味ではなく、`configuration_verified: false` のまま出す。契約プランを確認できない場合は `recommended_mode: undetermined` とし、方式を推測しない。
+
+対象を確認したら、書き込みなしの `plan` を出す。
 
 ```bash
 python project-bootstrap.py plan
@@ -42,38 +63,38 @@ python project-bootstrap.py plan --update-existing-fields
 python project-bootstrap.py plan --backlog backlog.flat.json
 ```
 
-2行目は既存single-select fieldのmetadata更新も計画するときだけ使う。3行目はコード内の `ISSUES` に代えてJSON入力を使う例である。
+2行目は既存の単一選択項目のメタデータ更新も計画するときだけ使う。3行目はコード内の `ISSUES` に代えてJSON入力を使う例である。
 
-# Project作成とrepository link
+# Project作成とリポジトリの紐づけ
 
 Projectを新規作成する。
 
 ```bash
-gh project create --owner @me --title "PROJECT_TITLE" --format json
+gh project create --owner OWNER --title "PROJECT_TITLE" --format json
 ```
 
-返ってきた `number` と `id` を控える。以後の例では次のplaceholderを使う。
+返ってきた `number` と `id` を控える。以後の例では次のプレースホルダーを使う。
 
 ```text
 PROJECT_NUMBER=1
 PROJECT_ID=PVT_xxx
-PROJECT_OWNER=@me
+PROJECT_OWNER=OWNER
 REPO=OWNER/REPO
 ```
 
-repositoryへlinkする。
+リポジトリへ紐づける。
 
 ```bash
 gh project link PROJECT_NUMBER --owner OWNER --repo REPO_NAME
 ```
 
-# Milestones
+# Milestone
 
-MilestoneはGitHub native milestoneを使う。Project fieldへ複製しない。
+MilestoneはGitHub標準のMilestoneを使う。Project項目へ複製しない。
 
-bootstrap既定では `First Release` milestoneを作る。`First Release` は期限必須で、`assets/project-bootstrap-template.py` 実行時に `YYYY-MM-DD` を標準入力で聞く。締切未定Milestoneを追加する場合は、`required_due_on=False`、`due_on=""` のまま作ってよい。
+初期構築の既定では `First Release` Milestoneを作る。`First Release` は期限必須で、`assets/project-bootstrap-template.py` 実行時に `YYYY-MM-DD` を標準入力で聞く。締切未定Milestoneを追加する場合は、`required_due_on=False`、`due_on=""` のまま作ってよい。
 
-Milestone due dateを先に決め、その締切目標からIssue/WBSのForecast Start / Forecast Endを組む。IssueのForecastからMilestone期限を逆算しない。
+Milestoneの期限を先に決め、その締切目標からIssue/WBSのForecast Start / Forecast Endを組む。IssueのForecastからMilestone期限を逆算しない。
 
 Milestone一覧を読む。
 
@@ -90,13 +111,15 @@ gh api repos/OWNER/REPO/milestones \
   -f due_on="2026-07-31T23:59:59Z"
 ```
 
-`gh` にはmilestone専用subcommandがない前提で扱う。Milestone作成はREST APIを使う。Issue作成時のMilestone割当は `gh issue create --milestone "First Release"` を使う。既存Issueへ後付けする場合は `gh issue edit ISSUE_NUMBER --milestone "First Release"` を使う。
+Milestone作成はREST APIを使う。Issue作成時のMilestone割当は `gh issue create --milestone "First Release"` を使う。既存Issueへ後付けする場合は `gh issue edit ISSUE_NUMBER --milestone "First Release"` を使う。
 
-# Project fields
+# Project項目
 
-フィールド定義は `assets/project-fields.json` を正本にする。Python側へ同じ一覧を複製しない。既定Projectには `Status` が `Todo`、`In Progress`、`Done` で作られることがあるため、同名フィールドを重複作成しない。
+項目の正規定義は `assets/project-fields.json` に置き、Python側へ同じ一覧を複製しない。ただし値の保存先は能力確認後に決める。互換な組織Issue Fieldがあればその項目を正本にし、Project項目の作成対象から外す。正規Type一式が組織Issue Typeに揃う場合も同様に、Project独自Typeを作らない。`Status` はProject固有の運用状態なのでProject項目に残す。
 
-Single select optionは、単なる文字列と次のobject形式の両方を扱える。標準assetでは `name`、`color`、`description` を持つobject形式を使う。
+既定Projectには `Status` が `Todo`、`In Progress`、`Done` で作られることがあるため、同名フィールドを重複作成しない。同名の組織Issue Fieldが正規定義と一致しない場合も、Project側に同名項目を作って回避せず停止する。
+
+単一選択肢は、単なる文字列と次のJSONオブジェクト形式の両方を扱える。標準アセットでは `name`、`color`、`description` を持つ形式を使う。
 
 ```json
 {
@@ -106,30 +129,30 @@ Single select optionは、単なる文字列と次のobject形式の両方を扱
 }
 ```
 
-`gh project field-create --single-select-options` はoption名だけを受け取る。色と説明文は、作成後または既存field更新時にGraphQL `updateProjectV2Field` で反映する。
+`gh project field-create --single-select-options` は選択肢名だけを受け取る。色と説明文は、作成後または既存項目の更新時にGraphQL `updateProjectV2Field` で反映する。
 
-field一覧を読む。
+項目一覧を読む。
 
 ```bash
-gh project field-list PROJECT_NUMBER --owner @me --format json --limit 100
+gh project field-list PROJECT_NUMBER --owner OWNER --format json --limit 100
 ```
 
-存在しないfieldは作る。
+存在しない項目は作る。
 
 ```bash
 gh project field-create PROJECT_NUMBER \
-  --owner @me \
+  --owner OWNER \
   --name "Type" \
   --data-type SINGLE_SELECT \
   --single-select-options "epic,feat,fix,docs,style,refactor,perf,test,build,ci,chore,revert,spike" \
   --format json
 ```
 
-Text/Date fieldは `--data-type TEXT` または `--data-type DATE` で作る。
+テキスト・日付項目は `--data-type TEXT` または `--data-type DATE` で作る。
 
-既存single select fieldのoptionを更新する場合は、同名optionの既存IDを必ず引き継ぐ。IDを省略した既存optionは、そのoptionを参照するProject itemの値をclearし得る。削除とrenameはbootstrapでは行わず、対象item/valueをexportした専用migrationへ分ける。例外は、apply直前のreadでProject item数が0だと確認できた初期Projectだけである。この場合も `--update-existing-fields` を要求し、GitHub既定Status optionをcanonical定義へ置き換える。
+既存の単一選択項目を更新する場合は、同名選択肢の既存IDを必ず引き継ぐ。IDを省略した既存選択肢は、その選択肢を参照するProject項目の値を消去し得る。削除と名前変更は初期構築では行わず、対象項目と値を書き出した専用移行へ分ける。例外は、`apply` 直前の読み取りでProject項目数が0だと確認できた初期Projectだけである。この場合も `--update-existing-fields` を要求し、GitHub既定のStatus選択肢を正規定義へ置き換える。
 
-次の例は、対象fieldにこの8 optionだけが存在し、各 `OPTION_*_ID` を事前readで取得済みの場合に限る。既存optionを省略しない。
+次の例は、対象項目にこの8選択肢だけが存在し、各 `OPTION_*_ID` を事前に取得済みの場合に限る。既存選択肢を省略しない。
 
 ```bash
 gh api graphql -f query='
@@ -158,56 +181,91 @@ mutation {
 }'
 ```
 
-`assets/project-bootstrap-template.py` はこの流れを一括処理化している。テンプレートは `PROJECT_FIELDS_PATH` のJSONを読む。テンプレートだけを一時パスへコピーする場合は、`project-fields.json` も同じディレクトリへ置くか、`PROJECT_FIELDS_PATH` を元アセットの絶対パスへ向ける。
+`assets/project-bootstrap-template.py` はこの流れを一括処理化している。テンプレートは `PROJECT_FIELDS_PATH` と `PROJECT_VIEWS_PATH` のJSONを読む。テンプレートだけを一時パスへコピーする場合は、`project-fields.json` と `project-views.json` も同じディレクトリへ置くか、各パスを元アセットの絶対パスへ向ける。
 
-項目作成時は選択肢名だけをCLIへ渡し、作成後に取得したoption IDを付けて色と説明文を上書きする。既存fieldの差分は `--update-existing-fields` なしでは停止する。同名optionのID、順序、色、説明が一致する場合は更新しない。
+項目作成時は選択肢名だけをCLIへ渡し、作成後に取得した選択肢IDを付けて色と説明文を上書きする。既存項目の差分は `--update-existing-fields` なしでは停止する。同名選択肢のID、順序、色、説明が一致する場合は更新しない。
 
 # Issue作成
 
-Issue本文にはProject項目の割り当て、sub-issue一覧、依存関係section、実装メモを書かない。現在信頼してよい概要、背景、スコープ、非スコープ、変更ファイル、参照ドキュメント、受け入れ条件、確認手順を書く。sub-issue、blocked by / blocking、Project項目値はGitHubメタデータをSSoTにする。
+Issue本文には組織Issue Field / Project項目の値、sub-issue一覧、依存関係の節、実装メモを書かない。現在信頼してよい概要、背景、非スコープ、変更ファイル、参照ドキュメント、受け入れ条件、確認手順を書く。sub-issue、blocked by / blocking、構造化項目値はGitHubメタデータをSSoTにする。
 
 `assets/project-bootstrap-template.py` はIssue作成前にローカル定義を検証する。
 
-- `First Release` のdue dateを `YYYY-MM-DD` で入力する。
-- Milestone titleの重複を作らない。
-- Issueが参照するMilestone titleは `MILESTONES` 内に置く。
-- epic IssueのStatusを `ready` にしない。
-- 未解決の `blocked_by` がある初期WBS Issueを `ready` にしない。blockerが型別done済みならreadyを許可する。
-- 再利用するdone blockerは、既存IssueがclosedでProject Statusもdoneであることをread-onlyの事前確認で照合する。PR merge、spikeの結論、外部操作の証跡など、成果種別固有のdone条件も人間またはagentが確認する。
+- `First Release` の期限を `YYYY-MM-DD` で入力する。
+- Milestoneタイトルの重複を作らない。
+- Issueが参照するMilestoneタイトルは `MILESTONES` 内に置く。
+- `epic` IssueのStatusを `ready` にしない。
+- 未解決の `blocked_by` がある初期WBS Issueを `ready` にしない。阻害Issueが型別`done`済みなら `ready` を許可する。
+- 再利用する`done`の阻害Issueは、既存Issueが終了済みでProject Statusも`done`であることを、書き込みなしの事前確認で照合する。PRマージ、`spike`の結論、外部操作の証跡など、成果種別固有の`done`条件も人間またはエージェントが確認する。
 - 依存関係とsub-issue階層の自己参照、重複、循環を作らない。canceled blockerを完了扱いにしない。
-- epicのEffort、Estimate Confidence、Agent Tierは空欄にする。その他の実行対象Issueには正の有限Effort、Estimate Confidence、判定式どおりのAgent Tierを設定する。
+- `epic` のEffort、Estimate Confidence、Agent Tierは空欄にする。その他の実行対象Issueには正の有限Effort、Estimate Confidence、判定式どおりのAgent Tierを設定する。
 - 初期Agent Runは空欄にする。`r3-dangerous` にはReviewer Ownerを設定する。
-- Issue本文には `変更ファイル` と `参照ドキュメント` を含める。参照commitはbranch名ではなく実SHAにする。
+- Issue本文には `変更ファイル` と `参照ドキュメント` を含める。参照コミットはブランチ名ではなく実SHAにする。
+- 組織Issue Type / Issue Field、Project項目のどれを正本にしたかを `plan` で確認する。同義項目を両方へ設定しない。
 - Forecast Start / Forecast EndはISO日付にする。
 - Forecast Start / Forecast Endは `WORKING_WEEKDAYS` と `HOLIDAYS` で定義した稼働日に置く。
 - 直列依存では、後続IssueのForecast Startをすべての `blocked_by` 先のForecast Endより後の日付にする。
 
-これは初期WBS投入前の局所検証であり、運用中のProject Statusを `blocked by` / `blocking` から自動同期するためのルールではない。upstream PR、Figma design、権限、担当外のCI基盤障害、設計判断待ちなどでblockedになるIssueもあるため、Status更新はGitHub上の関係とblockedコメントを確認して行う。
+これは初期WBS投入前の局所検証であり、運用中のProject Statusを `blocked by` / `blocking` から自動同期するための規則ではない。上流PR、Figmaデザイン、権限、担当外のCI基盤障害、設計判断待ちなどで`blocked`になるIssueもあるため、Status更新はGitHub上の関係と阻害コメントを確認して行う。
 
 ```bash
 gh issue create \
   --repo OWNER/REPO \
-  --title "自然な日本語のIssue title" \
+  --title "自然な日本語のIssueタイトル" \
   --milestone "First Release" \
   --body-file -
 ```
 
-作成済みIssueはtitleだけで再利用しない。`Issue.number` に確認済みnumberを明示し、実Issueのtitleと一致した場合だけ再利用する。number未指定の同名Issueが存在する場合は停止する。bootstrap対象内のtitle重複もIssue作成前に拒否する。
+作成済みIssueはタイトルだけで再利用しない。`Issue.number` に確認済み番号を明示し、実Issueのタイトルと一致した場合だけ再利用する。番号未指定の同名Issueが存在する場合は停止する。初期構築対象内のタイトル重複もIssue作成前に拒否する。
 
-Pythonテンプレートには長いIssue本文例を置かない。初期起票用の本文は `references/issue-authoring.md` の `Issue本文テンプレート` をもとに、対象リポジトリの仕様、設計、README、docsへのコミット固定URLを入れて作る。
+Pythonテンプレートには長いIssue本文例を置かない。初期起票用の本文は `references/issue-authoring.md` の `Issue本文テンプレート` をもとに、対象リポジトリの仕様、設計、README、文書へのコミット固定URLを入れて作る。
 
-bootstrap後にIssueを追加する場合は、既存の親Issue、sub-issue、blocked by / blocking、Milestoneを確認してから `references/issue-authoring.md` の手順で個別に追加する。
+初期構築後にIssueを追加する場合は、既存の親Issue、sub-issue、blocked by / blocking、Milestoneを確認してから `references/issue-authoring.md` の手順で個別に追加する。
 
-# sub-issue / dependency fallback
+# 選択した正本への値設定
 
-`gh issue edit --parent`、`--add-sub-issue`、`--add-blocked-by`、`--add-blocking` が使える場合は高水準commandでよい。
+組織Issue Typeを正本にした場合は、Issue作成後にリポジトリで利用できる実際のType名を設定する。
+
+```bash
+gh issue edit ISSUE_NUMBER --repo OWNER/REPO --type "TYPE_NAME"
+gh issue view ISSUE_NUMBER --repo OWNER/REPO --json number,issueType
+```
+
+組織Issue Fieldを正本にした場合は、Issue Field Values REST APIの `POST` で対象項目だけを追加・更新する。`PUT` はそのIssueの既存項目値をすべて置き換えるため、一括作成では使わない。
+
+```json
+{
+  "issue_field_values": [
+    { "field_id": 123, "value": "p2-high" },
+    { "field_id": 456, "value": 3 }
+  ]
+}
+```
+
+```bash
+gh api --method POST \
+  -H "X-GitHub-Api-Version: 2026-03-10" \
+  "repos/OWNER/REPO/issues/ISSUE_NUMBER/issue-field-values" \
+  --input issue-field-values.json
+
+gh api --method GET \
+  -H "X-GitHub-Api-Version: 2026-03-10" \
+  "repos/OWNER/REPO/issues/ISSUE_NUMBER/issue-field-values" \
+  -F per_page=100
+```
+
+Project独自項目を正本にした値だけを、後述の `updateProjectV2ItemFieldValue` で設定する。同義の値を複数の正本へ書かない。一括作成テンプレートはこの分岐を全Issueに適用し、`verify` で各保存先から値を読み戻す。
+
+# sub-issue / 依存関係の代替操作
+
+`gh issue edit --parent`、`--add-sub-issue`、`--add-blocked-by`、`--add-blocking` が使える場合は高水準コマンドでよい。
 
 ```bash
 gh issue edit CHILD_NUMBER --repo OWNER/REPO --parent PARENT_NUMBER
 gh issue edit ISSUE_NUMBER --repo OWNER/REPO --add-blocked-by BLOCKER_NUMBER
 ```
 
-大量作成時にこれらのcommandが返らない、または冪等再実行で扱いにくい場合はGraphQLへ切り替える。まずIssue node idを読む。
+大量作成時にこれらのコマンドが使えない、または冪等再実行で扱いにくい場合はGraphQLへ切り替える。まずIssueのnode IDを読む。
 
 ```bash
 gh issue view ISSUE_NUMBER --repo OWNER/REPO --json id,number,title,url
@@ -242,9 +300,9 @@ mutation {
 }'
 ```
 
-既に同じ関係がある場合、GitHubは重複系の検証エラーを返す。bootstrap再実行では操作別に既知のduplicate errorだけを警告として扱う。duplicateと権限・schema errorが混在する場合を含め、その他はfail-closedで停止する。apply後は全対象IssueのparentとblockedByを再取得して一致を確認する。
+既に同じ関係がある場合、GitHubは重複系の検証エラーを返す。初期構築の再実行では、操作別に既知の重複エラーだけを警告として扱う。重複と権限・スキーマエラーが混在する場合を含め、その他は安全側に停止する。`apply` 後は全対象Issueの `parent` と `blockedBy` を再取得して一致を確認する。
 
-# Project item追加とfield値設定
+# Project項目の追加と値設定
 
 `gh project item-add` が返らない場合は、GraphQL `addProjectV2ItemById` を使う。
 
@@ -260,9 +318,9 @@ mutation {
 }'
 ```
 
-Project item field valueはGraphQLで設定する。
+Project項目値はGraphQLで設定する。
 
-Single select:
+単一選択:
 
 ```bash
 gh api graphql -f query='
@@ -278,7 +336,7 @@ mutation {
 }'
 ```
 
-Text:
+テキスト:
 
 ```bash
 gh api graphql -f query='
@@ -294,7 +352,7 @@ mutation {
 }'
 ```
 
-Date:
+日付:
 
 ```bash
 gh api graphql -f query='
@@ -310,14 +368,14 @@ mutation {
 }'
 ```
 
-大量設定では `assets/project-bootstrap-template.py` をコピーまたは一時ファイルへ展開し、対象リポジトリ用に編集する。Projectフィールドは `assets/project-fields.json` を読み込ませる。Issue入力は次のどちらか一方に統一する。
+大量設定では `assets/project-bootstrap-template.py` をコピーまたは一時ファイルへ展開し、対象リポジトリ用に編集する。Project項目は `assets/project-fields.json`、ビューは `assets/project-views.json` を読み込ませる。Issue入力は次のどちらか一方に統一する。
 
 - 少数ならコード内の `ISSUES` を編集する。`body` は `dedent("""...""").strip()` で書く。
 - 多数なら `assets/backlog.flat.json` を複製し、全サブコマンドへ同じ `--backlog PATH` を渡す。`parent_title` と `blocked_by_titles` はそれぞれ `parent` と `blocked_by` へ変換される。未対応項目、欠落項目、不正なJSONはGitHubへ接続する前に拒否される。
 
-どちらも本文の構成は `references/issue-authoring.md` を正とする。型別の必須節、内容、Project fieldや依存関係の重複禁止、コミットSHAへ固定した参照ドキュメントをGitHubへ接続する前に検証する。
+どちらも本文の構成は `references/issue-authoring.md` を正とする。型別の必須節、内容、構造化項目や依存関係の重複禁止、コミットSHAへ固定した参照ドキュメントをGitHubへ接続する前に検証する。
 
-planの `blockers` が空であることを確認してからapplyする。確認文字列は設定したrepositoryとProject numberそのものを使う。
+`plan` の `blockers` が空であることを確認してから `apply` する。確認文字列は設定したリポジトリとProject番号そのものを使う。
 
 ```bash
 python project-bootstrap.py apply \
@@ -325,7 +383,7 @@ python project-bootstrap.py apply \
   --confirm "OWNER/REPO#PROJECT_NUMBER"
 ```
 
-既存fieldの安全なmetadata更新も承認した場合だけ、applyにも同じflagを付ける。
+既存項目の安全なメタデータ更新も承認した場合だけ、`apply` にも同じオプションを付ける。
 
 ```bash
 python project-bootstrap.py apply \
@@ -333,42 +391,77 @@ python project-bootstrap.py apply \
   --confirm "OWNER/REPO#PROJECT_NUMBER"
 ```
 
-apply出力のIssue number、URL、Project item IDはmanifestとして保存し、再実行前に `ISSUES` またはbacklog JSONの各 `number` へ反映する。途中失敗時はtitle照合で続行せず、出力とGitHub実状態を読み、明示numberを設定してplanから再開する。
+`apply` 出力のIssue番号、URL、Project項目IDは実行記録として保存し、再実行前に `ISSUES` または初期Issue一覧JSONの各 `number` へ反映する。途中失敗時はタイトル照合で続行せず、出力とGitHub実状態を読み、明示番号を設定して `plan` から再開する。
 
-# Project views
+# Projectビュー
 
-GitHub Projects API / `gh project` にはview作成・view編集のmutationやsubcommandが公開されていない前提で扱う。view名、目的、filter、group、sort、visible fieldsは `assets/.github/project/views.md` を対象repoの `.github/project/views.md` へコピーして残す。
+ProjectビューはREST APIで作成できる。`gh project` に作成サブコマンドがなくても、UIだけの作業として扱わない。`assets/project-views.json` をビュー名、レイアウト、フィルターの機械可読な正本にし、一括作成テンプレートの `plan`、`apply`、`verify` へ含める。同名ビューのレイアウトまたはフィルターが異なる場合や標準外ビューがある場合は、上書き・削除せず停止する。標準外ビューは内容を確認し、UIで残すか整理するかを決める。
 
-Project UI上では次の4 viewだけを作る。
+作成APIは `name`、`layout`、`filter`、table/boardの数値項目IDによる `visible_fields` を受け付ける。組織Issue FieldとProject項目で表示項目IDが変わるため、一括作成テンプレートは名前、レイアウト、フィルターだけを作成する。表示項目、グループ化、並び替え、切り分けは作成後にUIで設定する。roadmapへ `visible_fields` は渡さない。
+
+まず既存ビューを読み、同名ビューの設定が正本と一致することを確認する。RESTにはビュー一覧・更新APIがないため、読み取りと検証はGraphQLを使う。
+
+```bash
+gh api graphql \
+  -F projectId=PROJECT_ID \
+  -f query='query($projectId: ID!) {
+    node(id: $projectId) {
+      ... on ProjectV2 {
+        views(first: 100) {
+          nodes { id number name layout filter }
+          pageInfo { hasNextPage }
+        }
+      }
+    }
+  }'
+```
+
+組織所有Projectでは、Projects組織書き込み権限を持つトークンで次の形を使う。
+
+```bash
+gh api --method POST \
+  -H "Accept: application/vnd.github+json" \
+  -H "X-GitHub-Api-Version: 2026-03-10" \
+  "orgs/ORG/projectsV2/PROJECT_NUMBER/views" \
+  -f name='かんばん' \
+  -f layout='board' \
+  -f filter='is:issue is:open status:inbox,triaged,ready,in-progress,in-review,blocked'
+```
+
+個人所有ProjectはAPI経路を `users/USER_ID/projectsV2/PROJECT_NUMBER/views` へ変える。この経路はGitHub Appトークンとfine-grained PATに対応しないため、現在の `gh auth token` の種類を確認し、401/403を権限不足として握りつぶさない。
+
+Projectには次の4ビューだけを作る。
 
 - `かんばん`
 - `WBS/ロードマップ`
-- `マージキュー候補`
+- `マージ候補`
 - `Velocity`
+
+各ビューの目的、表示項目、UIで行うグループ化・並び替えは、`assets/.github/project/views.md` を対象リポジトリの `.github/project/views.md` へコピーして正本にする。Project項目はIssueとし、PRの承認や必須検査はProjectの絞り込み条件へ書かずPR自体で確認する。
 
 # 検証
 
-applyは完了直後にverifyを自動実行する。別processで再検証する場合は、apply出力のIssue numberを `ISSUES` またはbacklog JSONへ保存し、applyと同じ入力を指定する。
+`apply` は完了直後に `verify` を自動実行する。別の処理で再検証する場合は、`apply` 出力のIssue番号を `ISSUES` または初期Issue一覧JSONへ保存し、`apply` と同じ入力を指定する。
 
 ```bash
 python project-bootstrap.py verify --backlog backlog.flat.json
 ```
 
-verifyは全canonical field/type/options、Milestoneとdue date、全Issue identity、全parent/blockedBy、全Issue URLに対応するProject itemをread-onlyで確認する。代表Issueだけのspot checkで完了扱いにしない。
+`verify` は `plan` で選んだ組織Issue Type / Issue FieldとProject項目の定義・値、4ビューの名前・レイアウト・フィルター、Milestoneと期限、全Issueの同一性、全 `parent` / `blockedBy`、全Issue URLに対応するProject項目を読み取りだけで確認する。代表Issueだけの抜き取り確認で完了扱いにしない。
 
-Project fields:
-
-```bash
-gh project field-list PROJECT_NUMBER --owner @me --format json --limit 100
-```
-
-Project items:
+Project項目:
 
 ```bash
-gh project item-list PROJECT_NUMBER --owner @me --format json --limit 100
+gh project field-list PROJECT_NUMBER --owner OWNER --format json --limit 100
 ```
 
-代表epicのsub-issues:
+Project内のIssue:
+
+```bash
+gh project item-list PROJECT_NUMBER --owner OWNER --format json --limit 100
+```
+
+代表`epic`のsub-issue:
 
 ```bash
 gh issue view EPIC_NUMBER \
@@ -376,7 +469,7 @@ gh issue view EPIC_NUMBER \
   --json number,title,subIssues,subIssuesSummary
 ```
 
-代表Issueのparent / dependency:
+代表Issueの親子・依存関係:
 
 ```bash
 gh issue view ISSUE_NUMBER \
@@ -384,13 +477,13 @@ gh issue view ISSUE_NUMBER \
   --json number,title,parent,blockedBy,blocking
 ```
 
-Milestones:
+Milestone:
 
 ```bash
 gh api repos/OWNER/REPO/milestones --method GET -f state=all -F per_page=100
 ```
 
-repo側view説明:
+リポジトリ側のビュー説明:
 
 ```bash
 test -f .github/project/views.md
@@ -399,8 +492,9 @@ test -f .github/project/views.md
 最後に、実際に作った件数を数字で確認する。
 
 ```text
-Milestones: expected First Release
-Project fields: assets/project-fields.jsonの全canonical fieldと必要なbuilt-in field
-Project items: expected created WBS issue count
-Issues: existing dashboardやdependency issueを含む場合があるため、WBS issue number rangeで確認する
+Milestone: First Releaseが存在する
+メタデータ: planで選んだ組織Issue Type / Issue FieldとProject項目
+Projectビュー: assets/project-views.jsonの4ビュー
+Project項目: 作成予定のWBS Issue数と一致する
+Issue: 既存Issueを含む場合があるため、対象Issue番号で確認する
 ```
