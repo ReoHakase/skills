@@ -65,7 +65,7 @@ Forecast Start / Forecast Endは、Project上の計画作業期間である。�
 
 Forecast変更はProject fieldだけで行う。Issue本文にForecastやMilestone期限を書かない。
 
-並列実行可能数はエージェント、worktree、レビュアー、重いCI、共有fixture、マージ待ちの各WIP上限で有限である。最適化目標は直列依存を減らしつつ、後段を詰まらせない範囲で `ready` Issueを投入することにする。
+並列実行可能数はエージェント、worktree、レビュアー、重いCI、共有フィクスチャ、マージ待ちの各WIP上限で有限である。最適化目標は直列依存を減らしつつ、後段を詰まらせない範囲で `ready` Issueを投入することにする。
 
 分解手順:
 
@@ -80,7 +80,7 @@ Forecast変更はProject fieldだけで行う。Issue本文にForecastやMilesto
 
 ```text
 Epic: 検索機能を全部作る
-  - 検索UI、API、DB、ranking、test、docsを1Issueで実装する
+  - 検索UI、API、DB、検索順位、テスト、ドキュメントを1Issueで実装する
 ```
 
 良い分解:
@@ -89,7 +89,7 @@ Epic: 検索機能を全部作る
 Epic: 検索機能
   - 検索レスポンスのcontractを定義する
   - DB検索repositoryとunit testを追加する
-  - 検索結果カード、UI test、操作説明を追加する
+  - 検索結果カード、UIテスト、操作説明を追加する
 ```
 
 依存:
@@ -120,7 +120,7 @@ gh issue create \
   --repo OWNER/REPO \
   --parent PARENT_NUMBER \
   --milestone "First Release" \
-  --title "自然な日本語のIssue title" \
+  --title "自然な日本語のIssueタイトル" \
   --body-file issue.md
 ```
 
@@ -181,15 +181,15 @@ bug Issueには必ず再現条件を書く。
 - 影響範囲
 - 修正の受け入れ条件
 
-debug log、chat、inquiryからIssueを起こす場合は、最初はStatusをinboxにする。SourceはProject fieldに入れる。Issue本文にはSourceなどのProject field assignmentを書かない。
+デバッグログ、チャット、問い合わせからIssueを起こす場合は、最初はStatusを `inbox` にする。SourceはProject fieldに入れる。Issue本文にはSourceなどのProject field値を書かない。
 
 Issue本文に必ず書く:
 
 - 原文または要約
-- 影響しているユーザーまたは機能
+- 影響している利用者または機能
 - 再現性
 - 緊急度の仮判定
-- 次のtriageで確認すべきこと
+- 次のトリアージで確認すべきこと
 
 inboxから直接in-progressにしない。必ずtriagedまたはreadyを通す。
 
@@ -199,29 +199,42 @@ Issue本文は最新の信頼できる情報源として随時更新する。受
 
 Issue本文は常体で書く。論文やレポートと同じく「である」「する」「できる」を使い、丁寧体は使わない。
 
-状態遷移、判断理由、阻害要因、レビュー/CI判断、close/cancel理由はコメントへ残す。本文は現在信頼してよい内容、コメントは時系列の判断記録として分ける。
+状態遷移、判断理由、阻害要因、レビュー/CI判断、クローズ/中止理由はコメントへ残す。本文は現在信頼してよい内容、コメントは時系列の判断記録として分ける。
 
 Issue本文に `実装メモ`、`メモ`、`注意点` のような何でも入る欄を作らない。変更予定箇所、調査中の考え、実装中の注意、未確定の案はコメントへ書く。確定した契約、受け入れ条件、非スコープ、確認手順だけを本文へ反映する。
 
-Milestone、sub-issue、blocked by / blocking、Project field、Assignee、linked branchはGitHub metadataをSSoTにする。Issue本文にMilestone、sub-issue一覧、依存関係section、field assignmentを書かない。
+Milestone、sub-issue、blocked by / blocking、Project field、Assignee、紐づくブランチはGitHubメタデータをSSoTにする。Issue本文にMilestone、sub-issue一覧、依存関係の節、Project field値を書かない。
 
-Issue本文やPR本文で既存Issue/PRやcommitを参照するときは、同一repositoryなら `#123` や短いcommit SHAだけを書く。GitHubがautolinkとhover/previewで参照先を表示するため、`#123 タイトル` のようにtitleを併記しない。別repositoryのIssue/PRは `OWNER/REPO#123` と書く。参照: <https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/autolinked-references-and-urls>
+Issue本文やPR本文で既存Issue、PR、コミットを参照するときは、同一リポジトリなら `#123` や短いコミットSHAだけを書く。GitHubが自動リンクとプレビューで参照先を表示するため、`#123 タイトル` のようにタイトルを併記しない。別リポジトリのIssue/PRは `OWNER/REPO#123` と書く。参照: <https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/autolinked-references-and-urls>
 
-Issue本文には次の章を含める。
+Issueの種類ごとに必要な章を固定する。章があっても、プレースホルダーや本文のないチェック項目だけでは不十分である。
 
-- `変更ファイル`: 並列実行時に人間とagentが競合リスクを事前に予測するための章。globだけで書く。
-- `参照ドキュメント`: Issue作成時点で参照した仕様、設計、README、docsを、commit固定URLと行番号付きで残す章。参照commitは必ずSHAで残す。`origin/main` や `main` から起票する場合も、本文にはbranch名ではなく `git rev-parse origin/main` などで得たSHAを書く。
+| 種類                         | 必須の章                                                                                                                  |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| 機能追加・通常作業           | 概要または背景、非スコープ、変更ファイル、参照ドキュメント、受け入れ条件、確認手順                                        |
+| 不具合（Type `fix`）         | 通常作業の必須章に加え、期待動作、実際の動作、再現手順、ログ・証拠。環境と影響範囲も再現・判断に必要なら含める            |
+| 調査（Type `spike`）         | 通常作業の必須章に加え、調査する問い、時間枠、停止条件、判断基準、成果物と証拠、後続Issue。調査手順も再現に必要なら含める |
+| 大項目（Type `epic`）        | 目的、成果の境界、完了条件、状態集約の根拠。必要に応じて分割方針も含める                                                  |
+| リポジトリ差分なしの通常作業 | 通常作業と同じ。変更ファイルには `なし（リポジトリ差分なし）` と理由を書く                                                |
 
-PR作成時に実際の変更範囲が `変更ファイル` から大きく外れた場合は、PR本文の `Scope` または `Risk` に理由を書く。
+`変更ファイル` は、並列実行時に人間とエージェントが競合リスクを事前に予測するための章である。変更予定をglobパターンだけで書く。調査Issueでリポジトリを変更しない場合は「なし（リポジトリ差分なし）」と書く。
 
-古いが残さないと混乱する短い記述はstrikethroughで残す。
+`参照ドキュメント` は、Issue作成時点で参照した仕様、設計、README、`docs/`を、コミット固定URLと行番号付きで残す章である。参照コミットは必ずSHAで残す。基幹ブランチから起票する場合も、本文にはブランチ名ではなく `git rev-parse origin/<default-branch>` で得たSHAを書く。参照先が見つからない場合は起票を止め、正本または根拠文書を特定する。
+
+調査Issueの `判断基準` は、起票時に候補と選定条件を書き、完了時に採用案、棄却案、理由、残った不確実性へ更新する。`後続Issue` は、完了時に「不要」と理由、または作成したIssue番号へ更新する。
+
+不具合Issueのログは、再現に必要な最小限に絞る。秘密情報、認証情報、個人情報は記載せず、編集履歴にも残さない。
+
+PR作成時に実際の変更範囲が `変更ファイル` から大きく外れた場合は、PR本文の `Issueとの差異` に理由を書く。現在の契約そのものが変わった場合は、PRをレビュー可能にする前にIssue本文を更新する。
+
+古いが残さないと混乱する短い記述は取り消し線で残す。
 
 ```markdown
 ~~旧APIだけを対象にする。~~
 新旧APIの両方を対象にする。
 ```
 
-長い経緯はcollapsed sectionへ移す。
+長い経緯は折りたたみ欄へ移す。
 
 ```markdown
 <details>
@@ -232,14 +245,14 @@ PR作成時に実際の変更範囲が `変更ファイル` から大きく外�
 </details>
 ```
 
-secret、credential、個人情報、公開してはいけないlogはstrikethroughやdetailsで残さない。必要ならGitHubの履歴redaction手順に従う。
+秘密情報、認証情報、個人情報、公開してはいけないログは取り消し線や折りたたみ欄で残さない。必要ならGitHubの履歴から削除する手順に従う。
 
 GitHub上の確認事項:
 
-- Issue descriptionは編集でき、edit historyを参照できる。参照: <https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/editing-an-issue>
-- commentのedit historyはread権限があれば確認できる。参照: <https://docs.github.com/en/communities/moderating-comments-and-conversations/tracking-changes-in-a-comment>
-- commentの過去revisionはrendered prose diffとして表示される。参照: <https://github.blog/changelog/2018-05-23-comment-edit-history/>
-- strikethroughとcollapsed sectionはGitHub Markdownで使える。参照: <https://docs.github.com/github/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax>, <https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/quickstart-for-writing-on-github>
+- Issue本文は編集でき、編集履歴を参照できる。参照: <https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/editing-an-issue>
+- コメントの編集履歴は読み取り権限があれば確認できる。参照: <https://docs.github.com/en/communities/moderating-comments-and-conversations/tracking-changes-in-a-comment>
+- コメントの過去版は文章の差分として表示される。参照: <https://github.blog/changelog/2018-05-23-comment-edit-history/>
+- 取り消し線と折りたたみ欄はGitHub Markdownで使える。参照: <https://docs.github.com/github/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax>, <https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/quickstart-for-writing-on-github>
 
 Project fieldにあるメタデータは本文へ書かない。Type、Scope、Status、Priority、Size、Effort、Estimate Confidence、Complexity、Risk、Agent Tier、Agent Harness、Agent Model、Agent Run、Reviewer Owner、Branch、Source、Forecast Start、Forecast End、Actual Start、Actual EndはProject fieldだけに記録する。
 
@@ -282,11 +295,6 @@ GitHub UI上のdiff file anchorは使ってもよいが、生成が安定した�
 
 なぜ必要かを書く。
 
-# スコープ
-
-- 実装対象1
-- 実装対象2
-
 # 非スコープ
 
 - このIssueでは扱わないこと1
@@ -313,8 +321,8 @@ https://github.com/OWNER/REPO/blob/<commit_sha>/docs/ARCHITECTURE.md#L40-L95
 
 # 確認手順
 
-- [ ] testまたは手動確認1
-- [ ] testまたは手動確認2
+- [ ] テストまたは手動確認1
+- [ ] テストまたは手動確認2
 ```
 
 # 記入済み例
@@ -346,11 +354,15 @@ https://github.com/OWNER/REPO/blob/<commit_sha>/docs/ARCHITECTURE.md#L40-L95
 - UI、API、フィクスチャ確認は契約確定後に並列化する
 - ランキング変更は別の親Issueで扱う
 
-# 完了判定
+# 完了条件
 
 - [ ] フィクスチャ検索で一致シーンの根拠表示まで確認できる
 - [ ] 未取得データのフォールバック表示が確認できる
 - [ ] 残作業が別Issueまたは中止として整理されている
+
+# 状態集約の根拠
+
+必須の末端Issueを正とし、`issue-lifecycle.md` の優先順位でStatusを集約する。
 ```
 
 ## Feature
@@ -364,27 +376,31 @@ https://github.com/OWNER/REPO/blob/<commit_sha>/docs/ARCHITECTURE.md#L40-L95
 
 検索結果一覧で動画全体の情報だけでは、なぜヒットしたか判断しづらい。一致した部分の説明とセリフをカード上で確認できるようにする。
 
-# スコープ
-
-- 品番、長さ、容量、解像度、商品名を表示する
-- 一致シーンの時刻、シーン説明、タグ、セリフ抜粋を表示する
-- カードクリックでプレイヤーへ遷移するためのvideo_idとscene_idを保持する
-
 # 非スコープ
 
 - ホバー動画プレビューの実装
 - 独自HTMLタイムラインの実装
-- 検索rankingの変更
+- 検索順位の変更
+
+# 変更ファイル
+
+- `web/components/search-result.*`
+- `web/components/search-result.test.*`
+
+# 参照ドキュメント
+
+https://github.com/OWNER/REPO/blob/0123456789abcdef0123456789abcdef01234567/docs/spec.md#L120-L180
 
 # 受け入れ条件
 
 - [ ] 検索結果カードに品番、長さ、容量、解像度、商品名が表示される
 - [ ] 一致シーンの時刻、説明、タグ、セリフ抜粋が表示される
 - [ ] データがない項目は空白ではなく未取得と表示される
+- [ ] カードクリックに必要な `video_id` と `scene_id` を保持する
 
 # 確認手順
 
-- [ ] fixtureデータでカードが表示される
+- [ ] フィクスチャデータでカードが表示される
 - [ ] 長い商品名でもレイアウトが崩れない
 ```
 
@@ -393,44 +409,116 @@ https://github.com/OWNER/REPO/blob/<commit_sha>/docs/ARCHITECTURE.md#L40-L95
 ```markdown
 # 概要
 
-分割動画の連結時刻からpart内のローカル時刻を逆引きする処理が、part境界で1秒ずれる。
+分割動画の連結時刻からパート内のローカル時刻を逆引きする処理が、パート境界で1秒ずれる。
+
+# 背景
+
+検索結果からプレイヤーへ移動したとき、境界上の一致場面とは異なる位置が開かれる。
+
+# 非スコープ
+
+- 境界以外の時刻変換方式
+- プレイヤー画面の表示
 
 # 期待動作
 
-work_time_msがpart境界上にある場合、次partのlocal_time_ms=0として解決される。
+`work_time_ms` がパート境界上にある場合、次のパートの `local_time_ms=0` として解決される。
 
 # 実際の動作
 
-part境界上の時刻が前partの末尾として扱われることがある。
+パート境界上の時刻が前のパートの末尾として扱われることがある。
 
 # 再現手順
 
-1. 2part構成のfixtureを使う
-2. part1のdurationと同じwork_time_msを指定する
-3. work_time_to_video_timeを実行する
+1. 2パート構成のフィクスチャを使う
+2. パート1の長さと同じ `work_time_ms` を指定する
+3. `work_time_to_video_time` を実行する
 
 # 環境
 
-- fixture: 2part構成
+- フィクスチャ: 2パート構成
 - 対象処理: work_time_to_video_time
 
-# ログ
+# ログ・証拠
 
-関連logまたは失敗test outputを貼る。secretや個人情報は含めない。
+秘密情報、認証情報、個人情報を除いた失敗ログを貼る。
 
 # 影響範囲
 
-part境界に一致する検索結果で、プレイヤー遷移先が1秒ずれる可能性がある。
+パート境界に一致する検索結果で、プレイヤー遷移先が1秒ずれる可能性がある。
+
+# 変更ファイル
+
+- `src/time-conversion.*`
+- `tests/time-conversion.*`
+
+# 参照ドキュメント
+
+https://github.com/OWNER/REPO/blob/0123456789abcdef0123456789abcdef01234567/docs/time-model.md#L40-L95
 
 # 修正の受け入れ条件
 
-- [ ] 境界時刻が次partのlocal_time_ms=0になる
-- [ ] 境界直前は前partの末尾になる
-- [ ] unit testが追加される
+- [ ] 境界時刻が次のパートの `local_time_ms=0` になる
+- [ ] 境界直前は前のパートの末尾になる
+- [ ] 単体テストが追加される
 
 # 確認手順
 
-- [ ] 該当unit testが通る
+- [ ] 該当する単体テストが通る
+```
+
+## Spike
+
+```markdown
+# 背景
+
+検索APIのレスポンス契約が未確定で、画面とAPIを安全に並列実装できない。
+
+# 非スコープ
+
+- 検索APIと画面の本実装
+
+# 変更ファイル
+
+- なし（リポジトリ差分なし）
+
+# 参照ドキュメント
+
+https://github.com/OWNER/REPO/blob/0123456789abcdef0123456789abcdef01234567/docs/spec.md#L10-L40
+
+# 受け入れ条件
+
+- [ ] 候補方式の比較結果と採否を第三者が確認できる
+- [ ] 後続Issueの要否を判断できる
+
+# 確認手順
+
+- [ ] 記録した入力とコマンドで比較結果を再現する
+
+# 調査する問い
+
+検索結果を場面単位と動画単位のどちらで返すべきか。
+
+# 時間枠
+
+上限4時間。2時間経過時に証拠と残りの問いを整理する。
+
+# 停止条件
+
+- 判断に必要な証拠が揃ったら終了する
+- 上限時間に達したら未解決点を明示して打ち切る
+
+# 判断基準
+
+画面側の変換量、API互換性、追加問い合わせ回数で比較する。
+
+# 成果物と証拠
+
+候補ごとのレスポンス例、再現コマンド、比較表を残す。
+
+# 後続Issue
+
+採用案の実装Issueを作る。採用を見送る場合は理由を明記して不要とする。
 ```
 
 # gh CLI / MCP操作

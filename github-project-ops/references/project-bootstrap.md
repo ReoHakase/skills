@@ -39,9 +39,10 @@ gh project list --owner OWNER --format json --limit 100
 ```bash
 python project-bootstrap.py plan
 python project-bootstrap.py plan --update-existing-fields
+python project-bootstrap.py plan --backlog backlog.flat.json
 ```
 
-2行目は既存single-select fieldのmetadata更新も計画するときだけ使う。
+2行目は既存single-select fieldのmetadata更新も計画するときだけ使う。3行目はコード内の `ISSUES` に代えてJSON入力を使う例である。
 
 # Project作成とrepository link
 
@@ -193,7 +194,7 @@ gh issue create \
 
 作成済みIssueはtitleだけで再利用しない。`Issue.number` に確認済みnumberを明示し、実Issueのtitleと一致した場合だけ再利用する。number未指定の同名Issueが存在する場合は停止する。bootstrap対象内のtitle重複もIssue作成前に拒否する。
 
-Pythonテンプレートには長いIssue本文例を置かない。初期起票用の本文は `references/issue-authoring.md` の `Issue本文テンプレート` をもとに、対象repositoryの仕様、設計、README、docsへのcommit固定URLを入れて作る。
+Pythonテンプレートには長いIssue本文例を置かない。初期起票用の本文は `references/issue-authoring.md` の `Issue本文テンプレート` をもとに、対象リポジトリの仕様、設計、README、docsへのコミット固定URLを入れて作る。
 
 bootstrap後にIssueを追加する場合は、既存の親Issue、sub-issue、blocked by / blocking、Milestoneを確認してから `references/issue-authoring.md` の手順で個別に追加する。
 
@@ -309,12 +310,18 @@ mutation {
 }'
 ```
 
-大量設定では `assets/project-bootstrap-template.py` をコピーまたは一時ファイルへ展開し、対象リポジトリ用に編集する。Projectフィールドは `assets/project-fields.json` を読み込ませる。`ISSUES` の `body` は `dedent("""...""").strip()` で書き、長い文字列連結にしない。PythonテンプレートにはIssue本文例を置かず、本文の構成と記入例は `references/issue-authoring.md` を参照する。空のbodyは未設定として扱い、Issue作成前に停止する。
+大量設定では `assets/project-bootstrap-template.py` をコピーまたは一時ファイルへ展開し、対象リポジトリ用に編集する。Projectフィールドは `assets/project-fields.json` を読み込ませる。Issue入力は次のどちらか一方に統一する。
+
+- 少数ならコード内の `ISSUES` を編集する。`body` は `dedent("""...""").strip()` で書く。
+- 多数なら `assets/backlog.flat.json` を複製し、全サブコマンドへ同じ `--backlog PATH` を渡す。`parent_title` と `blocked_by_titles` はそれぞれ `parent` と `blocked_by` へ変換される。未対応項目、欠落項目、不正なJSONはGitHubへ接続する前に拒否される。
+
+どちらも本文の構成は `references/issue-authoring.md` を正とする。型別の必須節、内容、Project fieldや依存関係の重複禁止、コミットSHAへ固定した参照ドキュメントをGitHubへ接続する前に検証する。
 
 planの `blockers` が空であることを確認してからapplyする。確認文字列は設定したrepositoryとProject numberそのものを使う。
 
 ```bash
 python project-bootstrap.py apply \
+  --backlog backlog.flat.json \
   --confirm "OWNER/REPO#PROJECT_NUMBER"
 ```
 
@@ -326,7 +333,7 @@ python project-bootstrap.py apply \
   --confirm "OWNER/REPO#PROJECT_NUMBER"
 ```
 
-apply出力のIssue number、URL、Project item IDはmanifestとして保存し、再実行前に各 `Issue.number` へ反映する。途中失敗時はtitle照合で続行せず、出力とGitHub実状態を読み、明示numberを設定してplanから再開する。
+apply出力のIssue number、URL、Project item IDはmanifestとして保存し、再実行前に `ISSUES` またはbacklog JSONの各 `number` へ反映する。途中失敗時はtitle照合で続行せず、出力とGitHub実状態を読み、明示numberを設定してplanから再開する。
 
 # Project views
 
@@ -341,10 +348,10 @@ Project UI上では次の4 viewだけを作る。
 
 # 検証
 
-applyは完了直後にverifyを自動実行する。別processで再検証する場合は、apply出力のIssue numberを `ISSUES` へ保存してから実行する。
+applyは完了直後にverifyを自動実行する。別processで再検証する場合は、apply出力のIssue numberを `ISSUES` またはbacklog JSONへ保存し、applyと同じ入力を指定する。
 
 ```bash
-python project-bootstrap.py verify
+python project-bootstrap.py verify --backlog backlog.flat.json
 ```
 
 verifyは全canonical field/type/options、Milestoneとdue date、全Issue identity、全parent/blockedBy、全Issue URLに対応するProject itemをread-onlyで確認する。代表Issueだけのspot checkで完了扱いにしない。

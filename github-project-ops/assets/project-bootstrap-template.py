@@ -1,7 +1,7 @@
 """github-project-ops用の編集可能なGitHub Project bootstrapテンプレート。
 
 これはそのまま使う丸ごと実行用スクリプトではない。一時パスへコピーし、設定欄を
-確認済みのGitHub値へ置き換え、ISSUESを見直してから実行する。
+確認済みのGitHub値へ置き換え、ISSUESを見直すか、--backlogで入力JSONを指定して実行する。
 
 必要なツール:
 - リポジトリとprojectスコープで認証済みのgh CLI
@@ -13,10 +13,12 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import subprocess
 import sys
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from dataclasses import fields as dataclass_fields
 from datetime import date
 from pathlib import Path
 from textwrap import dedent
@@ -42,6 +44,50 @@ FieldValue = str | float
 
 PLACEHOLDER_VALUES = {"OWNER/REPO", "PVT_REPLACE_ME"}
 ESTIMATE_CONFIDENCE_OPTIONS = {"ec0-low", "ec1-medium", "ec2-high"}
+MARKDOWN_HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$")
+DOCUMENT_REFERENCE_RE = re.compile(r"https://[^/\s]+/[^/\s]+/[^/\s]+/blob/([^/\s]+)/[^\s)>]+")
+FORBIDDEN_BODY_HEADINGS = {
+    "依存関係",
+    "プロジェクトフィールド",
+    "スコープ",
+    "優先度",
+    "規模",
+    "複雑度",
+    "リスク",
+    "担当者",
+    "blocked by",
+    "blocking",
+    "project field",
+    "project fields",
+    "status",
+    "type",
+    "scope",
+    "priority",
+    "size",
+    "effort",
+    "estimate confidence",
+    "complexity",
+    "risk",
+    "agent tier",
+    "agent harness",
+    "agent model",
+    "agent run",
+    "forecast start",
+    "forecast end",
+    "actual start",
+    "actual end",
+    "branch",
+    "reviewer owner",
+    "source",
+    "milestone",
+    "assignee",
+}
+SENSITIVE_EVIDENCE_MARKERS = (
+    "-----begin private key-----",
+    "-----begin openssh private key-----",
+    "ghp_",
+    "github_pat_",
+)
 EXPECTED_DUPLICATE_MARKERS = {
     "sub-issue": (
         "already a sub-issue",
@@ -631,6 +677,48 @@ def validate_reused_done_blockers(
                 )
 
 
+def load_backlog_issues(path: Path) -> list[Issue]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise SystemExit(f"backlog入力が見つかりません: {path}") from exc
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"backlog入力が正しいJSONではありません: {path} ({exc})") from exc
+
+    if not isinstance(payload, list) or not payload:
+        raise SystemExit(f"backlog入力は1件以上の配列にしてください: {path}")
+
+    aliases = {"parent_title": "parent", "blocked_by_titles": "blocked_by"}
+    allowed = {spec.name for spec in dataclass_fields(Issue)}
+    issues: list[Issue] = []
+    for position, raw in enumerate(payload, start=1):
+        if not isinstance(raw, dict):
+            raise SystemExit(f"backlog入力の{position}件目はJSONオブジェクトにしてください: {path}")
+        normalized = dict(raw)
+        for source, destination in aliases.items():
+            if source in normalized:
+                if destination in normalized:
+                    raise SystemExit(
+                        f"backlog入力で{source}と{destination}を重複指定しないでください: "
+                        f"{path} {position}件目"
+                    )
+                normalized[destination] = normalized.pop(source)
+        unknown = sorted(set(normalized) - allowed)
+        if unknown:
+            raise SystemExit(
+                f"backlog入力に未対応の項目があります: {path} {position}件目 {unknown}"
+            )
+        if "blocked_by" in normalized and not isinstance(normalized["blocked_by"], list):
+            raise SystemExit(f"blocked_by_titlesは配列にしてください: {path} {position}件目")
+        try:
+            issues.append(Issue(**normalized))
+        except TypeError as exc:
+            raise SystemExit(
+                f"backlog入力の必須項目が不足しています: {path} {position}件目 ({exc})"
+            ) from exc
+    return issues
+
+
 def index_issues(issue_specs: list[Issue]) -> dict[str, Issue]:
     issues: dict[str, Issue] = {}
     duplicates: list[str] = []
@@ -643,6 +731,142 @@ def index_issues(issue_specs: list[Issue]) -> dict[str, Issue]:
     return issues
 
 
+def normalize_heading(value: str) -> str:
+    plain = re.sub(r"[`*_]", "", value).strip().casefold()
+    return re.sub(r"\s+", " ", plain)
+
+
+def markdown_sections(body: str) -> dict[str, str]:
+    sections: dict[str, list[str]] = {}
+    current: str | None = None
+    for line in body.splitlines():
+        match = MARKDOWN_HEADING_RE.match(line)
+        if match:
+            current = normalize_heading(match.group(1))
+            sections.setdefault(current, [])
+        elif current is not None:
+            sections[current].append(line)
+    return {heading: "\n".join(lines).strip() for heading, lines in sections.items()}
+
+
+def matching_section(sections: dict[str, str], aliases: Sequence[str]) -> tuple[str, str] | None:
+    normalized_aliases = [normalize_heading(alias) for alias in aliases]
+    for heading, content in sections.items():
+        if any(
+            heading == alias or heading.startswith(f"{alias}（") or heading.startswith(f"{alias} (")
+            for alias in normalized_aliases
+        ):
+            return heading, content
+    return None
+
+
+def has_meaningful_content(value: str) -> bool:
+    without_comments = re.sub(r"<!--.*?-->", "", value, flags=re.DOTALL).strip()
+    return without_comments not in {"", "...", "…", "_no response_"}
+
+
+def require_body_sections(
+    issue: Issue,
+    sections: dict[str, str],
+    requirements: Sequence[tuple[str, Sequence[str]]],
+) -> None:
+    missing: list[str] = []
+    empty: list[str] = []
+    for label, aliases in requirements:
+        match = matching_section(sections, aliases)
+        if match is None:
+            missing.append(label)
+        elif not has_meaningful_content(match[1]):
+            empty.append(label)
+    if missing or empty:
+        raise SystemExit(
+            f"Issue本文の必須節が不足しています: {issue.title} "
+            f"(見出しなし={missing}, 内容なし={empty})"
+        )
+
+
+def validate_pinned_document_references(issue: Issue, sections: dict[str, str]) -> None:
+    match = matching_section(sections, ("参照ドキュメント",))
+    if match is None:
+        return
+    revisions = DOCUMENT_REFERENCE_RE.findall(match[1])
+    if not revisions or any(not re.fullmatch(r"[0-9a-fA-F]{7,40}", rev) for rev in revisions):
+        raise SystemExit(
+            f"参照ドキュメントはコミットSHA固定のGitHub blob URLで指定してください: {issue.title}"
+        )
+
+
+def validate_issue_body(issue: Issue) -> None:
+    sections = markdown_sections(issue.body)
+    if not sections:
+        raise SystemExit(f"Issue本文にMarkdown見出しがありません: {issue.title}")
+
+    forbidden = sorted(set(sections) & FORBIDDEN_BODY_HEADINGS)
+    if forbidden:
+        raise SystemExit(
+            "Issue本文へ依存関係またはProject fieldを重複させないでください: "
+            f"{issue.title} {forbidden}"
+        )
+
+    if issue.type == "epic":
+        require_body_sections(
+            issue,
+            sections,
+            (
+                ("目的", ("目的",)),
+                ("成果の境界", ("成果の境界", "境界")),
+                ("完了条件", ("完了条件", "完了判定")),
+                ("状態集約の根拠", ("状態集約の根拠",)),
+            ),
+        )
+        return
+
+    require_body_sections(
+        issue,
+        sections,
+        (
+            ("背景または目的", ("背景", "目的", "概要")),
+            ("非スコープ", ("非スコープ",)),
+            ("変更ファイル", ("変更ファイル",)),
+            ("参照ドキュメント", ("参照ドキュメント",)),
+            ("受け入れ条件", ("受け入れ条件", "修正の受け入れ条件")),
+            ("確認手順", ("確認手順",)),
+        ),
+    )
+    validate_pinned_document_references(issue, sections)
+
+    if issue.type == "fix":
+        require_body_sections(
+            issue,
+            sections,
+            (
+                ("期待動作", ("期待動作", "期待する動作")),
+                ("実際の動作", ("実際の動作",)),
+                ("再現手順", ("再現手順",)),
+                ("証拠", ("証拠", "ログ", "ログと証拠", "ログ・証拠")),
+            ),
+        )
+        lowered_body = issue.body.casefold()
+        if any(marker in lowered_body for marker in SENSITIVE_EVIDENCE_MARKERS):
+            raise SystemExit(
+                f"Issue本文の証拠へ秘密情報らしき値を含めないでください: {issue.title}"
+            )
+
+    if issue.type == "spike":
+        require_body_sections(
+            issue,
+            sections,
+            (
+                ("調査する問い", ("調査する問い", "問い")),
+                ("時間枠", ("時間枠",)),
+                ("停止条件", ("停止条件",)),
+                ("判断基準", ("判断基準",)),
+                ("成果物と証拠", ("成果物と証拠", "成果物・証拠", "証拠")),
+                ("後続Issue", ("後続Issue", "後続Issueの要否")),
+            ),
+        )
+
+
 def ensure_issue_bodies(issues: dict[str, Issue]) -> None:
     missing = [issue.title for issue in issues.values() if not issue.body.strip()]
     if missing:
@@ -650,6 +874,8 @@ def ensure_issue_bodies(issues: dict[str, Issue]) -> None:
             "Issue本文が未設定です: "
             f"{missing}。../references/issue-authoring.md を参照して本文を記入してください。"
         )
+    for issue in issues.values():
+        validate_issue_body(issue)
 
 
 def parse_iso_date(label: str, value: str) -> date:
@@ -1336,9 +1562,9 @@ def verify_bootstrap(context: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def prepare_bootstrap() -> dict[str, Any]:
+def prepare_bootstrap(issue_specs: list[Issue] | None = None) -> dict[str, Any]:
     validate_configuration()
-    issues = index_issues(ISSUES)
+    issues = index_issues(ISSUES if issue_specs is None else issue_specs)
     milestones = ensure_milestone_plan(MILESTONES)
     ensure_issue_plan(issues, milestones)
     ensure_issue_bodies(issues)
@@ -1401,13 +1627,22 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         required=True,
         help="誤対象防止のため OWNER/REPO#PROJECT_NUMBER を指定する",
     )
-    subparsers.add_parser("verify", help="保存済みIssue numberを使って実状態を検証する")
+    verify_parser = subparsers.add_parser(
+        "verify", help="保存済みIssue numberを使って実状態を検証する"
+    )
+    for command_parser in (plan_parser, apply_parser, verify_parser):
+        command_parser.add_argument(
+            "--backlog",
+            type=Path,
+            help="ISSUESの代わりに読み込むbacklog JSONのパス",
+        )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
-    context = prepare_bootstrap()
+    issue_specs = load_backlog_issues(args.backlog) if args.backlog else None
+    context = prepare_bootstrap(issue_specs) if issue_specs is not None else prepare_bootstrap()
     if args.command == "verify":
         result = verify_bootstrap(context)
     else:

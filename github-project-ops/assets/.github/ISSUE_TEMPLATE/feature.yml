@@ -1,9 +1,7 @@
 # このファイルを .github/ISSUE_TEMPLATE/feature.yml へコピーする。
-# GitHub Projectsのメタデータは本文に書かない。Issue作成後に Type、Scope、
-# Status、Priority、Size、Complexity、Risk、Agent Tier、Source、担当者系項目を
-# GitHub Projectsで設定する。
+# GitHub Projectsの項目は本文に転記せず、Issue作成後にProject上で設定する。
 name: 機能追加 / 作業Issue
-description: スコープと確認手順が明確な、ブランチを作れる実装Issueを作る。
+description: 作業範囲と確認手順が明確な、ブランチを作れる実装Issueを作る。
 body:
   - type: markdown
     attributes:
@@ -11,7 +9,7 @@ body:
         1つのブランチと1つのPRで完了できる作業に使う。
         Issue本文は常体で書く。丁寧体は使わない。
 
-        GitHub ProjectsのメタデータはIssue本文に書かない。Type、Scope、Status、Priority、Size、Complexity、Risk、Agent Tier、Source、Agent Harness、Agent Model、Reviewer Owner、Branch、日付系項目はGitHub Projectsで設定する。
+        GitHub Projectsの項目はIssue本文に転記せず、Issue作成後にProject上で設定する。
 
   - type: textarea
     id: overview
@@ -32,22 +30,34 @@ body:
       required: true
 
   - type: textarea
-    id: scope
-    attributes:
-      label: スコープ
-      description: このIssueで実装することを具体的に書く。1つのPRで扱える大きさにする。
-      value: |
-        - 実装対象を書く
-    validations:
-      required: true
-
-  - type: textarea
     id: non-scope
     attributes:
       label: 非スコープ
       description: 関連するが、このIssueでは意図的に扱わないことを書く。
-      value: |
+      placeholder: |
         - このIssueでは扱わないことを書く
+    validations:
+      required: true
+
+  - type: textarea
+    id: changed-files
+    attributes:
+      label: 変更ファイル
+      description: 変更予定のファイルをglobパターンだけで書く。並列作業の競合判定に使う。
+      placeholder: |
+        - `src/**/*.ts`
+        - `tests/**/*.test.ts`
+    validations:
+      required: true
+
+  - type: textarea
+    id: reference-documents
+    attributes:
+      label: 参照ドキュメント
+      description: 仕様や設計のURLをコミットSHAと行番号に固定して書く。ブランチ名、可変URL、「なし」は認めない。
+      placeholder: |
+        https://github.com/OWNER/REPO/blob/<COMMIT_SHA>/docs/spec.md#L10-L40
+        更新確認: https://github.com/OWNER/REPO/compare/<COMMIT_SHA>...<DEFAULT_BRANCH>
     validations:
       required: true
 
@@ -56,7 +66,7 @@ body:
     attributes:
       label: 受け入れ条件
       description: レビュアーが確認できる、観測可能な完了条件を書く。
-      value: |
+      placeholder: |
         - [ ] 確認できる条件を書く
         - [ ] 確認できる条件を書く
     validations:
@@ -67,30 +77,7 @@ body:
     attributes:
       label: 確認手順
       description: 具体的な自動テストまたは手動確認を書く。「完了」「確認済み」だけで終わらせない。
-      value: |
+      placeholder: |
         - [ ] 実行するテストまたは手動確認を書く
     validations:
       required: true
-
-  - type: textarea
-    id: dependencies
-    attributes:
-      label: 依存関係
-      description: Issue番号が分かる場合は番号を書く。不明な依存はtriage用の文章として残す。
-      value: |
-        先に必要なIssue:
-        - なし / #...
-
-        このIssueの完了を待つIssue:
-        - なし / #...
-    validations:
-      required: false
-
-  - type: textarea
-    id: implementation-notes
-    attributes:
-      label: 実装メモ
-      description: エージェントが安全に作業を始めるために必要な、変更候補ファイル、インターフェース、契約、注意点を書く。
-      placeholder: UI作業の前に、既存のAPIレスポンス型を拡張する必要がある。
-    validations:
-      required: false

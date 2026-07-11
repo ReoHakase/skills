@@ -27,7 +27,7 @@ PRを作成しただけでは `in-review` にしない。Draft解除とレビュ
 
 # PR本文運用
 
-PR本文にはProject fieldのメタデータや具体的なagentモデル名を書かない。Agent HarnessとAgent ModelはProject fieldへ記録する。
+PR本文にはProject fieldのメタデータや具体的なエージェントモデル名を書かない。Agent HarnessとAgent ModelはProject fieldへ記録する。
 
 PR本文は常体で書く。論文やレポートと同じく「である」「する」「できる」を使い、丁寧体は使わない。
 
@@ -36,43 +36,45 @@ PR本文に必須の要素:
 - 概要
 - 関連Issue
 - スコープ
+- Issueとの差異
 - 振る舞い
-- テストケース
-- 確認手順
+- 確認結果
+- 展開と切り戻し
 - リスク
-- レビュー観点
-- `Closes #<issue-number>` または同等のclosing keyword
+- レビュー案内
+- ブランチ作成型Issueを正確に1件だけ閉じる `Closes #<issue-number>` または同等の自動クローズキーワード
 
-必須sectionが存在していても、`-`、`- [ ]`、`done`、`確認済み` のようなplaceholderだけなら不十分。PR作成前に、第三者が確認できる具体的な変更点、振る舞い、テストケース、確認手順、リスク、レビュー観点が書かれているか確認する。
+必須の節が存在していても、`-`、`- [ ]`、`done`、`確認済み` のような仮記入だけなら不十分である。PR作成前に、第三者が確認できる具体的な変更点、振る舞い、確認結果、未実施理由、展開と切り戻し、リスク、レビュー案内が書かれているか確認する。
 
-PR本文は最新状態の要約として随時更新する。振る舞い、テストケース、確認手順、リスク、レビュー観点が変わった場合は、古い情報を放置せず本文を更新する。
+PR本文は最新状態の要約として随時更新する。振る舞い、確認結果、展開と切り戻し、リスク、レビュー案内が変わった場合は、古い情報を放置せず本文を更新する。
 
-PR descriptionは既存PRではopening commentとして編集する。参照: <https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/getting-started/helping-others-review-your-changes>
+ブランチ作成型のPRは自動クローズキーワードで対応Issueを正確に1件だけ閉じる。単なる関連Issueは通常の `#123` 参照にし、複数Issueを同時に閉じない。epic、リポジトリ差分なしの作業、PRを成果物にしないspikeにはこの規則を機械的に当てはめない。
 
-Issue/PRやcommitの参照は、同一repositoryなら `#123` や短いcommit SHAだけを書く。GitHubがautolinkとhover/previewで参照先を表示するため、titleを併記しない。別repositoryのIssue/PRは `OWNER/REPO#123` と書く。参照: <https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/autolinked-references-and-urls>
+既存PRでは説明文を先頭コメントとして編集する。参照: <https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/getting-started/helping-others-review-your-changes>
 
-古いが消すと混乱する短い記述はstrikethroughで残す。長い経緯はcollapsed sectionへ移す。secret、credential、個人情報、公開してはいけないlogはstrikethroughやdetailsで残さない。
+Issue、PR、コミットの参照は、同一リポジトリなら `#123` や短いコミットSHAだけを書く。GitHubが自動リンクとプレビューで参照先を表示するため、タイトルを併記しない。別リポジトリのIssue/PRは `OWNER/REPO#123` と書く。参照: <https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/autolinked-references-and-urls>
+
+古いが消すと混乱する短い記述は取り消し線で残す。長い経緯は折りたたみ欄へ移す。秘密情報、認証情報、個人情報、公開してはいけないログはどちらにも残さない。
 
 # 振る舞い
 
 `振る舞い` には、実装したものの動作確認結果を書く。
 
-- CLI変更: 実行したコマンドと出力をcode blockで書く。
-- Interactive CLI変更: asciinema、termsvgなどで色付きアニメーション画像または記録リンクを残す。
-- UI変更: component、page、主要状態のスクリーンショットまたは動画を貼る。
-- UIや視覚的な出力がない内部ロジック変更: Mermaid flowchartで変更後の流れを書く。
+- CLI変更: 実行したコマンドと出力をコードブロックで書く。
+- 対話型CLI変更: asciinema、termsvgなどで色付きアニメーション画像または記録リンクを残す。
+- UI変更: 画面部品、ページ、主要状態のスクリーンショットまたは動画を貼る。
+- UIや視覚的な出力がない内部ロジック変更: Mermaidフロー図で変更後の流れを書く。
 
-# テストケース
+# 確認結果
 
-`テストケース` には、実装済みのテストコードのcaseごとに、自然な文章で何ができるかを書く。単体テスト、統合テスト、E2Eテストに分け、テスト対象を見出しで書く。テストファイルやcase名を添えてよいが、Project fieldやCI metadataは書かない。
+`確認結果` には、変更に適用できる自動テストと手動確認だけを書く。単体、結合、E2Eのすべてを一律に要求しない。実行したコマンドまたは操作、結果、対象となる受け入れ条件を示す。適用できるが未実施の確認は、確認名と理由を書く。Project fieldやCIメタデータは複製しない。
 
 # PR本文テンプレート
 
-````markdown
+```markdown
 ## 概要
 
-- 変更点1
-- 変更点2
+- 変更内容を書く
 
 ## 関連Issue
 
@@ -88,47 +90,48 @@ Closes #123
 
 - ...
 
+## Issueとの差異
+
+- なし / Issue本文から外れた点と理由を書く
+
 ## 振る舞い
 
-```bash
-$ command
-実行結果を書く
-```
+- 動作確認結果を書く
 
-## テストケース
+## 確認結果
 
-### 単体テスト
+実施した確認:
 
-#### `someFunc()` / `<SomeComponent>` / `useHook()`
+- `command` — 結果を書く
 
-- テストケースごとに、できることを書く。
+未実施の確認と理由:
 
-### 統合テスト
+- なし / 未実施の確認と理由を書く
 
-#### `feature flow` / `api + repository`
+## 展開と切り戻し
 
-- テストケースごとに、できることを書く。
+展開:
 
-### E2Eテスト
+- 不要 / 手順と事前条件を書く
 
-#### `/some/page/`
+切り戻し:
 
-- テストケースごとに、できることを書く。
-
-## 確認手順
-
-- [ ] テストまたは確認1
-- [ ] テストまたは確認2
+- 不要 / 判定基準と手順を書く
 
 ## リスク
 
-- 既知のリスク
-- 巻き戻し方針
+- 既知のリスクと緩和策を書く
 
-## レビュー観点
+## レビュー案内
 
-- 特に見てほしい点
-````
+読む順序:
+
+1. 最初に見るファイルまたはコミットを書く
+
+重点:
+
+- 境界条件や設計判断を書く
+```
 
 # PR本文例
 
@@ -148,58 +151,64 @@ Closes #123
 実装したこと:
 
 - 検索結果カードの表示項目追加
-- fixtureデータでの表示確認
+- フィクスチャデータでの表示確認
 
 意図的に扱わないこと:
 
 - ホバー動画プレビュー
-- 検索ranking変更
+- 検索順位変更
+
+## Issueとの差異
+
+- なし
 
 ## 振る舞い
 
-検索結果fixtureでカードを表示し、品番、商品名、一致シーン、未取得fallbackを同じカード内で確認できる。
+検索結果フィクスチャでカードを表示し、品番、商品名、一致場面、未取得時の代替表示を同じカード内で確認できる。
 
 ![検索結果カードの確認](https://github.com/OWNER/REPO/assets/000000/search-card.png)
 
-## テストケース
+## 確認結果
 
-### 単体テスト
+実施した確認:
 
-#### `<SearchResultCard>`
+- `bun test search-result` — 作品情報、一致場面、欠損値の代替表示を確認した
+- 検索結果画面の手動確認 — 長い商品名でも主要情報が崩れないことを確認した
 
-- 検索結果カードに作品情報と一致シーン情報を同時に表示できる。
-- 欠損データがある項目で空白ではなくfallback文言を表示できる。
+未実施の確認と理由:
 
-### 統合テスト
+- E2Eテスト — この変更では利用可能な試験環境がなく、同じ経路を画面部品テストと手動確認で検証した
 
-#### `search fixture -> search results page`
+## 展開と切り戻し
 
-- fixture検索結果をページへ渡したとき、カード一覧に作品情報、一致シーン情報、fallback表示を反映できる。
+展開:
 
-### E2Eテスト
+- 通常のWebアプリケーション展開だけで、追加手順は不要
 
-#### `/search`
+切り戻し:
 
-- 検索結果画面で、長い商品名を含むカードでも主要情報を崩さず表示できる。
-
-## 確認手順
-
-- [ ] fixtureで検索結果カードを表示確認
-- [ ] 長い商品名でも崩れないことを確認
+- 情報が読めない、またはカード配置が崩れる場合は、このPRのマージコミットをrevertする
 
 ## リスク
 
-- UI表示だけの変更で、DB schemaと検索rankingには影響しない
+- UI表示だけの変更で、DBスキーマと検索順位には影響しない
 
-## レビュー観点
+## レビュー案内
+
+読む順序:
+
+1. `web/components/search-result.*`
+2. `web/components/search-result.test.*`
+
+重点:
 
 - 情報量が多すぎてカードが読みにくくなっていないか
 - 未取得項目の表示が分かりやすいか
 ```
 
-# in-review comment方針
+# `in-review` コメント方針
 
-通常はcommentを書かない。PR本文に概要、関連Issue、スコープ、振る舞い、テストケース、確認手順、リスク、レビュー観点を書き、`Closes #...` / `Fixes #...` / `Resolves #...` による自動追跡に任せる。
+通常はコメントを書かない。PR本文に概要、関連Issue、スコープ、Issueとの差異、振る舞い、確認結果、展開と切り戻し、リスク、レビュー案内を書き、`Closes #...` / `Fixes #...` / `Resolves #...` による自動追跡に任せる。
 
 PR本文やGitHubメタデータで分かる内容をコメントへ重複させない。レビュアーへの一時的な補足、CIの特殊事情、外部判断待ち、通常と違う確認依頼がある場合だけ、`lifecycle-comments.md` のレビュー中コメントを使う。
 
@@ -294,7 +303,7 @@ gh issue develop 123 \
   --checkout
 ```
 
-完成済みのPR本文を先に作り、具体的な概要、スコープ、振る舞い、テストケース、確認手順、リスク、レビュー観点、closing keywordがあることを確認してからPRを作成する。
+完成済みのPR本文を先に作り、具体的な概要、スコープ、Issueとの差異、振る舞い、確認結果、展開と切り戻し、リスク、レビュー案内、自動クローズキーワードがあることを確認してからPRを作成する。
 
 ```bash
 gh pr create \

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -13,6 +14,11 @@ import pytest
 ASSET_PATH = Path(__file__).with_name("project-bootstrap-template.py")
 FIELDS_PATH = Path(__file__).with_name("project-fields.json")
 BACKLOG_PATH = Path(__file__).with_name("backlog.flat.json")
+FORMS_DIR = Path(__file__).parent / ".github" / "ISSUE_TEMPLATE"
+PR_TEMPLATE_PATH = Path(__file__).parent / ".github" / "pull_request_template.md"
+PINNED_DOCUMENT = (
+    "https://github.com/OWNER/REPO/blob/0123456789abcdef0123456789abcdef01234567/docs/spec.md"
+)
 
 
 def load_asset() -> ModuleType:
@@ -44,6 +50,87 @@ def make_issue(module: ModuleType, title: str, **overrides: Any) -> Any:
     }
     values.update(overrides)
     return module.Issue(**values)
+
+
+def valid_issue_body(issue_type: str = "feat") -> str:
+    if issue_type == "epic":
+        return """# 目的
+検索機能を提供する。
+
+# 成果の境界
+検索の入力から結果表示までを含む。
+
+# 完了条件
+必須の末端Issueが完了している。
+
+# 状態集約の根拠
+必須の末端IssueのStatusを集約する。"""
+
+    common = f"""# 背景
+利用者が必要な情報を見つけられない。
+
+# 非スコープ
+検索順位の最適化は含めない。
+
+# 変更ファイル
+- `src/search.py`
+
+# 参照ドキュメント
+- {PINNED_DOCUMENT}
+
+# 受け入れ条件
+- 検索結果が表示される。
+
+# 確認手順
+1. テストを実行する。"""
+    if issue_type == "fix":
+        return f"""{common}
+
+# 期待動作
+結果が一度だけ表示される。
+
+# 実際の動作
+結果が二重に表示される。
+
+# 再現手順
+1. 検索を実行する。
+
+# ログ・証拠
+秘密情報と個人情報を除いた失敗ログを添付する。"""
+    if issue_type == "spike":
+        return f"""{common}
+
+# 調査する問い
+候補方式のどちらを採用するか。
+
+# 時間枠
+4時間。
+
+# 停止条件
+判断に必要な比較結果が揃うか、4時間へ到達する。
+
+# 判断基準
+正確性と運用負荷を比較する。
+
+# 成果物と証拠
+比較表と再現コマンドを残す。
+
+# 後続Issue
+採用案の実装が必要なら起票する。"""
+    return common
+
+
+def form_labels(name: str) -> list[str]:
+    text = (FORMS_DIR / name).read_text(encoding="utf-8")
+    return re.findall(r"^\s+label:\s*(.+?)\s*$", text, flags=re.MULTILINE)
+
+
+def submitted_form_body(name: str) -> str:
+    sections: list[str] = []
+    for label in form_labels(name):
+        content = f"- {PINNED_DOCUMENT}" if label == "参照ドキュメント" else "記入内容"
+        sections.append(f"### {label}\n\n{content}")
+    return "\n\n".join(sections)
 
 
 def test_project_fields_are_loaded_from_json() -> None:
@@ -91,7 +178,7 @@ def test_backlog_examples_form_a_three_wave_fork_join() -> None:
     contract = "検索レスポンスのデータ契約を定義する"
     ui = "検索結果カードに一致シーンの情報を表示する"
     api = "検索APIから一致シーンを返す"
-    integration = "検索結果のend-to-end動作を確認する"
+    integration = "検索結果の一連の動作を確認する"
 
     assert by_title[ui]["blocked_by_titles"] == [contract]
     assert by_title[api]["blocked_by_titles"] == [contract]
@@ -128,6 +215,158 @@ def test_empty_issue_body_stops_before_issue_creation() -> None:
 
     with pytest.raises(SystemExit, match="Issue本文が未設定です"):
         module.ensure_issue_bodies({"empty": module.ISSUES[0]})
+
+
+@pytest.mark.parametrize("issue_type", ["feat", "fix", "spike", "epic"])
+def test_type_specific_issue_bodies_are_accepted(issue_type: str) -> None:
+    module = load_asset()
+    issue = make_issue(
+        module,
+        issue_type,
+        type=issue_type,
+        body=valid_issue_body(issue_type),
+    )
+
+    module.ensure_issue_bodies({issue.title: issue})
+
+
+@pytest.mark.parametrize(
+    ("form_name", "issue_type"),
+    [("feature.yml", "feat"), ("bug.yml", "fix"), ("spike.yml", "spike")],
+)
+def test_issue_form_output_matches_body_validator(form_name: str, issue_type: str) -> None:
+    module = load_asset()
+    issue = make_issue(
+        module,
+        form_name,
+        type=issue_type,
+        body=submitted_form_body(form_name),
+    )
+
+    module.validate_issue_body(issue)
+
+
+def test_issue_forms_do_not_duplicate_project_scope_or_dependencies() -> None:
+    for name in ("feature.yml", "bug.yml", "spike.yml"):
+        labels = form_labels(name)
+        text = (FORMS_DIR / name).read_text(encoding="utf-8")
+        textarea_blocks = [
+            block for block in text.split("\n  - type: ") if block.startswith("textarea")
+        ]
+
+        assert "スコープ" not in labels
+        assert "依存関係" not in labels
+        assert "実装メモ" not in labels
+        assert "コミットSHA" in text
+        assert "「なし」は認めない" in text
+        assert textarea_blocks
+        assert all("\n      value:" not in block for block in textarea_blocks)
+        assert all("\n      required: true" in block for block in textarea_blocks)
+
+
+def test_bug_form_warns_against_secrets_and_personal_information() -> None:
+    text = (FORMS_DIR / "bug.yml").read_text(encoding="utf-8")
+
+    assert "ログ・証拠" in form_labels("bug.yml")
+    assert "秘密情報" in text
+    assert "認証情報" in text
+    assert "個人情報" in text
+
+
+def test_pr_template_requires_one_closing_issue_and_applicable_checks() -> None:
+    text = PR_TEMPLATE_PATH.read_text(encoding="utf-8")
+    without_comments = re.sub(r"<!--.*?-->", "", text, flags=re.DOTALL)
+    closing_lines = re.findall(
+        r"^(?:Closes|Fixes|Resolves)\s+#",
+        without_comments,
+        flags=re.MULTILINE,
+    )
+
+    assert len(closing_lines) == 1
+    assert "## Issueとの差異" in text
+    assert "## 確認結果" in text
+    assert "未実施の確認と理由" in text
+    assert "## 展開と切り戻し" in text
+    assert "## レビュー案内" in text
+    assert "### 単体テスト" not in text
+    assert "### 統合テスト" not in text
+    assert "### E2Eテスト" not in text
+
+
+def test_issue_body_rejects_missing_required_section() -> None:
+    module = load_asset()
+    issue = make_issue(
+        module,
+        "missing verification",
+        body=valid_issue_body().replace("# 確認手順", "# 補足"),
+    )
+
+    with pytest.raises(SystemExit, match="必須節が不足"):
+        module.ensure_issue_bodies({issue.title: issue})
+
+
+def test_issue_body_rejects_project_field_duplication() -> None:
+    module = load_asset()
+    issue = make_issue(
+        module,
+        "duplicated priority",
+        body=f"{valid_issue_body()}\n\n# Priority\np2-high",
+    )
+
+    with pytest.raises(SystemExit, match="Project fieldを重複"):
+        module.ensure_issue_bodies({issue.title: issue})
+
+
+def test_issue_body_rejects_branch_document_reference() -> None:
+    module = load_asset()
+    issue = make_issue(
+        module,
+        "moving reference",
+        body=valid_issue_body().replace(
+            "0123456789abcdef0123456789abcdef01234567",
+            "main",
+        ),
+    )
+
+    with pytest.raises(SystemExit, match="コミットSHA固定"):
+        module.ensure_issue_bodies({issue.title: issue})
+
+
+def test_bug_body_rejects_private_key_marker() -> None:
+    module = load_asset()
+    issue = make_issue(
+        module,
+        "secret evidence",
+        type="fix",
+        body=f"{valid_issue_body('fix')}\n-----BEGIN PRIVATE KEY-----",
+    )
+
+    with pytest.raises(SystemExit, match="秘密情報らしき値"):
+        module.ensure_issue_bodies({issue.title: issue})
+
+
+def test_backlog_is_supported_input_and_all_bodies_are_valid() -> None:
+    module = load_asset()
+
+    issue_specs = module.load_backlog_issues(BACKLOG_PATH)
+    issues = module.index_issues(issue_specs)
+
+    assert len(issues) == 5
+    assert issues["検索結果カードに一致シーンの情報を表示する"].blocked_by == [
+        "検索レスポンスのデータ契約を定義する"
+    ]
+    module.ensure_issue_plan(issues)
+    module.ensure_issue_bodies(issues)
+
+
+def test_parse_args_accepts_backlog_for_each_command() -> None:
+    module = load_asset()
+
+    plan_args = module.parse_args(["plan", "--backlog", str(BACKLOG_PATH)])
+    verify_args = module.parse_args(["verify", "--backlog", str(BACKLOG_PATH)])
+
+    assert plan_args.backlog == BACKLOG_PATH
+    assert verify_args.backlog == BACKLOG_PATH
 
 
 def test_default_milestone_requires_due_date() -> None:
