@@ -1,0 +1,34 @@
+[
+  {
+    "query": "来月扱う20件のIssueを親子と依存関係に分け、実装枠2とレビュー枠1で期日を組み直して",
+    "should_trigger": true
+  },
+  {
+    "query": "Issueは残し、GitHub Projectの項目とMilestone運用を復元できる手順で解除したい",
+    "should_trigger": true
+  },
+  {
+    "query": "既存バックログのblocked byとStatusが食い違っているので、作業開始条件と完了条件を監査して",
+    "should_trigger": true
+  },
+  {
+    "query": "チームのIssue FormsとPR本文をProject項目や作業権の規約と重複しない形に揃えて",
+    "should_trigger": true
+  },
+  {
+    "query": "Issue #88へ担当者と既存Milestoneを設定して",
+    "should_trigger": false
+  },
+  {
+    "query": "このPR本文だけを日本語から英語へ書き直して",
+    "should_trigger": false
+  },
+  {
+    "query": "マージキュー用の必須検査が落ちたのでGitHub Actionsを修正して",
+    "should_trigger": false
+  },
+  {
+    "query": "作業中ブランチを最新のmainへrebaseするコマンドを教えて",
+    "should_trigger": false
+  }
+]

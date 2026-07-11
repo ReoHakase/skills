@@ -29,6 +29,8 @@ OWNER = "@me"
 REPO = "OWNER/REPO"
 PROJECT_NUMBER = "1"
 PROJECT_ID = "PVT_REPLACE_ME"
+PROJECT_TITLE = "PROJECT_TITLE"
+PROJECT_VISIBILITY = "PRIVATE"  # PUBLICまたはPRIVATE
 WORKING_WEEKDAYS = {0, 1, 2, 3, 4}  # 月曜日=0
 HOLIDAYS: set[str] = set()
 # テンプレートだけを一時パスへコピーする場合は、project-fields.jsonも同じディレクトリへ置くか、
@@ -314,13 +316,13 @@ def load_project_fields(path: Path) -> list[dict[str, Any]]:
         data = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
         raise SystemExit(
-            f"Project field定義が見つかりません: {path}。"
+            f"Projectフィールド定義が見つかりません: {path}。"
             "project-fields.jsonをテンプレートと同じディレクトリへ置くか、"
             "PROJECT_FIELDS_PATHを設定してください。"
         ) from exc
 
     if not isinstance(data, list):
-        raise SystemExit(f"Project field定義はlistである必要があります: {path}")
+        raise SystemExit(f"Projectフィールド定義は配列である必要があります: {path}")
     return data
 
 
@@ -430,7 +432,9 @@ def list_project_fields() -> dict[str, dict[str, Any]]:
     payload = graphql_json(query, {"projectId": PROJECT_ID})
     connection = payload.get("data", {}).get("node", {}).get("fields", {})
     if connection.get("pageInfo", {}).get("hasNextPage"):
-        raise SystemExit("Project fieldが100件を超えています。pagination対応後に実行してください。")
+        raise SystemExit(
+            "Projectフィールドが100件を超えています。ページング対応後に実行してください。"
+        )
     return {
         field_data["name"]: field_data
         for field_data in connection.get("nodes", [])
@@ -460,9 +464,9 @@ def materialize_single_select_options(
     desired_names = option_names(desired_options)
     current_names = [str(option.get("name", "")) for option in current_options]
     if len(desired_names) != len(set(desired_names)):
-        raise SystemExit(f"single-select option名が重複しています: {desired_names}")
+        raise SystemExit(f"単一選択肢名が重複しています: {desired_names}")
     if len(current_names) != len(set(current_names)):
-        raise SystemExit(f"既存single-select option名が重複しています: {current_names}")
+        raise SystemExit(f"既存の単一選択肢名が重複しています: {current_names}")
 
     current_by_name = {option["name"]: option for option in current_options}
     removed_names = sorted(set(current_by_name) - set(desired_names))
@@ -478,7 +482,7 @@ def materialize_single_select_options(
         current = current_by_name.get(name, {})
         current_id = str(current.get("id", ""))
         if current and not current_id:
-            raise SystemExit(f"既存single-select optionにIDがありません: {name}")
+            raise SystemExit(f"既存の単一選択肢にIDがありません: {name}")
         if isinstance(option_spec, str):
             color = str(current.get("color") or option_color(option_spec, len(preserved)))
             description = str(current.get("description") or "")
@@ -603,8 +607,12 @@ def validate_configuration() -> None:
         raise SystemExit(f"PROJECT_IDを確認済みのnode IDへ置き換えてください: {PROJECT_ID}")
     if not PROJECT_NUMBER.isdigit():
         raise SystemExit(f"PROJECT_NUMBERは数字で指定してください: {PROJECT_NUMBER}")
+    if not PROJECT_TITLE.strip() or PROJECT_TITLE == "PROJECT_TITLE":
+        raise SystemExit("PROJECT_TITLEを確認済みのProjectタイトルへ置き換えてください")
+    if PROJECT_VISIBILITY not in {"PUBLIC", "PRIVATE"}:
+        raise SystemExit("PROJECT_VISIBILITYはPUBLICまたはPRIVATEで指定してください")
     if not OWNER.strip():
-        raise SystemExit("OWNERをProject owner loginまたは@meで指定してください")
+        raise SystemExit("OWNERをProject所有者のログイン名または@meで指定してください")
     if not WORKING_WEEKDAYS or not WORKING_WEEKDAYS <= set(range(7)):
         raise SystemExit(f"WORKING_WEEKDAYSは0..6の非空集合にしてください: {WORKING_WEEKDAYS}")
     for holiday in HOLIDAYS:
@@ -646,7 +654,7 @@ def discover_target() -> dict[str, Any]:
     repository = data.get("repository")
     project = data.get("node")
     if not repository or not project:
-        raise SystemExit("repositoryまたはProjectを取得できませんでした")
+        raise SystemExit("リポジトリまたはProjectを取得できませんでした")
     if repository.get("nameWithOwner") != REPO or not repository.get("defaultBranchRef"):
         raise SystemExit(
             f"リポジトリまたは既定ブランチが一致しません: {repository.get('nameWithOwner')}"
@@ -654,20 +662,30 @@ def discover_target() -> dict[str, Any]:
     expected_owner = data.get("viewer", {}).get("login") if OWNER == "@me" else OWNER.lstrip("@")
     actual_owner = project.get("owner", {}).get("login")
     if actual_owner != expected_owner:
-        raise SystemExit(f"Project ownerが一致しません: {actual_owner} != {expected_owner}")
+        raise SystemExit(f"Project所有者が一致しません: {actual_owner} != {expected_owner}")
     if str(project.get("number")) != PROJECT_NUMBER or project.get("id") != PROJECT_ID:
         raise SystemExit(
             "Project number / IDが一致しません: "
             f"number={project.get('number')} id={project.get('id')}"
         )
+    if project.get("title") != PROJECT_TITLE:
+        raise SystemExit(
+            f"Projectタイトルが一致しません: {project.get('title')} != {PROJECT_TITLE}"
+        )
+    expected_public = PROJECT_VISIBILITY == "PUBLIC"
+    if project.get("public") is not expected_public:
+        raise SystemExit(
+            "Project公開範囲が一致しません: "
+            f"public={project.get('public')} expected={PROJECT_VISIBILITY}"
+        )
     if not isinstance(project.get("items", {}).get("totalCount"), int):
-        raise SystemExit("Project item countを検証できません")
+        raise SystemExit("Projectアイテム数を検証できません")
     project_connection = repository.get("projectsV2", {})
     if project_connection.get("pageInfo", {}).get("hasNextPage"):
-        raise SystemExit("linked Projectが100件を超え、対象Projectとのlinkを検証できません")
+        raise SystemExit("紐づくProjectが100件を超え、対象Projectとの紐づけを検証できません")
     linked_ids = {item.get("id") for item in project_connection.get("nodes", [])}
     if PROJECT_ID not in linked_ids:
-        raise SystemExit(f"Projectがrepositoryへlinkされていません: {REPO} -> {PROJECT_ID}")
+        raise SystemExit(f"Projectがリポジトリへ紐づいていません: {REPO} -> {PROJECT_ID}")
     return {"repository": repository, "project": project}
 
 
@@ -909,7 +927,7 @@ def metadata_strategy(
             "type_source": "project",
             "native_type_map": {},
             "blockers": [
-                "組織Issue Fieldを持てないProject項目が混在しています。"
+                "組織Issue Fieldを持てないProjectアイテムが混在しています。"
                 "IssueだけのProjectへ分けてください: "
                 f"{sorted(incompatible_project_item_types)}"
             ],
@@ -1019,7 +1037,7 @@ def project_item_count() -> int:
     payload = graphql_json(query, {"projectId": PROJECT_ID})
     count = payload.get("data", {}).get("node", {}).get("items", {}).get("totalCount")
     if not isinstance(count, int):
-        raise SystemExit("Project item countを検証できません")
+        raise SystemExit("Projectアイテム数を検証できません")
     return count
 
 
@@ -1143,7 +1161,7 @@ def index_issues(issue_specs: list[Issue]) -> dict[str, Issue]:
             duplicates.append(issue.title)
         issues[issue.title] = issue
     if duplicates:
-        raise SystemExit(f"Issue titleが重複しています: {sorted(set(duplicates))}")
+        raise SystemExit(f"Issueタイトルが重複しています: {sorted(set(duplicates))}")
     return issues
 
 
@@ -1220,7 +1238,7 @@ def validate_issue_body(issue: Issue) -> None:
     forbidden = sorted(set(sections) & FORBIDDEN_BODY_HEADINGS)
     if forbidden:
         raise SystemExit(
-            "Issue本文へ依存関係またはProject fieldを重複させないでください: "
+            "Issue本文へ依存関係またはProjectフィールドを重複させないでください: "
             f"{issue.title} {forbidden}"
         )
 
@@ -1350,7 +1368,7 @@ def ensure_milestone_plan(
         by_title[milestone.title] = milestone
 
     if duplicates:
-        raise SystemExit(f"Milestone titleが重複しています: {duplicates}")
+        raise SystemExit(f"Milestoneタイトルが重複しています: {duplicates}")
 
     for milestone in milestones:
         if milestone.required_due_on and not milestone.due_on:
@@ -1378,7 +1396,7 @@ def ensure_issue_plan(
         if milestones is not None and issue.milestone and issue.milestone not in milestones:
             missing_refs.append(f"{issue.title} milestone={issue.milestone}")
     if missing_refs:
-        raise SystemExit(f"Issue relationの参照先が見つかりません: {missing_refs}")
+        raise SystemExit(f"Issue関係の参照先が見つかりません: {missing_refs}")
 
     validate_issue_graph(issues)
     validate_issue_estimates(issues)
@@ -1493,11 +1511,11 @@ def validate_issue_estimates(issues: dict[str, Issue]) -> None:
                 )
             continue
         if issue.effort is None:
-            raise SystemExit(f"非epic IssueのEffortは必須です: {issue.title}")
+            raise SystemExit(f"`epic`以外のIssueはEffort必須です: {issue.title}")
         positive_effort(issue.effort, issue_title=issue.title)
         if issue.estimate_confidence not in ESTIMATE_CONFIDENCE_OPTIONS:
             raise SystemExit(
-                "非epic IssueのEstimate Confidenceは必須です: "
+                "`epic`以外のIssueはEstimate Confidence必須です: "
                 f"{issue.title} ({issue.estimate_confidence!r})"
             )
         validate_agent_tier(issue)
@@ -1505,7 +1523,7 @@ def validate_issue_estimates(issues: dict[str, Issue]) -> None:
 
 def option_number(value: str, prefix: str, *, issue_title: str) -> int:
     if len(value) < 2 or value[0] != prefix or not value[1].isdigit():
-        raise SystemExit(f"Project option形式が不正です: {issue_title} ({value})")
+        raise SystemExit(f"Project選択肢の形式が不正です: {issue_title} ({value})")
     return int(value[1])
 
 
@@ -1665,7 +1683,7 @@ def project_item_records_by_url(data: dict[str, Any]) -> dict[str, dict[str, Any
     items = data.get("items", [])
     total_count = data.get("totalCount")
     if not isinstance(total_count, int) or total_count > len(items):
-        raise SystemExit(f"Project item一覧を全件取得できません: {len(items)} / {total_count}")
+        raise SystemExit(f"Projectアイテム一覧を全件取得できません: {len(items)} / {total_count}")
     return {
         item["content"]["url"]: item
         for item in items
@@ -1743,7 +1761,7 @@ def add_project_items(issues: dict[str, Issue]) -> None:
 
     missing = [issue.title for issue in issues.values() if not issue.item_id]
     if missing:
-        raise SystemExit(f"Project item idが見つかりません: {missing}")
+        raise SystemExit(f"ProjectアイテムIDが見つかりません: {missing}")
 
 
 def field_lookup(
@@ -1976,10 +1994,13 @@ def build_bootstrap_plan(context: dict[str, Any], *, update_existing: bool) -> d
             "default_branch": target["repository"]["defaultBranchRef"]["name"],
             "repository_owner_type": target["repository"]["owner"]["__typename"],
             "repository_visibility": target["repository"]["visibility"],
+            "project_id": target["project"]["id"],
             "project_number": target["project"]["number"],
+            "project_title": target["project"]["title"],
             "project_url": target["project"]["url"],
             "project_owner_type": target["project"]["owner"]["__typename"],
             "project_public": target["project"]["public"],
+            "project_visibility": "PUBLIC" if target["project"]["public"] else "PRIVATE",
             "project_view_endpoint": project_view_endpoint(target),
         },
         "metadata_sources": {
@@ -2063,7 +2084,7 @@ def project_item_field_values(item_id: str, field_names: Sequence[str]) -> dict[
     )
     node = payload.get("data", {}).get("node")
     if not isinstance(node, dict):
-        raise SystemExit(f"Project項目値を取得できません: {item_id}")
+        raise SystemExit(f"Projectフィールド値を取得できません: {item_id}")
 
     values: dict[str, Any] = {}
     value_keys = {
@@ -2078,7 +2099,7 @@ def project_item_field_values(item_id: str, field_names: Sequence[str]) -> dict[
             values[field_name] = None
             continue
         if not isinstance(record, dict) or record.get("__typename") not in value_keys:
-            raise SystemExit(f"未対応のProject項目値です: {field_name} {record}")
+            raise SystemExit(f"未対応のProjectフィールド値です: {field_name} {record}")
         values[field_name] = record.get(value_keys[str(record["__typename"])])
     return values
 
@@ -2099,7 +2120,7 @@ def verify_bootstrap(context: dict[str, Any]) -> dict[str, Any]:
         context["project_fields"], current_fields, update_existing=False
     )
     if field_blockers or any(action["action"] != "noop" for action in field_actions):
-        raise SystemExit(f"Project field検証に失敗しました: {field_blockers or field_actions}")
+        raise SystemExit(f"Projectフィールド検証に失敗しました: {field_blockers or field_actions}")
     view_count = verify_project_views(context["project_views"])
 
     milestones = list_milestones()
@@ -2109,7 +2130,7 @@ def verify_bootstrap(context: dict[str, Any]) -> dict[str, Any]:
         if not actual:
             milestone_errors.append(f"missing milestone: {expected.title}")
         elif expected.due_on and not str(actual.get("due_on", "")).startswith(expected.due_on):
-            milestone_errors.append(f"due date mismatch: {expected.title}")
+            milestone_errors.append(f"Milestone期限不一致: {expected.title}")
 
     existing_by_number = {
         int(item["number"]): item for item in list_issues() if item.get("number") is not None
@@ -2122,11 +2143,11 @@ def verify_bootstrap(context: dict[str, Any]) -> dict[str, Any]:
     for issue in issues.values():
         actual = existing_by_number.get(issue.number or 0)
         if not actual or actual.get("title") != issue.title or actual.get("url") != issue.url:
-            issue_errors.append(f"Issue identity mismatch: {issue.title} #{issue.number}")
+            issue_errors.append(f"Issue同一性不一致: {issue.title} #{issue.number}")
             continue
         item_record = item_records.get(issue.url or "")
         if item_record is None:
-            metadata_errors.append(f"missing Project item: {issue.url}")
+            metadata_errors.append(f"Projectアイテムがありません: {issue.url}")
         else:
             expected_project_values = {
                 field_name: expected_value
@@ -2140,7 +2161,7 @@ def verify_bootstrap(context: dict[str, Any]) -> dict[str, Any]:
             for field_name, expected_value in expected_project_values.items():
                 if actual_project_values.get(field_name) != expected_value:
                     metadata_errors.append(
-                        f"Project field mismatch: #{issue.number} {field_name} "
+                        f"Projectフィールド不一致: #{issue.number} {field_name} "
                         f"{actual_project_values.get(field_name)!r} != {expected_value!r}"
                     )
         relation_data = gh_json(
@@ -2160,19 +2181,19 @@ def verify_bootstrap(context: dict[str, Any]) -> dict[str, Any]:
             expected_type = strategy["native_type_map"][issue.type]
             if actual_type != expected_type:
                 metadata_errors.append(
-                    f"Issue Type mismatch: #{issue.number} {actual_type} != {expected_type}"
+                    f"Issue Type不一致: #{issue.number} {actual_type} != {expected_type}"
                 )
         expected_parent = {issues[issue.parent].number} if issue.parent else set()
         actual_parent = relation_issue_numbers(relation_data.get("parent"))
         if actual_parent != expected_parent:
             relation_errors.append(
-                f"parent mismatch: #{issue.number} {actual_parent} != {expected_parent}"
+                f"parent不一致: #{issue.number} {actual_parent} != {expected_parent}"
             )
         expected_blockers = {issues[title].number for title in issue.blocked_by}
         actual_blockers = relation_issue_numbers(relation_data.get("blockedBy"))
         if actual_blockers != expected_blockers:
             relation_errors.append(
-                f"blockedBy mismatch: #{issue.number} {actual_blockers} != {expected_blockers}"
+                f"blockedBy不一致: #{issue.number} {actual_blockers} != {expected_blockers}"
             )
         organization_fields = strategy["organization_issue_fields"]
         if organization_fields:
@@ -2185,7 +2206,7 @@ def verify_bootstrap(context: dict[str, Any]) -> dict[str, Any]:
                     continue
                 if actual_values.get(field_name) != expected_value:
                     metadata_errors.append(
-                        f"Issue Field mismatch: #{issue.number} {field_name} "
+                        f"Issue Field不一致: #{issue.number} {field_name} "
                         f"{actual_values.get(field_name)!r} != {expected_value!r}"
                     )
 

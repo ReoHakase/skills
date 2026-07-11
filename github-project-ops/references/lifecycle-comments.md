@@ -5,15 +5,15 @@ Issueのライフサイクルコメントを書くときに読む。Status判定
 
 # 方針
 
-- GitHubメタデータと選択した構造化項目の値をコメントへ重複させない。
-- 具体的なagentモデル名、branch名、Statusなどのfield assignmentは原則書かない。
+- GitHubメタデータと選択した構造化フィールドの値をコメントへ重複させない。
+- 具体的なエージェントモデル名、ブランチ名、Statusなどのフィールド値割り当ては原則書かない。
 - 例外として、作業権取得、引き継ぎ、解放では競合判定に必要なAgent Runの実行IDとGitHub上の証跡を書く。
-- 外部依存はIssue、PR、CI run、log、design、chat threadなど、後から開けるURLで示す。
+- 外部依存はIssue、PR、CI実行、ログ、デザイン、チャットスレッドなど、後から開けるURLで示す。
 - 冒頭の絵文字付き一文でイベントを示し、該当するキーだけを書く。
 
 # テンプレート
 
-## Inbox
+## `inbox`
 
 ```markdown
 📥 流入内容を整理した。
@@ -24,7 +24,7 @@ Issueのライフサイクルコメントを書くときに読む。Status判定
 次に確認すること: ...
 ```
 
-## Triaged
+## `triaged`
 
 ```markdown
 🔎 トリアージした。
@@ -34,12 +34,12 @@ Issueのライフサイクルコメントを書くときに読む。Status判定
 - ...
 
 未確定事項: なし / ...
-readyへ進めない理由: なし / ...
+`ready`へ進めない理由: なし / ...
 ```
 
-## Ready
+## `ready`
 
-判断が揺れやすいIssue、重要Issue、blocker解消直後だけ残す。
+判断が揺れやすいIssue、重要Issue、阻害要因の解消直後だけ残す。
 
 ```markdown
 🟢 着手条件を確認した。
@@ -47,7 +47,7 @@ readyへ進めない理由: なし / ...
 確認済み:
 
 - 受け入れ条件、非スコープ、確認手順
-- 依存DAGと作業外blockerなし
+- 依存DAGと作業外の阻害要因なし
 - 参照ドキュメントと見積
 
 補足: なし / ...
@@ -58,7 +58,7 @@ readyへ進めない理由: なし / ...
 ```markdown
 🔄 前提変更を受けて再トリアージした。
 
-きっかけ: 受け入れ条件 / 依存関係 / リスク / 見積 / reopen / その他 ...
+きっかけ: 受け入れ条件 / 依存関係 / リスク / 見積 / 再開 / その他 ...
 変更前: Size ...、Complexity ...、Risk ...、Effort ...、Estimate Confidence ...、Agent Tier ...
 変更後: Size ...、Complexity ...、Risk ...、Effort ...、Estimate Confidence ...、Agent Tier ...
 依存関係・Forecast・実行Waveへの影響: ...
@@ -67,29 +67,29 @@ readyへ進めない理由: なし / ...
 
 ## 作業権の取得
 
-`作成時刻` はクライアント時刻を書かず、コメントのGitHub server timestampを参照する。
+`作成時刻` はクライアント時刻を書かず、コメントのGitHubサーバー時刻を参照する。
 
 ```markdown
 🔐 Agent Runの作業権を取得する。
 
 実行ID: `<harness>:<run-id>`
-事前再取得: Project item更新世代または取得時刻 ...
-作成時刻: このコメントのGitHub server timestamp
-field/branch操作: 最古コメント判定前は未実施
+事前再取得: Projectアイテムの更新世代または取得時刻 ...
+作成時刻: このコメントのGitHubサーバー時刻
+フィールド・ブランチ操作: 最古コメント判定前は未実施
 ```
 
-競合に負けたagent:
+競合に負けたエージェント:
 
 ```markdown
 ↩️ 作業権の競合により開始せず待機列へ戻る。
 
 自分の実行ID: `...`
 勝者の実行ID: `...`
-判定根拠: 最古のGitHub server timestamp / 同値時のcomment ID
+判定根拠: 最古のGitHubサーバー時刻 / 同値時のコメントID
 ローカル変更: なし / 扱い ...
 ```
 
-敗者はAgent Run、Status、Assignee、branchを変更しない。勝者だけがfield更新後の事後再取得を通してからbranchとworktreeを作る。
+敗者はAgent Run、Status、Assignee、ブランチを変更しない。勝者だけがフィールド更新後の事後再取得を通してからブランチと`worktree`を作る。
 
 ## 作業中
 
@@ -108,29 +108,29 @@ field/branch操作: 最古コメント判定前は未実施
 ```markdown
 👀 レビュー中の特記事項を記録する。
 
-PR本文やmetadataから分からないこと: ...
+PR本文やメタデータから分からないこと: ...
 一時的な注意点: ...
 次に確認する対象: レビュースレッド / CI実行 / 外部URL
 ```
 
-## Blocked
+## `blocked`
 
-`解除できる人` はrepository collaboratorならmention、それ以外はprofileまたは連絡先URLで特定する。
+`解除できる人` はリポジトリ共同作業者ならメンションし、それ以外はプロフィールまたは連絡先URLで特定する。
 
 ```markdown
-⛔ 作業外blockerのため停止する。
+⛔ 作業外の阻害要因のため停止する。
 
 理由: ...
-解除できる人: @repo-collaborator / profile URL / 氏名
+解除できる人: @共同作業者 / プロフィールURL / 氏名
 依存: #... / URL
 担当内で試したこと: ...
-再確認条件: 日時だけでなく、更新、判断、mergeなどの観測条件を書く
+再確認条件: 日時だけでなく、更新、判断、マージなどの観測条件を書く
 ```
 
 ## 阻害要因の解消 / 再開
 
 ```markdown
-🔓 Blockerが解消した。
+🔓 阻害要因が解消した。
 
 解消内容: ...
 戻す候補状態: ready / in-progress / in-review
@@ -146,7 +146,7 @@ PR本文やmetadataから分からないこと: ...
 旧実行ID: `...`
 新実行ID: `...`
 理由: ...
-引継ぐbranch/PR: #... / URL
+引き継ぐブランチ/PR: #... / URL
 完了済み: ...
 未完了: ...
 検証状態: ...
@@ -162,9 +162,9 @@ PR本文やmetadataから分からないこと: ...
 
 実行ID: `...`
 理由: ...
-停止を確認した証跡: branch / PR / agent run / owner確認のURL
-未push変更: なし / 保存場所と扱い ...
-linked branch: 維持 / close / 削除候補
+停止を確認した証跡: ブランチ / PR / Agent Run / 所有者確認のURL
+未プッシュの変更: なし / 保存場所と扱い ...
+紐づくブランチ: 維持 / 閉じる / 削除候補
 再投入条件: ...
 ```
 
@@ -188,7 +188,7 @@ Statusへの影響: なし / ...
 ✅ Type別の完了条件を確認した。
 
 完了モード: ブランチ作成型 / spike / リポジトリ差分なし / epic
-成果物またはmerge: #... / URL
+成果物またはマージ: #... / URL
 受け入れ確認: ...
 後続Issue: なし / #...
 ```
@@ -198,7 +198,7 @@ Statusへの影響: なし / ...
 ```markdown
 🛑 実行しない判断を記録する。
 
-理由: duplicated / obsolete / out of scope / invalid / replaced
+理由: 重複 / 不要化 / 対象外 / 無効 / 置換済み
 根拠: ...
 代替または関連Issue: なし / #...
 依存と作業権の整理: 完了 / 要対応 ...
@@ -220,86 +220,86 @@ Statusへの影響: なし / ...
 
 ## 作業権の競合
 
-最初のagent:
+最初のエージェント:
 
 ```markdown
 🔐 Agent Runの作業権を取得する。
 
 実行ID: `codex:run-01`
-事前再取得: Project itemを作業権取得直前に取得済み
-作成時刻: このコメントのGitHub server timestamp
-field/branch操作: 最古コメント判定前は未実施
+事前再取得: Projectアイテムを作業権取得直前に取得済み
+作成時刻: このコメントのGitHubサーバー時刻
+フィールド・ブランチ操作: 最古コメント判定前は未実施
 ```
 
-後から作業権を取得しようとしたagent:
+後から作業権を取得しようとしたエージェント:
 
 ```markdown
 ↩️ 作業権の競合により開始せず待機列へ戻る。
 
 自分の実行ID: `codex:run-02`
 勝者の実行ID: `codex:run-01`
-判定根拠: 勝者commentのGitHub server timestampが古い
+判定根拠: 勝者コメントのGitHubサーバー時刻が古い
 ローカル変更: なし
 ```
 
-## Blocked: upstream PR
+## 上流PRによる停止
 
 ```markdown
-⛔ 作業外blockerのため停止する。
+⛔ 作業外の阻害要因のため停止する。
 
-理由: 依存ライブラリの公開APIがupstreamのreview結果で変わる可能性があり、こちらの実装を確定できない。
+理由: 依存ライブラリの公開APIが上流のレビュー結果で変わる可能性があり、こちらの実装を確定できない。
 解除できる人: https://github.com/upstream-maintainer
 依存: https://github.com/example/video-sdk/pull/482
 担当内で試したこと: 現行版とPR版の差分を確認し、共通部分まで実装済み。
-再確認条件: upstream PRがmergeまたはcloseされ、公開APIが確定したとき。
+再確認条件: 上流PRがマージまたはクローズされ、公開APIが確定したとき。
 ```
 
-## Requested changesで作業再開
+## 修正要求による作業再開
 
 ```markdown
 🚧 作業上の補足を記録する。
 
-進捗または判断: requested changesに対応するため実装を再開した。
+進捗または判断: 修正要求に対応するため実装を再開した。
 受け入れ条件への影響: なし
-次の操作: 指摘箇所を修正し、適用対象のcheckを再実行する。
+次の操作: 指摘箇所を修正し、該当するチェックを再実行する。
 ```
 
-この場合は外部blockerではないため `blocked` ではなく `in-progress` にする。
+この場合は外部の阻害要因ではないため `blocked` ではなく `in-progress` にする。
 
-## Handoff
+## 引き継ぎ
 
 ```markdown
 🤝 Agent Runを引き継ぐ。
 
 旧実行ID: `codex:run-10`
 新実行ID: `codex:run-11`
-理由: workspace所有者が交代するため。
-引継ぐbranch/PR: #219
-完了済み: fallback表示と単体テスト
-未完了: 視覚確認とreview指摘1件
+理由: 作業環境の所有者が交代するため。
+引き継ぐブランチ/PR: #219
+完了済み: 代替表示と単体テスト
+未完了: 視覚確認とレビュー指摘1件
 検証状態: 単体テスト成功、E2E未実施
 新担当の事後再取得: 未確認
 ```
 
-## Queue eviction
+## 実行Waveからの投入見送り
 
 ```markdown
 📤 作業権未取得のため実行Waveから外す。
 
 元のWave: Wave 3
-理由: shared schemaを変更する#310と変更ファイルが競合し、作業環境枠も不足している。
-再評価条件: #310のmerge後に参照ドキュメントと見積を再確認する。
+理由: 共有スキーマを変更する#310と変更ファイルが競合し、作業環境枠も不足している。
+再評価条件: #310のマージ後に参照ドキュメントと見積を再確認する。
 次の候補Wave: Wave 4
 Statusへの影響: なし
 ```
 
-## Spike done
+## `spike` の完了
 
 ```markdown
 ✅ Type別の完了条件を確認した。
 
 完了モード: spike
-成果物またはmerge: 調査結果と採否判断をIssue本文へ反映済み
-受け入れ確認: timebox内で3案を比較し、案Bを採用した
+成果物またはマージ: 調査結果と採否判断をIssue本文へ反映済み
+受け入れ確認: 制限時間内で3案を比較し、案Bを採用した
 後続Issue: #412, #413
 ```

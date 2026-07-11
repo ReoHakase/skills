@@ -3,4 +3,4 @@ interface:
   short_description: "GitHub ProjectsでWBS・Milestone・Issue/PRライフサイクルを管理"
   icon_small: "./assets/github-project-ops-small.png"
   icon_large: "./assets/github-project-ops.png"
-  default_prompt: "Use $github-project-ops to manage Japanese GitHub Projects / Milestones / Issues / PR workflows, including WBS, no-label Project fields, lifecycle comments, dependencies, merge queue, and Project/Milestone uninstall steps."
+  default_prompt: "$github-project-ops を使い、GitHub Projectsを正本とするWBS、Milestone、Issue/PR、依存関係、工数・WIP、作業権、マージ待ち、導入・解除を利用者の言語に合わせて設計・運用してください。日本語では技術用語以外を日本語で書いてください。"

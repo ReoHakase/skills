@@ -297,7 +297,7 @@
       {
         "name": "other",
         "color": "YELLOW",
-        "description": "その他の実行環境。必要ならProject項目やコメントで補足する。"
+        "description": "その他の実行環境。必要ならProjectフィールドやコメントで補足する。"
       }
     ]
   },

@@ -1,16 +1,16 @@
 # Project設定
 
-Project項目、工数、容量、ラベル不使用方針、日付項目、Forecast、ビュー、コピー用アセットを扱うときに読む。
+Projectフィールド、工数、容量、ラベル不使用方針、日付フィールド、Forecast、ビュー、コピー用アセットを扱うときに読む。
 
 # 目次
 
 - コピー用アセット
-- Project項目
+- Projectフィールド
 - 工数と見積り
 - 容量とWIP上限
 - GitHubラベル
 - Milestone
-- 日付項目
+- 日付フィールド
 - Forecast変更
 - ビュー説明の置き場所
 - 標準ビュー
@@ -24,22 +24,22 @@ Project項目、工数、容量、ラベル不使用方針、日付項目、Fore
 
 - `assets/.github/`: Issue Forms、PRテンプレート、`merge_group` 対応CIの例。導入時は対象リポジトリの `.github/` へコピーし、固有の文言と検査コマンドだけを調整する。
 - `assets/.github/project/views.md`: GitHub Projectsビューの説明をリポジトリ側へ置く例。導入時は対象リポジトリの `.github/project/views.md` へコピーする。
-- `assets/project-fields.json`: 推奨Project項目とsingle select optionの色・説明文の定義例。
+- `assets/project-fields.json`: 推奨Projectフィールドと単一選択肢の色・説明文の定義例。
 - `assets/project-views.json`: 標準ビューの名前、レイアウト、フィルターの機械可読な正本。
 - `assets/backlog.flat.json`: 初期backlog作成用のサンプルデータ。
 
 これらは実GitHub Projectやリポジトリ設定を自動移行するものではない。GitHub上の実状態を確認してから、必要な設定だけ手動またはgh CLIで反映する。
 
-# Project項目
+# Projectフィールド
 
-標準Projectの項目はIssueを主体とする。PRを別のProject項目として管理せず、Issueの組み込み列 `Linked pull requests` と `Reviewers` から関連PRとレビュー状況を読む。承認、検査、マージ可否の詳細はPR自体で確認し、Project独自項目に複製しない。
+標準ProjectのアイテムはIssueを主体とする。PRを別のProjectアイテムとして管理せず、Issueの組み込み列 `Linked pull requests` と `Reviewers` から関連PRとレビュー状況を読む。承認、必須ステータスチェック、マージ可否の詳細はPR自体で確認し、Project独自フィールドに複製しない。
 
-項目作成前に、作業対象Issueのリポジトリ所有者を確認する。
+フィールド作成前に、作業対象Issueのリポジトリ所有者を確認する。
 
-- 組織所有リポジトリ: 対象リポジトリで利用できるIssue Typesと、所有組織のIssue Fieldsを読む。同じ意味と値域を持つ項目がある場合はそれを正本とし、同義のProject独自項目を作らない。
-- 個人所有リポジトリ: 組織Issue Fieldsを使えないため、Project独自項目を正本とする。
-- 複数組織や個人所有のIssue、PR、Draft Issueが混在するProject: 組織Issue Fieldsは対象外項目で空になる。一括作成テンプレートは自動選択せず停止するため、対象組織のIssueだけを持つProjectへ分けてから再実行する。
-- 公開またはinternal Project: `visibility: all` の組織Issue Fieldだけを使う。組織内限定項目はProjectに表示できないため、同義とみなさず停止する。
+- 組織所有リポジトリ: 対象リポジトリで利用できるIssue Typesと、所有組織のIssue Fieldsを読む。同じ意味と値域を持つフィールドがある場合はそれを正本とし、同義のProject独自フィールドを作らない。
+- 個人所有リポジトリ: 組織Issue Fieldsを使えないため、Project独自フィールドを正本とする。
+- 複数組織や個人所有のIssue、PR、Draft Issueが混在するProject: 組織Issue Fieldsは対象外アイテムで空になる。一括作成テンプレートは自動選択せず停止するため、対象組織のIssueだけを持つProjectへ分けてから再実行する。
+- 公開またはinternal Project: `visibility: all` の組織Issue Fieldだけを使う。組織内限定フィールドはProjectに表示できないため、同義とみなさず停止する。
 
 検出には次の読み取りを使う。得られた名前、型、値域を `assets/project-fields.json` と比較し、同義である場合だけ切り替える。
 
@@ -54,38 +54,38 @@ gh api orgs/ORG/issue-fields
 - <https://docs.github.com/en/rest/orgs/issue-fields?apiVersion=2026-03-10>
 - <https://docs.github.com/en/issues/planning-and-tracking-with-projects/understanding-fields/about-issue-fields>
 
-例えば、組織のIssue Typeがこの運用のType一式を表せる場合はIssue Typeを正本とし、Project独自の `Type` を作らない。一式が揃わない場合はProject Typeを使い、組織Issue FieldをTypeの代用にはしない。組織のIssue Fieldに同義の `Scope` がある場合は項目単位で切り替える。名前だけが同じで値域が足りない場合は同義とみなさない。
+例えば、組織のIssue Typeがこの運用のType一式を表せる場合はIssue Typeを正本とし、Project独自の `Type` を作らない。一式が揃わない場合はProject Typeを使い、組織Issue FieldをTypeの代用にはしない。組織のIssue Fieldに同義の `Scope` がある場合はフィールド単位で切り替える。名前だけが同じで値域が足りない場合は同義とみなさない。
 
-以下では、組織Issue Type、組織Issue Field、Project独自項目から選んだ保存先を「選択した正本」と呼ぶ。項目名は共通でも、実際の保存先はリポジトリの所有形態と利用可能な機能によって変わる。
+以下では、組織Issue Type、組織Issue Field、Project独自フィールドから選んだ保存先を「選択した正本」と呼ぶ。フィールド名は共通でも、実際の保存先はリポジトリの所有形態と利用可能な機能によって変わる。
 
-組織のIssue TypesまたはIssue Fieldsに切り替えなかった項目の、推奨Project独自定義は次のとおり。
+組織のIssue TypesまたはIssue Fieldsに切り替えなかったフィールドの、推奨Project独自定義は次のとおり。
 
-単一選択肢の名前はlower-kebab形式にする。GitHub Projectsの絞り込み式、`gh` 出力後の `jq`、手作業の検索で、空白・大文字小文字・引用符の扱いを減らすためである。項目名は人間が読むためTitle Caseのままにする。
+単一選択肢の名前はlower-kebab形式にする。GitHub Projectsの絞り込み式、`gh` 出力後の `jq`、手作業の検索で、空白・大文字小文字・引用符の扱いを減らすためである。フィールド名は人間が読むためTitle Caseのままにする。
 
-`assets/project-fields.json` の単一選択肢 `options` は、標準では `name`、`color`、`description` を持つオブジェクト形式にする。項目値として使うのは `name` だけで、色と説明文は `references/project-bootstrap.md` のGraphQL手順または `assets/project-bootstrap-template.py` で反映する。
+`assets/project-fields.json` の単一選択肢 `options` は、標準では `name`、`color`、`description` を持つオブジェクト形式にする。フィールド値として使うのは `name` だけで、色と説明文は `references/project-bootstrap.md` のGraphQL手順または `assets/project-bootstrap-template.py` で反映する。
 
-| Field               | Type          | Values                                                                              |
-| ------------------- | ------------- | ----------------------------------------------------------------------------------- |
-| Status              | Single select | inbox, triaged, ready, in-progress, in-review, blocked, done, canceled              |
-| Type                | Single select | epic, feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, spike |
-| Scope               | Text          | ui, api, db, infraなど。repoごとに自由定義                                          |
-| Priority            | Single select | p0-optional, p1-normal, p2-high, p3-critical                                        |
-| Size                | Single select | s0-tiny, s1-small, s2-medium, s3-large                                              |
-| Effort              | Number        | 正の理想作業時間。標準単位はideal-hours                                             |
-| Estimate Confidence | Single select | ec0-low, ec1-medium, ec2-high                                                       |
-| Complexity          | Single select | c0-none, c1-simple, c2-moderate, c3-complex                                         |
-| Risk                | Single select | r0-none, r1-safe, r2-moderate, r3-dangerous                                         |
-| Agent Tier          | Single select | agent-fast, agent-standard, agent-frontier                                          |
-| Agent Harness       | Single select | codex, claude-code, cursor, human, other                                            |
-| Agent Model         | Text          | GPT 5.5 (xhigh), Opus 4.8 (medium), Composer 2.5など。作業開始時に記録              |
-| Agent Run           | Text          | 公開可能なタスクURL、または外部情報を含まない実行ID                                 |
-| Reviewer Owner      | Text          | agent実行環境の持ち主、またはレビュー責任者のGitHub login                           |
-| Branch              | Text          | 123/feat-ui-example                                                                 |
-| Source              | Single select | human, agent, debug-log, chat, inquiry, ci, dependency, security, docs              |
-| Forecast Start      | Date          | 計画開始日。WBS/ロードマップで使う                                                  |
-| Forecast End        | Date          | 計画終了目標日。WBS/ロードマップで使う                                              |
-| Actual Start        | Date          | 実作業開始日                                                                        |
-| Actual End          | Date          | 実終了日                                                                            |
+| フィールド          | 型       | 値                                                                                  |
+| ------------------- | -------- | ----------------------------------------------------------------------------------- |
+| Status              | 単一選択 | inbox, triaged, ready, in-progress, in-review, blocked, done, canceled              |
+| Type                | 単一選択 | epic, feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, spike |
+| Scope               | テキスト | ui, api, db, infraなど。リポジトリごとに自由定義                                    |
+| Priority            | 単一選択 | p0-optional, p1-normal, p2-high, p3-critical                                        |
+| Size                | 単一選択 | s0-tiny, s1-small, s2-medium, s3-large                                              |
+| Effort              | 数値     | 正の理想作業時間。標準単位はideal-hours                                             |
+| Estimate Confidence | 単一選択 | ec0-low, ec1-medium, ec2-high                                                       |
+| Complexity          | 単一選択 | c0-none, c1-simple, c2-moderate, c3-complex                                         |
+| Risk                | 単一選択 | r0-none, r1-safe, r2-moderate, r3-dangerous                                         |
+| Agent Tier          | 単一選択 | agent-fast, agent-standard, agent-frontier                                          |
+| Agent Harness       | 単一選択 | codex, claude-code, cursor, human, other                                            |
+| Agent Model         | テキスト | 実際に使用したモデル名と推論設定。作業開始時に記録                                  |
+| Agent Run           | テキスト | 公開可能なタスクURL、または外部情報を含まない実行ID                                 |
+| Reviewer Owner      | テキスト | エージェント実行環境の持ち主、またはレビュー責任者のGitHubログイン名                |
+| Branch              | テキスト | 123/feat-ui-example                                                                 |
+| Source              | 単一選択 | human, agent, debug-log, chat, inquiry, ci, dependency, security, docs              |
+| Forecast Start      | 日付     | 計画開始日。WBS/ロードマップで使う                                                  |
+| Forecast End        | 日付     | 計画終了目標日。WBS/ロードマップで使う                                              |
+| Actual Start        | 日付     | 実作業開始日                                                                        |
+| Actual End          | 日付     | 実終了日                                                                            |
 
 Issue時点では具体的なモデル名まで確定させず、Agent Tierを設定する。作業権取得成功時にAgent Harness、Agent Model、Agent Runをそれぞれの正本へ記録する。
 
@@ -137,11 +137,11 @@ Agent枠上限: 1
 
 # Milestone
 
-MilestoneはGitHub標準のMilestoneを使う。Project独自項目として複製しない。
+MilestoneはGitHub標準のMilestoneを使う。Project独自フィールドとして複製しない。
 
 Milestoneはリリースや節目と締切目標を表す。先にMilestoneと期限を決め、その範囲に収まるようにIssue/WBSのForecast Start / Forecast Endを組む。IssueのForecastからMilestone期限を逆算しない。
 
-期限や日付はMilestone名へ入れず、GitHub Milestoneの期限にだけ置く。Issue本文、PR本文、Project項目にもMilestone期限を複製しない。
+期限や日付はMilestone名へ入れず、GitHub Milestoneの期限にだけ置く。Issue本文、PR本文、ProjectフィールドにもMilestone期限を複製しない。
 
 期限ありが基本のMilestone候補:
 
@@ -202,43 +202,43 @@ gh issue list \
   --json number,title,state,milestone
 ```
 
-期限変更はGitHub Milestoneの期限を正本にする。Issue本文、PR本文、Project項目へMilestone期限を複製しない。Forecast Start / Forecast Endは、その期限に収まるように必要なIssueだけを更新する。
+期限変更はGitHub Milestoneの期限を正本にする。Issue本文、PR本文、ProjectフィールドへMilestone期限を複製しない。Forecast Start / Forecast Endは、その期限に収まるように必要なIssueだけを更新する。
 
 # GitHubラベル
 
 このスキルではGitHubラベルを使わない。
 
-StatusはProject独自項目を正本にする。Typeは組織Issue Type一式またはProject Typeを正本にする。Source、Priority、Size、Effort、Estimate Confidence、Complexity、Risk、Agent Tierは、導入時に項目ごとに選択した組織Issue FieldまたはProject独自項目を正本にする。GitHubラベルへは複製しない。
+StatusはProject独自フィールドを正本にする。Typeは組織Issue Type一式またはProject Typeを正本にする。Source、Priority、Size、Effort、Estimate Confidence、Complexity、Risk、Agent Tierは、導入時にフィールドごとに選択した組織Issue FieldまたはProject独自フィールドを正本にする。GitHubラベルへは複製しない。
 
 分類、状態、起票元、優先度、見積もり、エージェント割り当ては、すべて選択した正本で表す。新しいGitHubラベルは定義しない。
 
 Projectでは選択した正本の値でIssueを絞り込めるため、ラベルを移植用の代替手段として持たない。比較や並び替えでは、`p2-high` の `2` のように選択肢名の数値接頭辞を読む。
 
-既存項目の選択肢名は自動移行しない。必要な選択肢の移行は、正本側で手動実施する。
+既存フィールドの選択肢名は自動移行しない。必要な選択肢の移行は、正本側で手動実施する。
 
 既存リポジトリに残っているラベルは自動削除しない。不要なラベルはリポジトリ側で手動整理する。
 
-# 日付項目
+# 日付フィールド
 
-計画日と実績日は別項目にする。
+計画日と実績日は別フィールドにする。
 
 - `Forecast Start`: 計画開始日。`WBS/ロードマップ`ビューで使う。
 - `Forecast End`: 計画終了目標日。`WBS/ロードマップ`ビューで使う。
 - `Actual Start`: 実作業開始日。Issueをin-progressへ進める時に記録する。
 - `Actual End`: 実終了日。doneまたはcanceledで終了を確認した時に記録する。
 
-PR作成日、マージ日、Issue/PRの終了日はGitHubのメタデータを正本にする。運用項目へ複製しない。
+PR作成日、マージ日、Issue/PRの終了日はGitHubのメタデータを正本にする。運用フィールドへ複製しない。
 
-Issue本文、PR本文、作業開始コメントには日付項目の値を書かない。計画・実績の期間は選択した正本で見る。
+Issue本文、PR本文、作業開始コメントには日付フィールドの値を書かない。計画・実績の期間は選択した正本で見る。
 
 Forecast Start / Forecast Endは計画上の作業期間であり、実績ではない。
 
-日付はProject運用設定のタイムゾーンで解釈し、開始日と終了日を含む稼働日とする。休日は作業日数へ数えない。日付項目は時刻を持たないため、直列Issueの同日引き継ぎは行わず、後続は次の稼働日以降に開始する。
+日付はProject運用設定のタイムゾーンで解釈し、開始日と終了日を含む稼働日とする。休日は作業日数へ数えない。日付フィールドは時刻を持たないため、直列Issueの同日引き継ぎは行わず、後続は次の稼働日以降に開始する。
 
 - 期限付きMilestoneでは、Milestone due dateを先に決めてからIssue/WBSのForecastを組む。
 - epicのForecastは子Issue群を包む期間にする。epicと子IssueのForecastが重なるのは正常である。
 - ブランチ作成型Issue同士が直列依存する場合、後続IssueのForecast Startは、すべての `blocked by` 先のForecast Endより後の日付にする。
-- GitHub Projectsの日付項目は時刻を持たないため、同日引き継ぎを前提にして直列IssueのForecastを同じ日に重ねない。必要ならIssueをさらに分けるか、前段のForecast Endを短くする。
+- GitHub Projectsの日付フィールドは時刻を持たないため、同日引き継ぎを前提にして直列IssueのForecastを同じ日に重ねない。必要ならIssueをさらに分けるか、前段のForecast Endを短くする。
 - 依存関係がなくても、変更ファイル競合または実装/レビュー/CI/マージの容量競合があるIssueは同じ期間へ詰め込まない。
 
 # Forecast変更
@@ -253,7 +253,7 @@ gh issue view ISSUE_NUMBER \
   --json number,title,milestone,parent,subIssuesSummary,blockedBy,blocking
 ```
 
-Project項目を正本にしている場合の日付更新例を示す。
+Projectフィールドを正本にしている場合の日付更新例を示す。
 
 ```bash
 gh api graphql -f query='
@@ -286,7 +286,7 @@ Milestone実現可能性の確認では、必要な末端IssueがMilestone期限
 
 GitHub Projectsのビューには説明文欄がない前提で運用する。ビューの目的、絞り込み条件、運用規則は、このファイルとコピー用の `assets/.github/project/views.md` に置く。
 
-リポジトリ固有に公開したい場合は、対象リポジトリの `.github/project/views.md` に同じ形式で保存する。Project本体にはビュー名と項目設定だけを置く。
+リポジトリ固有に公開したい場合は、対象リポジトリの `.github/project/views.md` に同じ形式で保存する。Project本体にはビュー名とフィールド設定だけを置く。
 
 # 標準ビュー
 
@@ -299,20 +299,20 @@ GitHub Projectsのビューには説明文欄がない前提で運用する。�
 
 `ready`、レビュー、`blocked`、高難度エージェント向けの専用ビューは作らない。
 
-API版 `2026-03-10` のREST APIによるProjectビュー作成で指定できるのは、ビュー名、`layout`、`filter`、`visible_fields` である。`visible_fields` は `table` と `board` でのみ指定でき、`roadmap` では指定できない。グループ化、並び替え、ボードの列、ロードマップの日付項目と表示項目は、作成後にGitHubのUIで設定する。
+API版 `2026-03-10` のREST APIによるProjectビュー作成で指定できるのは、ビュー名、`layout`、`filter`、`visible_fields` である。`visible_fields` は `table` と `board` でのみ指定でき、`roadmap` では指定できない。グループ化、並び替え、ボードの列、ロードマップの日付フィールドと表示フィールドは、作成後にGitHubのUIで設定する。
 
 参照: <https://docs.github.com/en/rest/projects/views?apiVersion=2026-03-10>
 
-| ビュー           | REST APIで設定する `layout` / `filter`                                                                                 | REST APIで設定する `visible_fields`                                                                                                                                                             | UIで後設定                                                                             |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| かんばん         | `board` / `is:issue is:open status:inbox,triaged,ready,in-progress,in-review,blocked`                                  | Typeの正本、Scopeの正本、Priority、Size、Effort、Estimate Confidence、Complexity、Risk、Agent Tier、Agent Run、Assignees、Reviewer Owner、Branch、Actual Start、Linked pull requests、Reviewers | Statusの列。Priority降順、Risk降順、更新日時昇順                                       |
-| WBS/ロードマップ | `roadmap` / `is:issue -no:"Forecast Start" -no:"Forecast End" status:triaged,ready,in-progress,in-review,blocked,done` | 指定しない                                                                                                                                                                                      | Forecast Start / Forecast End、Scopeの正本でグループ化、計画日昇順、Typeなどの表示項目 |
-| マージ候補       | `table` / `is:issue is:open status:in-review`                                                                          | Typeの正本、Scopeの正本、Priority、Risk、Reviewer Owner、Branch、Linked pull requests、Reviewers                                                                                                | Riskでグループ化、Priority降順、更新日時昇順                                           |
-| Velocity         | `table` / `is:issue status:done -no:"Actual End"`                                                                      | Typeの正本、Scopeの正本、Size、Effort、Estimate Confidence、Complexity、Risk、Agent Tier、Actual Start、Actual End、Linked pull requests、Reviewers                                             | Scopeの正本でグループ化、Actual End降順                                                |
+| ビュー           | REST APIで設定する `layout` / `filter`                                                                                 | REST APIで設定する `visible_fields`                                                                                                                                                             | UIで後設定                                                                                   |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| かんばん         | `board` / `is:issue is:open status:inbox,triaged,ready,in-progress,in-review,blocked`                                  | Typeの正本、Scopeの正本、Priority、Size、Effort、Estimate Confidence、Complexity、Risk、Agent Tier、Agent Run、Assignees、Reviewer Owner、Branch、Actual Start、Linked pull requests、Reviewers | Statusの列。Priority降順、Risk降順、更新日時昇順                                             |
+| WBS/ロードマップ | `roadmap` / `is:issue -no:"Forecast Start" -no:"Forecast End" status:triaged,ready,in-progress,in-review,blocked,done` | 指定しない                                                                                                                                                                                      | Forecast Start / Forecast End、Scopeの正本でグループ化、計画日昇順、Typeなどの表示フィールド |
+| マージ候補       | `table` / `is:issue is:open status:in-review`                                                                          | Typeの正本、Scopeの正本、Priority、Risk、Reviewer Owner、Branch、Linked pull requests、Reviewers                                                                                                | Riskでグループ化、Priority降順、更新日時昇順                                                 |
+| Velocity         | `table` / `is:issue status:done -no:"Actual End"`                                                                      | Typeの正本、Scopeの正本、Size、Effort、Estimate Confidence、Complexity、Risk、Agent Tier、Actual Start、Actual End、Linked pull requests、Reviewers                                             | Scopeの正本でグループ化、Actual End降順                                                      |
 
-`blocked by` と `blocking` はIssue自体で読む。Projectで使える表示項目やフィルターとして定義しない。
+`blocked by` と `blocking` はIssue自体で読む。Projectで使える表示フィールドやフィルターとして定義しない。
 
-`Linked pull requests` と `Reviewers` はPRへ進む入口であり、レビュー承認、必須検査、マージ可否の正本ではない。`マージ候補` は `in-review` の候補一覧に限定し、ビューのフィルターに「レビュー承認済み」や「必須検査成功」を書かない。各PRを次で別確認する。
+`Linked pull requests` と `Reviewers` はPRへ進む入口であり、レビュー承認、必須ステータスチェック、マージ可否の正本ではない。`マージ候補` は `in-review` の候補一覧に限定し、ビューのフィルターに「レビュー承認済み」や「必須ステータスチェック成功」を書かない。各PRを次で別確認する。
 
 ```bash
 gh pr view PR_NUMBER \
@@ -321,9 +321,9 @@ gh pr view PR_NUMBER \
 gh pr checks PR_NUMBER --repo OWNER/REPO --required
 ```
 
-`statusCheckRollup` は検査全体の把握に使う。必須検査だけの合否は `gh pr checks --required` で判定する。
+`statusCheckRollup` はチェック全体の把握に使う。必須ステータスチェックだけの合否は `gh pr checks --required` で判定する。
 
-その他の運用規則とビューごとの表示項目は `assets/.github/project/views.md` を正本とする。
+その他の運用規則とビューごとの表示フィールドは `assets/.github/project/views.md` を正本とする。
 
 # スプリントを導入するか
 

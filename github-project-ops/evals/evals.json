@@ -1,0 +1,47 @@
+{
+  "skill_name": "github-project-ops",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "evals/fixtures/docs/spec.mdを対象リポジトリのdocs/spec.mdとして、新規リポジトリに18件程度のWBSを作りたい。GitHub Project、First Release Milestone、親子関係、依存関係、4つの標準ビューまで計画して。まだGitHubへは書き込まず、実行前に確認すべき値と変更計画を出して。",
+      "expected_output": "書き込みなしの計画。仕様から分割した末端Issueとepic、Milestone期限から組んだForecast、Effortと容量、正本選択、タイトル・公開範囲を含む新規Project作成確認、本適用の確認、ビューの自動・手動検証までを示す。",
+      "files": ["evals/fixtures/docs/spec.md"],
+      "assertions": [
+        "[critical] plan、apply、verifyの境界を守り、新規Projectはタイトル・公開範囲入り確認文字列の機械照合後だけ作成する",
+        "[critical] リポジトリ所有者、Project所有者・公開範囲、既定ブランチ、組織Issue Type/Fieldの能力を事前確認する",
+        "epicと1PRで閉じられる末端Issueに分け、sub-issueとblocked byを役割どおりに使う",
+        "Milestone期限を先に決め、正のEffort、Estimate Confidence、WIP上限を使ってForecastを組む",
+        "project-fields.jsonとproject-views.jsonを正本とし、4ビューの自動検証と画面上の手動確認を含める",
+        "日本語の説明へ不要な英単語を混ぜず、GitHubの正式名称と状態値だけを必要に応じて残す"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "readyの末端Issueが6件ある。エージェント枠3、worktree枠2、レビューWIP 1、重いCI WIP 1、マージ待ち1。A→C、B→Dの依存があり、AとBは同じ設定ファイルを触る。レビュー中のEが1件ある。次の実行Waveと各IssueのStatus、どこで新規投入を止めるかを決めて。",
+      "expected_output": "依存関係、変更競合、実装枠、下流WIPを同時に満たす実行Wave。作業権取得前後の操作、待機理由、再計算条件を区別して示す。",
+      "files": [],
+      "assertions": [
+        "[critical] 実装WIPをmin(エージェント枠, worktree枠)=2とし、依存と変更競合を満たす範囲だけ投入する",
+        "[critical] レビューWIPが埋まっている間は下流への追加投入を抑え、単なる待ちをblockedにしない",
+        "作業権取得コメント、GitHubサーバー時刻、Agent Run再取得で勝者を一意にする",
+        "EffortとWIPを混同せず、枠解放・依存解消・見積変更時のWave再計算を示す",
+        "Draft PRはin-progress、レビュー可能後はin-reviewという境界を守る",
+        "設定済みのマージ経路に依存しない『マージ待ち』として容量を扱う"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "既存の組織Projectを一括整備したい。既定ブランチはtrunk。Projectは公開で、同名のScope組織Issue Fieldはorganization_members_only。Projectには別組織Issue、PR、Draft Issueも入っている。組織planは権限不足で読めない。この状態でbootstrapをapplyしてよいか判定し、可能なら計画を出して。",
+      "expected_output": "書き込み前に複数の不整合を列挙して停止する判定。正本、公開範囲、アイテム種別、マージ資格を推測で補わず、解消手順と再計画条件を示す。",
+      "files": [],
+      "assertions": [
+        "[critical] 権限不足、公開Projectで不可視のIssue Field、別所有者アイテム、PR、Draft Issueを停止要因としてapply前に停止する",
+        "[critical] 組織plan不明時の推奨マージ方式をundeterminedとし、保護ブランチへ推測で切り替えない",
+        "StatusはProjectフィールド固定、Typeは組織Issue Type一式またはProject Type、その他はフィールド単位という境界を守る",
+        "trunkを既定ブランチとして扱い、mainをハードコードしない",
+        "既存データを自動削除・上書きせず、Project分割や公開範囲修正など人間が選ぶ解消策を示す",
+        "問題解消後もplanから再開し、確認文字列とverifyを要求する"
+      ]
+    }
+  ]
+}

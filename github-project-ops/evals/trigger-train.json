@@ -1,0 +1,82 @@
+[
+  {
+    "query": "仕様書からGitHub ProjectsのWBSとMilestone、依存関係、ロードマップをまとめて設計して",
+    "should_trigger": true
+  },
+  {
+    "query": "複数エージェントが同じIssueを取り合うので、作業権とWIP上限を含む運用に直したい",
+    "should_trigger": true
+  },
+  {
+    "query": "このリポジトリへProjectの項目と4ビューと初期バックログを安全にbootstrapして",
+    "should_trigger": true
+  },
+  {
+    "query": "Issueは残したままGitHub ProjectとMilestoneの運用だけ段階的に解除したい",
+    "should_trigger": true
+  },
+  {
+    "query": "チーム全体のIssue本文、PR本文、Status遷移、マージ待ちの規約を整備して",
+    "should_trigger": true
+  },
+  {
+    "query": "20件のIssueについてMilestone期限、Effort、依存関係、レビュー容量からForecastを引き直して",
+    "should_trigger": true
+  },
+  {
+    "query": "GitHub Issue #42の内容を要約して",
+    "should_trigger": false
+  },
+  {
+    "query": "このPRを普通にコードレビューして、危ない箇所だけ教えて",
+    "should_trigger": false
+  },
+  {
+    "query": "GitHub Actionsの失敗ログを読んでCIを直して",
+    "should_trigger": false
+  },
+  {
+    "query": "この変更に合うgitブランチ名を一つ考えて",
+    "should_trigger": false
+  },
+  {
+    "query": "再現手順が分かっているバグをIssueに1件起票して",
+    "should_trigger": false
+  },
+  {
+    "query": "gh project item-listのJSON出力をjqで整形するコマンドを教えて",
+    "should_trigger": false
+  },
+  {
+    "query": "ロードマップが毎回破綻する。依存DAGとエージェント・レビュー・CIの容量から実行順を決めたい",
+    "should_trigger": true
+  },
+  {
+    "query": "ラベルを使わず、組織Issue FieldとProject fieldの重複を避けてバックログを統一して",
+    "should_trigger": true
+  },
+  {
+    "query": "複数のbotがready Issueを並列処理しても二重着手しないGitHub運用を作って",
+    "should_trigger": true
+  },
+  {
+    "query": "今のGitHub Project運用を監査して、Issue/PRテンプレート、工数、完了条件まで改善して",
+    "should_trigger": true
+  },
+  {
+    "query": "ghでProjectの一覧を表示するだけのコマンドは？",
+    "should_trigger": false
+  },
+  {
+    "query": "PRの未解決レビューコメントを直して",
+    "should_trigger": false
+  },
+  {
+    "query": "v1.2というMilestoneを1件作るコマンドを書いて",
+    "should_trigger": false
+  },
+  {
+    "query": "merge_groupで落ちているテストの原因を調べて修正して",
+    "should_trigger": false
+  }
+]

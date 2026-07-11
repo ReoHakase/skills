@@ -24,17 +24,17 @@ Agent枠上限: 1
 
 実装WIPは `min(Agent枠上限, 作業環境枠上限)` で導出し、未設定の枠とWIP上限は各1として扱う。Effortは実装、直接確認、テスト、ドキュメント、通常のレビュー修正を含み、待ち時間を含めない。`epic` はEffortを持たず、末端Issueだけを合計する。Sizeは順序尺度なので合計しない。
 
-# 項目の正本
+# Projectアイテムとフィールドの正本
 
-標準ビューのProject項目はIssueを主体とする。PRを別のProject項目として管理せず、Issueの組み込み列 `Linked pull requests` と `Reviewers` から関連PRとレビュー状況を読む。承認、検査、マージ可否の詳細はPR自体で確認する。
+標準ビューのProjectアイテムはIssueを主体とする。PRを別のProjectアイテムとして管理せず、Issueの組み込み列 `Linked pull requests` と `Reviewers` から関連PRとレビュー状況を読む。承認、必須ステータスチェック、マージ可否の詳細はPR自体で確認する。
 
-組織所有リポジトリでは、導入前に組織のIssue TypesとIssue Fieldsを検出する。同じ意味と値域を持つ項目がある場合はそれを正本とし、同義のProject独自項目を作らない。個人所有ProjectではProject独自項目を正本とする。
+組織所有リポジトリでは、導入前に組織のIssue TypesとIssue Fieldsを検出する。同じ意味と値域を持つフィールドがある場合はそれを正本とし、同義のProject独自フィールドを作らない。個人所有ProjectではProject独自フィールドを正本とする。
 
 # 作成APIとUIの分担
 
-API版 `2026-03-10` のREST APIによるProjectビュー作成で設定するのは、ビュー名、`layout`、`filter`、`visible_fields` である。`visible_fields` は `table` と `board` でのみ指定でき、`roadmap` では指定できない。表示項目は名前ではなく項目IDを渡す。
+API版 `2026-03-10` のREST APIによるProjectビュー作成で設定するのは、ビュー名、`layout`、`filter`、`visible_fields` である。`visible_fields` は `table` と `board` でのみ指定でき、`roadmap` では指定できない。表示フィールドは名前ではなくフィールドIDを渡す。
 
-グループ化、並び替え、ボードの列、ロードマップの日付項目と表示項目は、作成後にGitHubのUIで設定する。REST APIの作成要求にグループ化や並び替えを混ぜない。
+グループ化、並び替え、ボードの列、ロードマップの日付フィールドと表示フィールドは、作成後にGitHubのUIで設定する。REST APIの作成要求にグループ化や並び替えを混ぜない。
 
 参照: <https://docs.github.com/en/rest/projects/views?apiVersion=2026-03-10>
 
@@ -59,9 +59,9 @@ UIで後設定:
 運用規則:
 
 - `ready` に置くのは、受け入れ条件、非スコープ、確認手順、未解決の阻害要因がないことを確認済みの実行対象末端Issueだけにする。
-- Issue間の依存関係はIssue自体で確認する。`blocked by` と `blocking` を表示項目やフィルターとして扱わない。
+- Issue間の依存関係はIssue自体で確認する。`blocked by` と `blocking` を表示フィールドやフィルターとして扱わない。
 - 実装WIPが上限なら新しい作業権を取得しない。レビュー、重いCI・共有環境、マージ待ちの下流WIPも確認する。
-- `in-review` では `Linked pull requests` と `Reviewers` からPRを開き、本文、レビュー、検査を確認する。
+- `in-review` では `Linked pull requests` と `Reviewers` からPRを開き、本文、レビュー、チェックを確認する。
 - `done` と `canceled` は通常表示しない。
 
 # WBS/ロードマップ
@@ -80,17 +80,17 @@ REST APIで設定:
 
 UIで後設定:
 
-- 日付項目: Forecast Start、Forecast End
+- 日付フィールド: Forecast Start、Forecast End
 - グループ化: Scopeの正本
 - 並び替え: Forecast Startの昇順、Forecast Endの昇順、Priorityの降順
-- 表示項目: Typeの正本、Scopeの正本、Priority、Effort、Estimate Confidence、Risk、Agent Tier、Forecast Start、Forecast End、Milestone、Linked pull requests
+- 表示フィールド: Typeの正本、Scopeの正本、Priority、Effort、Estimate Confidence、Risk、Agent Tier、Forecast Start、Forecast End、Milestone、Linked pull requests
 
 運用規則:
 
 - Milestoneの期日を先に決め、その期限目標からForecast StartとForecast Endを組む。
 - 親IssueのForecastは子Issue群を包む期間とし、子Issueと重なってよい。
 - 直列依存する末端Issue同士ではForecastを重ねない。後続Issueはすべての前段IssueのForecast Endより後の稼働日に開始する。
-- Issue間の親子関係と依存関係はIssue自体で確認し、ビューの表示項目に擬似列を追加しない。
+- Issue間の親子関係と依存関係はIssue自体で確認し、ビューの表示フィールドに擬似列を追加しない。
 
 # マージ候補
 
@@ -113,7 +113,7 @@ UIで後設定:
 運用規則:
 
 - `Linked pull requests` から対象PRを開く。`Reviewers` は入口として使い、承認状況の最終判定はPR自体で行う。
-- レビュー承認、必須検査、マージ可否、Draft状態、基点・作業ブランチは `gh pr view` で別に確認する。
+- レビュー承認、必須ステータスチェック、マージ可否、Draft状態、基点・作業ブランチは `gh pr view` で別に確認する。
 
 ```bash
 gh pr view PR_NUMBER \
@@ -122,7 +122,7 @@ gh pr view PR_NUMBER \
 gh pr checks PR_NUMBER --repo OWNER/REPO --required
 ```
 
-- `statusCheckRollup` は検査全体の把握に使い、必須検査だけの合否は `gh pr checks --required` で判定する。必須検査が実行中または失敗中なら候補から外す。マージ後は型別完了条件を満たしてからActual Endを記録する。
+- `statusCheckRollup` はチェック全体の把握に使い、必須ステータスチェックだけの合否は `gh pr checks --required` で判定する。必須ステータスチェックが実行中または失敗中なら候補から外す。マージ後は型別完了条件を満たしてからActual Endを記録する。
 
 # Velocity
 

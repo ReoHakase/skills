@@ -20,8 +20,10 @@ VIEWS_PATH = Path(__file__).parent / ".github" / "project" / "views.md"
 VIEWS_JSON_PATH = Path(__file__).with_name("project-views.json")
 SKILL_PATH = Path(__file__).parents[1] / "SKILL.md"
 PROJECT_BOOTSTRAP_REFERENCE = Path(__file__).parents[1] / "references" / "project-bootstrap.md"
+PROJECT_SETUP_REFERENCE = Path(__file__).parents[1] / "references" / "project-setup.md"
 PR_AND_MERGE_REFERENCE = Path(__file__).parents[1] / "references" / "pr-and-merge.md"
 ISSUE_LIFECYCLE_REFERENCE = Path(__file__).parents[1] / "references" / "issue-lifecycle.md"
+UNINSTALL_REFERENCE = Path(__file__).parents[1] / "references" / "uninstall.md"
 PINNED_DOCUMENT = (
     "https://github.com/OWNER/REPO/blob/0123456789abcdef0123456789abcdef01234567/docs/spec.md"
 )
@@ -319,7 +321,7 @@ def test_issue_body_rejects_project_field_duplication() -> None:
         body=f"{valid_issue_body()}\n\n# Priority\np2-high",
     )
 
-    with pytest.raises(SystemExit, match="Project fieldを重複"):
+    with pytest.raises(SystemExit, match="Projectフィールドを重複"):
         module.ensure_issue_bodies({issue.title: issue})
 
 
@@ -413,7 +415,7 @@ def test_unscheduled_milestone_allows_empty_due_date() -> None:
 def test_duplicate_milestone_titles_are_rejected() -> None:
     module = load_asset()
 
-    with pytest.raises(SystemExit, match="Milestone titleが重複"):
+    with pytest.raises(SystemExit, match="Milestoneタイトルが重複"):
         module.ensure_milestone_plan(
             [
                 module.Milestone(title="First Release", due_on="2026-07-31"),
@@ -599,9 +601,9 @@ def test_every_non_epic_type_requires_effort_and_confidence(issue_type: str) -> 
         estimate_confidence="",
     )
 
-    with pytest.raises(SystemExit, match="Effortは必須"):
+    with pytest.raises(SystemExit, match="Effort必須"):
         module.ensure_issue_plan({missing_effort.title: missing_effort})
-    with pytest.raises(SystemExit, match="Estimate Confidenceは必須"):
+    with pytest.raises(SystemExit, match="Estimate Confidence必須"):
         module.ensure_issue_plan({missing_confidence.title: missing_confidence})
 
 
@@ -932,7 +934,7 @@ def test_string_option_preserves_existing_metadata() -> None:
 def test_duplicate_option_names_are_rejected() -> None:
     module = load_asset()
 
-    with pytest.raises(SystemExit, match="option名が重複"):
+    with pytest.raises(SystemExit, match="選択肢名が重複"):
         module.materialize_single_select_options(["ready", "ready"], [])
 
 
@@ -1017,12 +1019,37 @@ def test_template_placeholders_fail_before_gh_call(monkeypatch: pytest.MonkeyPat
         module.validate_configuration()
 
 
+@pytest.mark.parametrize(
+    ("project_title", "project_visibility", "expected_error"),
+    [
+        ("PROJECT_TITLE", "PRIVATE", "PROJECT_TITLEを確認済み"),
+        ("Roadmap", "INTERNAL", "PROJECT_VISIBILITYはPUBLICまたはPRIVATE"),
+    ],
+)
+def test_project_identity_configuration_is_required(
+    monkeypatch: pytest.MonkeyPatch,
+    project_title: str,
+    project_visibility: str,
+    expected_error: str,
+) -> None:
+    module = load_asset()
+    monkeypatch.setattr(module, "REPO", "octo/repo")
+    monkeypatch.setattr(module, "PROJECT_ID", "PVT_target")
+    monkeypatch.setattr(module, "PROJECT_TITLE", project_title)
+    monkeypatch.setattr(module, "PROJECT_VISIBILITY", project_visibility)
+
+    with pytest.raises(SystemExit, match=expected_error):
+        module.validate_configuration()
+
+
 def test_unlinked_repository_fails_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
     module = load_asset()
     monkeypatch.setattr(module, "OWNER", "@me")
     monkeypatch.setattr(module, "REPO", "octo/repo")
     monkeypatch.setattr(module, "PROJECT_NUMBER", "7")
     monkeypatch.setattr(module, "PROJECT_ID", "PVT_target")
+    monkeypatch.setattr(module, "PROJECT_TITLE", "Roadmap")
+    monkeypatch.setattr(module, "PROJECT_VISIBILITY", "PRIVATE")
     monkeypatch.setattr(
         module,
         "graphql_json",
@@ -1041,6 +1068,8 @@ def test_unlinked_repository_fails_preflight(monkeypatch: pytest.MonkeyPatch) ->
                 "node": {
                     "id": "PVT_target",
                     "number": 7,
+                    "title": "Roadmap",
+                    "public": False,
                     "owner": {"login": "octo"},
                     "url": "https://github.com/users/octo/projects/7",
                     "items": {"totalCount": 0},
@@ -1049,7 +1078,59 @@ def test_unlinked_repository_fails_preflight(monkeypatch: pytest.MonkeyPatch) ->
         },
     )
 
-    with pytest.raises(SystemExit, match="linkされていません"):
+    with pytest.raises(SystemExit, match="紐づいていません"):
+        module.discover_target()
+
+
+@pytest.mark.parametrize(
+    ("actual_title", "actual_public", "expected_error"),
+    [
+        ("Other", True, "タイトルが一致しません"),
+        ("Roadmap", False, "公開範囲が一致しません"),
+    ],
+)
+def test_project_title_and_visibility_are_part_of_preflight(
+    monkeypatch: pytest.MonkeyPatch,
+    actual_title: str,
+    actual_public: bool,
+    expected_error: str,
+) -> None:
+    module = load_asset()
+    monkeypatch.setattr(module, "OWNER", "@me")
+    monkeypatch.setattr(module, "REPO", "octo/repo")
+    monkeypatch.setattr(module, "PROJECT_NUMBER", "7")
+    monkeypatch.setattr(module, "PROJECT_ID", "PVT_target")
+    monkeypatch.setattr(module, "PROJECT_TITLE", "Roadmap")
+    monkeypatch.setattr(module, "PROJECT_VISIBILITY", "PUBLIC")
+    monkeypatch.setattr(
+        module,
+        "graphql_json",
+        lambda *_args, **_kwargs: {
+            "data": {
+                "viewer": {"login": "octo"},
+                "repository": {
+                    "id": "R_repo",
+                    "nameWithOwner": "octo/repo",
+                    "defaultBranchRef": {"name": "trunk"},
+                    "projectsV2": {
+                        "nodes": [{"id": "PVT_target", "number": 7}],
+                        "pageInfo": {"hasNextPage": False},
+                    },
+                },
+                "node": {
+                    "id": "PVT_target",
+                    "number": 7,
+                    "title": actual_title,
+                    "public": actual_public,
+                    "owner": {"login": "octo"},
+                    "url": "https://github.com/users/octo/projects/7",
+                    "items": {"totalCount": 0},
+                },
+            }
+        },
+    )
+
+    with pytest.raises(SystemExit, match=expected_error):
         module.discover_target()
 
 
@@ -1453,7 +1534,7 @@ def test_issue_reuse_requires_explicit_number() -> None:
 def test_duplicate_issue_titles_are_rejected() -> None:
     module = load_asset()
 
-    with pytest.raises(SystemExit, match="Issue titleが重複"):
+    with pytest.raises(SystemExit, match="Issueタイトルが重複"):
         module.index_issues([module.ISSUES[0], module.ISSUES[0]])
 
 
@@ -1705,6 +1786,36 @@ def test_project_view_creation_uses_current_rest_endpoint() -> None:
     assert "users/USER_ID/projectsV2/PROJECT_NUMBER/views" in text
     assert "X-GitHub-Api-Version: 2026-03-10" in text
     assert "view作成・view編集のmutationやsubcommandが公開されていない" not in text
+
+
+def test_project_creation_requires_unique_title_visibility_and_confirmation() -> None:
+    text = PROJECT_BOOTSTRAP_REFERENCE.read_text(encoding="utf-8")
+
+    assert text.count("set -euo pipefail") >= 2
+    assert 'gh project list --owner "$PROJECT_OWNER" --closed' in text
+    assert ".totalCount == (.projects | length)" in text
+    assert 'test "$PROJECT_OWNER" = "$REPO_OWNER" || exit 1' in text
+    assert "#create-project:${PROJECT_OWNER}:${PROJECT_TITLE}#${PROJECT_VISIBILITY}" in text
+    assert 'test "$CONFIRM" = "$EXPECTED" || exit 1' in text
+    assert "gh project edit" in text
+    assert '--visibility "$PROJECT_VISIBILITY"' in text
+    assert 'gh project link "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --repo "$REPO"' in text
+
+
+def test_core_docs_distinguish_project_fields_from_items() -> None:
+    for path in [SKILL_PATH, PROJECT_SETUP_REFERENCE, PROJECT_BOOTSTRAP_REFERENCE]:
+        text = path.read_text(encoding="utf-8")
+        assert "Project項目" not in text
+        assert "Projectフィールド" in text
+        assert "Projectアイテム" in text
+
+
+def test_destroy_flow_exports_confirms_and_stops_on_failure() -> None:
+    text = UNINSTALL_REFERENCE.read_text(encoding="utf-8")
+
+    assert text.count("set -euo pipefail") >= 3
+    assert "OWNER/REPO#destroy-project:PROJECT_OWNER:PROJECT_TITLE#PROJECT_NUMBER" in text
+    assert 'test "$CONFIRM" = "$EXPECTED" || exit 1' in text
 
 
 def test_default_branch_is_discovered_instead_of_hardcoded_main() -> None:

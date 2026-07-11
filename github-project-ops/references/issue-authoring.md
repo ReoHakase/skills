@@ -1,4 +1,4 @@
-# Issue authoring
+# Issueの設計と起票
 
 Issue作成、WBS分解、sub-issue、blocked by / blocking、Issue本文を書くときに読む。
 
@@ -22,9 +22,9 @@ Issue作成、WBS分解、sub-issue、blocked by / blocking、Issue本文を書�
 - GitHub Issue numberと二重管理になる。
 - sub-issueで親子関係を表せる。
 - blocked by / blockingで順序依存を表せる。
-- Project viewでgrouping、filtering、sortができる。
+- Projectビューでグループ化、絞り込み、並べ替えができる。
 
-bootstrap用JSONにも独自WBS keyを置かない。初期作成ファイル内ではtitleを一意にする。既存Issueの再利用はtitle照合ではなく、確認済みIssue numberを明示する。
+初期構築用JSONにも独自WBSキーを置かない。初期作成ファイル内ではタイトルを一意にする。既存Issueの再利用はタイトル照合ではなく、確認済みのIssue番号を明示する。
 
 sub-issue:
 
@@ -45,17 +45,17 @@ blocked by / blocking:
 
 `ready` は「仕様確定済み」ではなく「今すぐ作業開始できる」という意味である。仕様、受け入れ条件、確認手順が確定していても、前段Issueの完了待ちなら `blocked` にする。
 
-Issue dependencyとStatusは自動同期しない。`blocked by` / `blocking` はGitHub Issue同士の順序依存だけに使う。upstream PR、Figma design、権限、外部tracker、設計判断待ちのような外部blockerは、dummy Issueを作ってdependencyへ押し込まず、Statusを `blocked` にしてblocked commentへURL付きで書く。
+Issue間の依存関係とStatusは自動同期しない。`blocked by` / `blocking` はGitHub Issue同士の順序依存だけに使う。上流PR、Figmaデザイン、権限、外部管理システム、設計判断待ちのような外部の阻害要因は、ダミーIssueを作って依存関係へ押し込まず、Statusを `blocked` にして停止コメントへURL付きで書く。
 
-実行対象の末端Issueをnode、`blocker -> 後続` をedgeとする依存関係DAGを作る。apply前と依存変更後に次を検証する。
+実行対象の末端Issueを頂点、`阻害Issue -> 後続` を辺とする依存関係DAGを作る。`apply` 前と依存変更後に次を検証する。
 
-- 自己参照、同じedgeの重複、循環がない。
-- sub-issue階層にも自己parent、重複parent、循環がない。
-- blocker完了はIssueがclosedかだけで判断せず、Project Statusが `done` で型別done条件を満たすことを確認する。
+- 自己参照、同じ辺の重複、循環がない。
+- sub-issue階層にも自己参照、重複した親、循環がない。
+- 前段Issueの完了はIssueが閉じているかだけで判断せず、Project Statusが `done` で型別完了条件を満たすことを確認する。
 - 中止した前段Issueを完了扱いしない。辺の置換、依存不要化、下流中止のいずれかを決めるまで推移的な後続Issueを再トリアージする。
 - 依存関係の追加・削除・置換後は、影響する後続Issue全体のready可否、クリティカルパス、Forecast、Milestone実現可能性を再計算する。
 
-Issue本文の `変更ファイル` から、同じファイルまたはglobを同時に触るIssue同士の変更競合グラフも作る。変更競合は別の実行Waveへ送る根拠だが、論理的な完了順序がなければ `blocked by` にしない。作業権を取得した各Issueには独立したworktreeを割り当て、同じブランチやworktreeを複数エージェントで共有しない。
+Issue本文の `変更ファイル` から、同じファイルまたはglobパターンを同時に触るIssue同士の変更競合グラフも作る。変更競合は別の実行Waveへ送る根拠だが、論理的な完了順序がなければ `blocked by` にしない。作業権を取得した各Issueには独立した`worktree`を割り当て、同じブランチや`worktree`を複数エージェントで共有しない。
 
 Forecast Start / Forecast Endは、Project上の計画作業期間である。直列依存では期間を重ねない。
 
@@ -63,17 +63,17 @@ Forecast Start / Forecast Endは、Project上の計画作業期間である。�
 - 同じepic配下でも、依存関係、変更競合、実装/レビュー/CI/マージ容量が許す子IssueだけForecastを重ねてよい。
 - epicのForecastは子Issue群を包む期間にする。epicと子IssueのForecastが重なるのは正常である。
 
-Forecast変更は、導入時に選択した構造化項目の正本だけで行う。Issue本文にForecastやMilestone期限を書かない。
+Forecast変更は、導入時に選択した構造化フィールドの正本だけで行う。Issue本文にForecastやMilestone期限を書かない。
 
 並列実行可能数はエージェント、worktree、レビュアー、重いCI、共有フィクスチャ、マージ待ちの各WIP上限で有限である。最適化目標は直列依存を減らしつつ、後段を詰まらせない範囲で `ready` Issueを投入することにする。
 
 分解手順:
 
 1. epicを作る。
-2. 共有インターフェースの契約を切る。
+2. 共有インターフェースの契約を先にIssueとして切る。
 3. 契約完了後に並列実装Issueを切る。
 4. テスト、ドキュメント、可観測性は実装末端Issueの完了条件へ残す。単独でマージでき、親の受け入れ条件を弱めず、別のレビュー境界に価値がある場合だけ分ける。
-5. c3-complex/r3-dangerousはspikeを先に切る。
+5. `c3-complex` / `r3-dangerous` は `spike` を先に切る。
 6. ブランチ同士の競合が予想される場合は、先にインターフェースを定めるPRを作る。
 
 悪い分解:
@@ -103,7 +103,7 @@ DB検索のリポジトリ層を追加する blocked by 検索レスポンスの
 
 # 運用中のIssue追加
 
-初期構築後にIssueを追加する場合も、独自WBS番号は作らない。GitHub Issue番号、sub-issue、blocked by / blocking、選択した構造化項目の正本をSSoTにする。
+初期構築後にIssueを追加する場合も、独自WBS番号は作らない。GitHub Issue番号、sub-issue、blocked by / blocking、選択した構造化フィールドの正本をSSoTにする。
 
 追加前に親Issue、既存の子Issue、依存関係を読む。
 
@@ -181,7 +181,7 @@ bug Issueには必ず再現条件を書く。
 - 影響範囲
 - 修正の受け入れ条件
 
-デバッグログ、チャット、問い合わせからIssueを起こす場合は、最初はStatusを `inbox` にする。Sourceは選択した正本に入れる。Issue本文にはSourceなどの構造化項目値を書かない。
+デバッグログ、チャット、問い合わせからIssueを起こす場合は、最初はStatusを `inbox` にする。Sourceは選択した正本に入れる。Issue本文にはSourceなどの構造化フィールド値を書かない。
 
 Issue本文に必ず書く:
 
@@ -203,7 +203,7 @@ Issue本文は常体で書く。論文やレポートと同じく「である」
 
 Issue本文に `実装メモ`、`メモ`、`注意点` のような何でも入る欄を作らない。変更予定箇所、調査中の考え、実装中の注意、未確定の案はコメントへ書く。確定した契約、受け入れ条件、非スコープ、確認手順だけを本文へ反映する。
 
-Milestone、sub-issue、blocked by / blocking、構造化項目、Assignee、紐づくブランチはGitHubメタデータをSSoTにする。Issue本文にMilestone、sub-issue一覧、依存関係の節、構造化項目値を書かない。
+Milestone、sub-issue、blocked by / blocking、構造化フィールド、Assignee、紐づくブランチはGitHubメタデータをSSoTにする。Issue本文にMilestone、sub-issue一覧、依存関係の節、構造化フィールド値を書かない。
 
 Issue本文やPR本文で既存Issue、PR、コミットを参照するときは、同一リポジトリなら `#123` や短いコミットSHAだけを書く。GitHubが自動リンクとプレビューで参照先を表示するため、`#123 タイトル` のようにタイトルを併記しない。別リポジトリのIssue/PRは `OWNER/REPO#123` と書く。参照: <https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/autolinked-references-and-urls>
 
@@ -254,7 +254,7 @@ GitHub上の確認事項:
 - コメントの過去版は文章の差分として表示される。参照: <https://github.blog/changelog/2018-05-23-comment-edit-history/>
 - 取り消し線と折りたたみ欄はGitHub Markdownで使える。参照: <https://docs.github.com/github/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax>, <https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/quickstart-for-writing-on-github>
 
-構造化項目にあるメタデータは本文へ書かない。StatusはProject項目へ、Type、Scope、Priority、Size、Effort、Estimate Confidence、Complexity、Risk、Agent Tier、Agent Harness、Agent Model、Agent Run、Reviewer Owner、Branch、Source、Forecast Start、Forecast End、Actual Start、Actual Endは導入時に選択した正本だけへ記録する。
+構造化フィールドにあるメタデータは本文へ書かない。StatusはProjectフィールドへ、Type、Scope、Priority、Size、Effort、Estimate Confidence、Complexity、Risk、Agent Tier、Agent Harness、Agent Model、Agent Run、Reviewer Owner、Branch、Source、Forecast Start、Forecast End、Actual Start、Actual Endは導入時に選択した正本だけへ記録する。
 
 # 参照ドキュメントURL
 
@@ -328,7 +328,7 @@ https://github.com/OWNER/REPO/blob/<commit_sha>/docs/ARCHITECTURE.md#L40-L95
 
 # 記入済み例
 
-## Epic
+## `epic` の例
 
 ```markdown
 # 目的
@@ -366,7 +366,7 @@ https://github.com/OWNER/REPO/blob/<commit_sha>/docs/ARCHITECTURE.md#L40-L95
 必須の末端Issueを正とし、`issue-lifecycle.md` の優先順位でStatusを集約する。
 ```
 
-## Feature
+## 機能追加の例
 
 ```markdown
 # 概要
@@ -405,7 +405,7 @@ https://github.com/OWNER/REPO/blob/0123456789abcdef0123456789abcdef01234567/docs
 - [ ] 長い商品名でもレイアウトが崩れない
 ```
 
-## Bug
+## 不具合修正の例
 
 ```markdown
 # 概要
@@ -468,7 +468,7 @@ https://github.com/OWNER/REPO/blob/0123456789abcdef0123456789abcdef01234567/docs
 - [ ] 該当する単体テストが通る
 ```
 
-## Spike
+## `spike` の例
 
 ```markdown
 # 背景
