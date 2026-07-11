@@ -1,537 +1,231 @@
-# Issue lifecycle
+# Issueのライフサイクル
 
-Status遷移、ready/in-progress/in-review/blocked判断、lifecycle commentを書くときに読む。
+Status遷移、実行Wave、作業権の取得、再開、完了判定を扱うときに読む。コメントの書式と例は
+[`lifecycle-comments.md`](lifecycle-comments.md) を読む。
 
 # 目次
 
-- Status一覧
-- 状態遷移図
-- 段階実行
-- Status別実行手順
-- Lifecycle comment templates
-- Lifecycle comment examples
+- Statusの意味
+- 状態遷移
+- Type別のdone条件
+- Epic状態の集約
+- 実行Wave Nの組み立て
+- Agent Runの作業権取得手順
+- Status別の判定
+- 再開と投入見送り
 
-# Status一覧
+# Statusの意味
 
-Statusは「仕様の成熟度」ではなく「次に何ができるか」を表す。特に `ready` は仕様確定済みの意味ではなく、agentまたは人間が今すぐ作業開始できる意味で使う。
+Statusは仕様の成熟度ではなく、次に実行できる操作を表す。
 
-- inbox
-- triaged
-- ready
-- in-progress
-- in-review
-- blocked
-- done
-- canceled
+| Status        | 意味                                                                 |
+| ------------- | -------------------------------------------------------------------- |
+| `inbox`       | 未整理の流入                                                         |
+| `triaged`     | 分類済みだが、着手条件または投入順が未確定                           |
+| `ready`       | 実行対象の末端Issueで、作業権を取得すれば直ちに開始できる            |
+| `in-progress` | 作業権を取得済みで、実装、修正、またはDraft PRを更新している         |
+| `in-review`   | PRがレビュー可能で、通常のレビューまたはCI完了を待っている           |
+| `blocked`     | 当該作業の外にある阻害要因のため、担当者が今すぐ進められる操作がない |
+| `done`        | Type別の完了条件を満たした                                           |
+| `canceled`    | 実行しない判断を記録して終了した                                     |
 
-`needs-info` と `ready-to-merge` は使わない。細かすぎる状態は更新負荷を増やし、agent運用で破綻しやすい。
+`needs-info` と `ready-to-merge` は使わない。`blocking` と `blocked by` はStatusではなくIssue関係である。StatusはIssue関係から自動同期しない。
 
-`blocking` と `blocked by` はStatusではなくIssue関係である。
+`blocked` は、前段Issue、上流PR、権限、外部設計、外部サービス、担当外の判断など、当該担当者が局所的な変更では解除できない阻害要因に限る。レビュー修正依頼、修正可能なCI失敗、解消可能なマージ競合は実行できる作業なので `in-progress` に戻す。単なるレビュー/CI待ちは `in-review` のままにする。
 
-- `blocking`: このIssueが後続Issueを待たせている。未解決の前段がなければ、このIssueは `ready` にできる。
-- `blocked by`: このIssueが前段Issueを待っているIssue間関係。未解決で作業開始を止めるなら、このIssueは `blocked` にする。
-
-Statusは `blocked by` / `blocking` から自動同期しない。`blocked` にはupstream PR、Figma design、権限、CI障害、設計判断待ちなど、GitHub Issue dependencyでは表せない阻害要因も含む。Issue dependencyはIssue間の構造化された依存関係、Statusはかんばん上の運用状態として扱う。
-
-`blocked` だからといって必ず `blocked by` があるとは限らない。外部blockerはdummy Issueを作って依存関係へ押し込まず、blocked commentにURL付きで記録する。
-
-# Epic status
-
-epic issueは原則ブランチを持たない。epicのStatusは「epic自体を実装できるか」ではなく、子Issue群の進行状態を要約するroll-upとして扱う。
-
-- `inbox`: まだepicとして採用・整理していない。
-- `triaged`: 目的、境界、分割方針があり、子Issue化または着手待ちの状態。epicの通常の待機状態はこれにする。
-- `in-progress`: いずれかの子Issueがin-progress、in-review、doneになり、epic配下の作業が動いている。
-- `blocked`: epic配下で今進められる子Issueがなく、未解決の前段Issue、外部依存、設計判断待ちで止まっている。
-- `done`: epicの完了判定を満たし、必要な子Issueがdoneまたはcanceledとして整理済み。
-- `canceled`: epicごとやらない。
-
-epicは `ready` にしない。readyに見える子Issueがある場合も、作業開始対象はepicではなくbranchableな子Issueである。
-
-# 状態遷移図
+# 状態遷移
 
 ```mermaid
 stateDiagram-v2
-    [*] --> inbox: 新規起票
-    inbox --> triaged: 重要度・種類・再現性を確認
-    triaged --> ready: 受け入れ条件と依存が明確
-    triaged --> blocked: 前段Issue・外部依存待ち
-    ready --> InProgress: 作業開始
-    ready --> blocked: blocker判明
-    InProgress --> InReview: PR作成
-    InReview --> done: merge queue経由でmainへmerge
+    state "inbox" as Inbox
+    state "triaged" as Triaged
+    state "ready" as Ready
+    state "in-progress" as InProgress
+    state "in-review" as InReview
+    state "blocked" as Blocked
+    state "done" as Done
+    state "canceled" as Canceled
 
-    InProgress --> blocked: 外部依存・設計判断・CI障害
-    InReview --> blocked: review/CIで停止
-    blocked --> ready: 未着手のblocker解消
-    blocked --> InProgress: 作業再開
-    blocked --> InReview: PR review再開
+    [*] --> Inbox: 新規起票
+    Inbox --> Triaged: 分類と影響確認
+    Triaged --> Ready: 着手条件を充足
+    Triaged --> Blocked: 作業外blocker待ち
+    Ready --> InProgress: 作業権の取得成功
+    InProgress --> InReview: レビュー可能にする
+    InProgress --> Done: PRなし末端Issueの完了確認
+    InReview --> InProgress: 修正・CI対応・競合解消
+    InReview --> Done: mergeと完了確認
 
-    inbox --> canceled: 起票不要
-    triaged --> canceled: やらない判断
-    ready --> canceled: 方針変更
-    InProgress --> canceled: 実装中止
-    InReview --> canceled: PR close
-    canceled --> [*]
-    done --> [*]
+    Ready --> Blocked: 作業外blocker判明
+    InProgress --> Blocked: 作業外blocker判明
+    InReview --> Blocked: 作業外blocker判明
+    Blocked --> Ready: 未着手でblocker解消
+    Blocked --> InProgress: 実装・Draft PRを再開
+    Blocked --> InReview: ready for reviewを再開
+
+    Inbox --> Canceled: 採用しない
+    Triaged --> Canceled: 実行しない
+    Ready --> Canceled: 方針変更
+    InProgress --> Canceled: 実装中止
+    InReview --> Canceled: PRをmergeせずclose
+    Canceled --> Triaged: 再採用して再triage
+    Done --> Triaged: reopenして再triage
 ```
 
-# 段階実行
+Draft PRを作っただけでは `in-review` にしない。Draft PRは `in-progress`、レビュー可能状態（Ready for review）へ変更して通常のレビューを依頼した時点で `in-review` にする。
 
-段階実行は、ready化済みIssueの投入順、agent数、CI負荷、競合リスクを調整するための運用である。論理依存を隠す仕組みではない。
+# Type / 成果種別ごとの完了条件
 
-前段Issueの出力を前提にするIssueは、同時に `ready` として扱わない。必ずGitHubの `blocked by` を追加し、未解決ならStatusを `blocked` にする。
+正規のTypeと成果の形に応じて、PRマージを必須にするかを変える。固有条件を満たしたIssueを完了候補にし、最後に共通のProject fieldを更新する。
 
-第1段階:
+| 成果種別           | 固有の完了条件                                                                                                         |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| ブランチ作成型     | PRがdefault branchへマージ済みでrequired checksが成功し、受け入れ条件を確認済み                                        |
+| spike              | 設定した時間枠、問いへの結論、証拠、採用/棄却案、後続Issueまたは不要理由が揃う。コード成果がある場合だけPRマージも必須 |
+| リポジトリ差分なし | 外部操作または意思決定が完了し、検証証拠とロールバック/後片付けの状態が揃う。PR不要の理由をIssueへ明示する             |
+| epic               | epicの完了条件を満たし、必要な末端Issueがすべて `done`、または不要化/置換を明示承認した `canceled` で、残作業がない    |
 
-- 未解決blockerがなく、受け入れ条件、非スコープ、確認手順が揃っているready Issueを実行する。
-- `変更ファイル` が大きく重なるIssueは、必要に応じてagent数、merge順、rebase前提を調整する。
+全種別でIssueのclose、Actual End、Status `done` を必須にする。Agent Runは最終実行の追跡用に残す。リポジトリ内のdocs変更は通常ブランチ作成型であり、「docsだからリポジトリ差分なし」とは判定しない。
 
-第2段階:
+- ブランチ作成型は、`feat` / `fix` / `docs` / `style` / `refactor` / `perf` / `test` / `build` / `ci` / `chore` / `revert` でリポジトリ差分を作る場合である。
+- リポジトリ差分なしは、`docs` / `ci` / `chore` / `spike` などでもリポジトリ差分を作らず、外部操作や意思決定だけを行うとIssueに明示した場合である。
 
-- 第1段階完了後に `blocked by` がすべてclosedになってready化したIssueを実行する。
-- 依存はないが、agent数、CI負荷、競合リスクの都合で後続に回したready Issueを実行する。
+spikeを「コードを書かなかったから未完了」にしない。反対に、設定した時間枠が切れただけで結論、証跡、後続Issueがないspikeはdoneにしない。
 
-禁止する表現:
+# Epic状態の集約
 
-- 「第1段階のmerge後に前段Issueの出力を前提にするIssueを実行する」のように、Issue間依存を `blocked by` で表さない説明。
+epicは原則branchと作業権を持たず、`ready` にしない。必要な末端Issueを正として、次の優先順位で上から最初に該当するStatusを選ぶ。
 
-# Status別実行手順
+1. epic自体を明示的に中止したなら `canceled`。
+2. epic固有の完了条件を満たしたなら `done` 候補とし、Issue close、Actual End、Statusを更新する。
+3. 未完了の必須末端Issueがあり、`ready` / `in-progress` / `in-review` が0件で、実際の阻害要因があるなら `blocked`。
+4. `in-progress` / `in-review` / `done` の必須末端Issueが1件以上あるなら `in-progress`。
+5. 分割済みで着手待ちなら `triaged`。
+6. 未トリアージなら `inbox`。
 
-## inbox
+canceledの末端Issueは自動的に達成扱いにしない。不要化または置換をepicの完了判定で明示承認する。epicのEffortとEstimate Confidenceは空欄にし、末端IssueのEffortだけを集計する。epic本文には目的、境界、完了条件、状態集約の根拠を残し、子一覧はGitHub sub-issue metadataを参照する。
 
-新規流入の置き場。inboxでは実装しない。まずtriageする。
+# 実行Wave Nの組み立て
 
-流入元:
+ready候補がなくなるまで `Wave 1`、`Wave 2`、…、`Wave N` を必要な長さだけ組み立てる。Waveは投入計画であり、論理依存を隠す仕組みではない。
 
-- 人間の思いつき
-- debug log
-- チャット
-- お問い合わせ
-- agentの発見
-- CI failure
-- dependency alert
-- security finding
+## 1. 候補グラフを検証する
 
-必須情報:
+- 前段の成果を必要とするIssueはGitHubの `blocked by` で結ぶ。
+- 自己参照と循環依存を拒否し、依存グラフをDAGにする。
+- `canceled` な前段Issueがあっても後続の阻害が自動的に解消したとはみなさない。代替成果物を確認し、依存を外すか別Issueへ張り替える。
+- 推移的な依存関係を確認し、直接の前段だけでなく下流全体への影響を見積もる。
+- `変更ファイル` が重なるIssueは論理依存にしない。変更競合として同一Waveへの投入可否、workspace分離、merge順を判断する。
 
-- Source
-- 原文または要約
-- 影響範囲
-- 仮Priority
-- 次に確認すべきこと
+## 2. 有限WIPへ配置する
 
-実行手順:
+実行Waveごとに、Project運用設定の上限を読む。未設定時は各1として安全側に扱い、無制限agentを前提にしない。
 
-1. 流入元の原文、log、transcript、alert本文を読む。原文が長い場合も、要約だけでなく参照元を残す。
-2. Sourceと仮PriorityはProject fieldへ置き、影響範囲はIssue本文またはcommentの自然文へ整理する。SourceやPriorityなどのfield assignmentは本文へ書かない。
-3. 影響しているユーザー、機能、再現性、次に確認すべきことを書く。必要ならinbox commentを使う。
-4. Type、Scope、Size、Complexity、Risk、Agent TierをProject fieldへ仮設定できるか確認する。確定できない値は次のtriage確認事項として残す。
-5. 実装は開始しない。ready条件が揃わない場合はtriagedで止める。
+- 実装枠: 同時に作業権を取得し、独立したworktreeで作業できるIssue数。
+- レビュー枠: 同時にレビューへ流せるPR数。
+- 重いCI・共有環境枠: 同時実行できる重いcheck、merge_group、共有fixture検証の数。
+- マージ待ち枠: 同時に自動マージまたはmerge queueへ置けるPR数。
 
-## triaged
+Effortは稼働日上の所要期間計算に使い、WIPは同時処理数に使う。SizeはPR/レビュー量の順序尺度であり合算しない。下流枠が上限なら、新しい実装作業権を取得せず、上流への投入を抑える。
 
-分類済みだが、まだ作業できるとは限らない状態。仕様、受け入れ条件、確認手順が揃っていても、前段Issue待ちで作業開始できないなら `ready` ではなく `blocked` にする。
+`in-review` の件数だけでは下流WIPを区別できないため、実行Waveの再計算時に紐づくPRのメタデータを読む。
 
-満たす条件:
+- 未承認または未解決の会話あり: レビュー枠を消費する。
+- `重いCI` と指定した検査または共有環境検証が実行中: 重いCI・共有環境枠を消費する。通常の軽いCIだけなら専用枠を消費しない。
+- 承認と必須検査が完了し、自動マージまたはマージキュー待ち: マージ待ち枠を消費する。
+- PRなしspike/リポジトリ差分なし: 実装枠だけを使い、実際にPRまたは重い共有検証を使う場合だけ対応する下流枠も使う。
 
-- Typeがある。
-- Scopeがある。
-- Priority/Size/Complexity/Riskの仮値がある。
-- epicまたは親Issueがある場合はsub-issueに入っている。
-- 実行順序がある場合はblocked by / blockingがある。
+候補は次の安定した順序で並べ、各上限と変更競合を満たすものから順に配置する。
 
-実行手順:
+1. `Priority` の高い順。
+2. Milestone due dateの早い順。期限なしは最後。
+3. 残りのクリティカルパスが長い順。対象Issueから下流doneまでの末端IssueのEffortと各段階の予備日を合計する。
+4. Issue numberの小さい順を最終的な同順位の決定条件にする。
 
-1. Type、Scope、Priority、Size、Complexity、Risk、Agent TierをProject fieldで確認する。
-2. epicまたは親Issueが必要な場合はsub-issueへ入れる。実行順序の依存はsub-issueではなくblocked by / blockingで表す。
-3. Issue本文に受け入れ条件、非スコープ、確認手順があるか確認する。依存関係は本文ではなくGitHub上のsub-issue / blocked by / blockingで確認する。
-4. 影響範囲、再現性、実装対象が曖昧な場合は、readyへ進めずtriagedのまま追加確認を残す。必要ならtriaged commentを使う。
-5. ready条件をすべて満たす場合だけreadyへ進める。未解決の `blocked by` が作業開始を止める場合はblockedへ進める。
+同じ入力、同じfield値、同じ容量なら同じ実行Waveになるようにする。手動で順序を変えた場合は理由を計画へ記録する。
+
+## 3. 次のWaveを開く
+
+- 前の実行Waveの全件完了を機械的に待たず、DAG上の前段がdoneになり、各枠が空いた候補を次の実行Waveから投入する。
+- blocked、canceled、見積超過、変更競合の増加が発生したら、作業権未取得のIssueだけを再配置する。
+- 作業権取得済みIssueを容量調整だけで奪わない。引き継ぎまたは解放を先に完了する。
+- Wave番号は履歴用でありStatusではない。後続がreadyになったらProject Statusも明示的に更新する。
+
+# Agent Runの作業権取得手順
+
+`Agent Run` fieldには、実行ごとに一意で外部情報を含まない実行IDを保存する。推奨形式は `<harness>:<run-id>`。同じ実行IDを再利用せず、時刻は実行IDへ入れずGitHubコメントのメタデータを正とする。
+
+## 作業権の取得
+
+1. **事前再取得**: IssueのStatus、Agent Run、Assignee、紐づくbranch、open PR、未解決blockerをGitHubから読み直す。`ready` で有効な作業権がなく、blockerもない場合だけ続行する。
+2. 一意な実行IDを生成し、作業権取得コメントだけを作る。この時点ではfield、Status、ブランチを変更しない。ローカル時刻ではなくGitHub側の作成時刻とコメントIDを使う。
+3. 最新の作業権終了イベント（解放、再開、強制回収）または意図的な引き継ぎより後に作られた有効な作業権取得コメントを再取得する。**GitHub側の作成時刻が最も古いもの**を勝者にし、同値ならコメントIDの小さいものを使う。
+4. 勝者だけがAgent Run、Assignee、Agent Harness、Agent Model、Status `in-progress`、Actual Startを設定する。
+5. **事後再取得**: Project item、作業権取得コメント、紐づくブランチ、未完了PRを再取得する。最古コメントが自分で、Agent Runが自分の実行IDと完全一致し、競合ブランチがない場合だけ、リポジトリ差分を作るIssueではブランチとworktreeを作って実装を始める。ブランチ作成の成功を最終的な排他確認にする。
+6. 敗者はfieldやブランチを変更せず、競合コメントを残して待機列へ戻る。
+
+事前再取得の結果だけで成功と判断しない。勝者によるfield更新が成功しても、事後再取得で実行IDが一致しなければ作業権の取得失敗である。非公開タスクURLはAgent Runやコメントへ書かず、公開可能なURLまたは外部情報を含まない実行IDだけを使う。
+
+## 稼働報告、引き継ぎ、解放
+
+- 稼働報告は進捗証跡であり、作業権の自動延長や自動失効を意味しない。
+- 時間経過だけで作業権を無効扱いにしない。ブランチ、PR、エージェント実行が停止している証跡と、所有者または人間レビュアーの確認を揃える。
+- 引き継ぎでは旧担当が最初に変更を止め、旧実行ID、引継ぎ理由、現在のbranch/PR、未完了作業、新実行IDをコメントへ残す。指定した旧担当またはReviewer OwnerがAgent Runを新実行IDへ更新し、新担当は事後再取得で一致を確認してから再開する。確認までは双方とも変更しない。
+- 解放では作業を停止し、未送信の変更の扱いを記録してからAgent Runを空欄にする。紐づくブランチを残すか閉じるかも明記する。
+- 強制回収が必要な場合も、時刻だけで空欄にせず、確認した証跡と実行者をコメントへ残す。
+
+# Status別の判定
+
+## inbox / triaged
+
+- inboxでは実装せず、Source、影響、仮Priority、次の確認事項を整理する。
+- triagedではType、Scope、Priority、Size、Complexity、Risk、Agent Tier、親子関係、依存DAGを確認する。
+- 受け入れ条件、非スコープ、確認手順、参照ドキュメント、Effort、Estimate Confidenceが不足する場合はreadyへ進めない。
 
 ## ready
 
-agentまたは人間が今すぐ作業開始できる状態。仕様確定済みというだけではreadyにしない。
-
-満たす条件:
-
-- 受け入れ条件がある。
-- 非スコープがある。
-- テストまたは確認手順がある。
-- 作業開始を止める未解決blockerがない。Issue間依存は `blocked by`、外部blockerはblocked commentで確認する。
-- Agent Tierが設定済み。
-- `参照ドキュメント` の更新確認で重要変更がない、またはIssue本文かcommentを更新済み。
-
-実行手順:
-
-1. 受け入れ条件、非スコープ、確認手順が第三者に判定可能か読む。
-2. blocked by / blockingをGitHub上の関係で確認し、blocked commentに外部blockerが残っていないか確認する。未解決blockerがある場合はreadyにしない。`blocking` はこのIssueが後続Issueを待たせている意味なので、それ自体はreadyと両立する。
-3. `変更ファイル` が同じshared moduleに重なるIssue同士でも、論理依存がなければ同時readyにしてよい。ただし競合リスクは段階実行、merge順、rebaseで調整する。論理依存がある場合は競合予測ではなく `blocked by` として表す。
-4. `参照ドキュメント` の更新確認で重要な変更が見つかった場合は、作業開始前にIssue本文またはcommentを更新する。
-5. Agent TierがProject fieldに設定済みか確認する。Agent Harness、Agent Model、Branchは作業開始時まで確定させなくてよい。
-6. AssigneeまたはReviewer Ownerの責任者候補を確認する。まだ作業開始しない場合は、作業開始コメントを書かない。
-7. かんばん上でreadyに置くのは、受け入れ条件、確認手順、未解決blockerなしを確認済みのbranchable Issueだけにする。判断が揺れやすい場合はready commentを使う。
+- ブランチ作成型、spike、リポジトリ差分なしの実行対象末端Issueだけを置く。epicはreadyにしない。
+- 未解決blockerがなく、受け入れ条件、非スコープ、確認手順、Agent Tierが揃っている。
+- Agent Runは空である。作業権取得手順を完了するまで実装、ブランチ作成、fieldの担当確定を始めない。
+- 実行Waveへ配置済みでも、作業権取得前に依存と参照ドキュメントを再確認する。
 
 ## in-progress
 
-作業中。
-
-必須操作:
-
-- Assigneeを設定する。
-- agent自律作業でも、開発環境の持ち主またはreview責任者の人間をAssigneeにする。
-- Agent Harnessを設定する。
-- Agent ModelをProject fieldへ設定する。Issue本文とPR本文には書かない。
-- Branchを設定する。
-- Actual Startを設定する。
-- linked branchを作る。
-
-実行手順:
-
-1. 作業開始直前にblocked byを再確認する。未解決blockerがある場合はin-progressへ進めずblockedへ戻す。
-2. `参照ドキュメント` の更新確認を見る。重要変更があれば、Issue本文またはcommentを更新してから着手する。
-3. AssigneeとReviewer Ownerを確認し、agent自律作業でも人間の責任者を残す。
-4. Agent Harness、Agent Model、Branch、Actual StartをProject fieldへ記録する。具体モデル名、branch名、日付fieldはIssue本文やPR本文へ書かない。
-5. linked branchを作成し、Branch fieldとGitHub上のlinked branchが一致することを確認する。
-6. in-progress commentを使って作業開始を記録する。
+- Agent Run、Assignee、Agent Harness、Agent Model、Branch、Actual Start、linked branchをProject/GitHub metadataへ記録する。
+- 実装中とDraft PRはこのStatusに置く。
+- レビュー修正依頼、修正可能なCI失敗、マージ競合が発生したら `in-review` からここへ戻す。
+- 作業外blockerが判明した場合だけ `blocked` へ移す。
 
 ## in-review
 
-PRが作成され、reviewとCIを待っている状態。
-
-満たす条件:
-
-- PRがある。
-- PR本文にclosing keywordがある。
-- 振る舞いが書かれている。
-- テストケースが単体テスト、統合テスト、E2Eテストに分かれ、テスト対象が見出しで書かれている。
-- 確認手順が書かれている。
-- リスクが書かれている。
-- 必要なreviewerが付いている。
-
-実行手順:
-
-1. PR state、base/head branch、linked Issue、closing keywordを確認する。
-2. PR本文に概要、関連Issue、スコープ、振る舞い、テストケース、確認手順、リスク、レビュー観点があるか確認する。具体モデル名やProject field metadataは本文へ書かない。
-3. reviewer、review decision、unresolved conversation、requested changesを確認する。
-4. CIは最新commit SHAのcheck結果を見る。失敗checkがrequiredか、optionalか、rerun中かを確認してから判断する。
-5. PR作成日やmerge状態はGitHub PR metadataから読む。Project fieldへは複製しない。
-6. required CI、review、権限、設計判断、外部依存で止まっている場合はblockedへ移す。reviewやCIが通常の待ち状態ならin-reviewのままにする。
-7. PR本文とclosing keywordで追跡でき、特筆事項がなければcommentを書かない。PR本文やGitHub metadataでは分からない一時的な補足がある場合だけ、in-review commentを使う。
-8. review承認とrequired checksが揃ったらauto-mergeを有効化し、merge queueとmerge_group CIを待つ。
+- PRをレビュー可能状態にし、closing keyword、レビュアー、適用可能な確認結果、リスクを確認してから移す。
+- 通常のレビュー待ち、required checks実行中、merge queue待ちはこのStatusに保つ。
+- 対応が必要なレビュー/CI/競合が発生したら `in-progress` へ戻す。
+- 当該担当では解除できない外部判断、権限、upstream障害だけで進められない場合は `blocked` へ移す。
 
 ## blocked
 
-前段Issue、upstream PR、Figma design、外部依存、設計判断、CI障害、review unresolved、権限不足で進めない状態。未着手Issueでも、仕様と作業内容は確定しているがblocker待ちで開始できない場合はblockedにする。
+- blocker、解除できる人、依存URL、次の確認条件を記録する。
+- `blocked by` があるだけで自動遷移しない。未解決の前段が実際に着手を止めるか確認する。
+- 阻害要因の解消後は、作業権未取得なら `ready`、有効な実装またはDraft PRがあるなら `in-progress`、レビュー可能なPRなら `in-review` に戻す。
 
-blockedにしたら必ず書く:
+## done / canceled
 
-- 何でblockedか。
-- 誰が解除できるか。
-- どのIssue/PR/logに依存するか。
-- 次の確認タイミング。
+- doneはType別の条件をすべて確認し、Actual Endを記録する。
+- canceledはduplicated、obsolete、out of scope、invalid、replacedなどの理由と代替先を記録する。
+- 中止したIssueの依存、作業権、ブランチ、PRを放置しない。後続の阻害要因を解除できるかは別途判断する。`canceled` では作業権を解放し、Agent Runを空欄にする。`done` では最終実行の追跡用にAgent Runを残す。
 
-実行手順:
+# 再開と投入見送り
 
-1. 何が進行を止めているかを確認する。前段Issue待ち、未解決blocker、required CI失敗、review requested changes、権限不足、設計判断待ちを区別する。
-2. Project Statusをblockedへ更新する。StatusなどのProject field assignmentをcomment本文へ書かない。`blocked by` / `blocking` からStatusを自動同期するworkflowは作らない。
-3. blocked commentを使い、理由、解除できる人、依存Issue/PR/log、次の確認タイミングを書く。解除できる人はrepo内collaboratorならGitHub mention、project/repository外のGitHub accountならprofile URL、GitHub accountがない場合はSlack/Teams profile URLまたは氏名で特定し、外部依存は必ずURL付きにする。
-4. blockerが解消したら、作業中PRがあるものはin-reviewへ、未着手または作業再開前のものはreadyまたはin-progressへ戻す前提条件を再確認する。必要ならUnblocked / resume commentを使う。
+## 再開 / 中止の取り消し
 
-## done
+- done Issueをreopenしたら `triaged` に戻し、以前のActual Start / Actual Endを再開コメントへ記録して両fieldをclearし、元のdone条件、回帰、追加スコープを再評価する。以前の完了時刻はIssue/Projectイベントとコメント履歴でも追跡する。
+- canceled Issueを再採用したら `triaged` に戻し、理由が解消した証跡、依存、受け入れ条件、Effort、Agent Tierを再確認する。
+- どちらもAgent Runをclearし、直接 `ready` や `in-progress` へ戻さない。新しい実行IDで作業権を取得する。
 
-merge queue経由でmainへmergeされ、Issueがcloseした状態。
+## 投入見送り
 
-done条件:
-
-- PRがmainへmerge済み。
-- linked Issueがclosed。
-- Project Statusがdone。
-
-実行手順:
-
-1. PRがmainへmerge済みであることをPR state、merge commit、mergedAtで確認する。
-2. linked Issueがclosing keywordまたは手動処理でclosedになっていることを確認する。
-3. merge queueを使ったPRではmerge_group CIとrequired checksが通ったことを確認する。
-4. Project fieldのActual Endに実終了日を記録し、Statusをdoneへ更新する。merge日やIssue close日はGitHub metadataから読む。
-5. done commentを使い、merge、close、checks、follow-upを記録する。
-6. PR未merge、Issue open、merge日未確認のいずれかが残る場合はdoneにしない。
-
-## canceled
-
-やらない判断。理由をIssue commentまたは本文に残す。
-
-理由:
-
-- duplicated
-- obsolete
-- out of scope
-- invalid
-- replaced by another issue
-
-実行手順:
-
-1. なぜ実行しないかを確認する。duplicated、obsolete、out of scope、invalid、別Issueへ置換のいずれかに寄せる。
-2. canceled commentを使い、代替Issue、duplicate元、方針変更の根拠がある場合はcommentにリンクする。
-3. Project Statusをcanceledへ更新し、IssueまたはPRをcloseする場合はActual EndをProject fieldへ記録する。close日はGitHub metadataから読み、Project fieldへ複製しない。不要になったblocked by / blockingやsub-issue関係が残る場合は、混乱しないよう関係整理の要否を確認する。
-4. 実装中PRがある場合は、PR closeが必要か、代替Issueへ引き継ぐかを確認してからcanceledにする。
-
-# Lifecycle comment templates
-
-Project field metadata、具体モデル名、branch名はcomment本文へ書かない。必要なら「Project fieldに記録済み」とだけ書く。
-
-冒頭の絵文字付き一文で状態を示し、その後に必要なキーだけを書く。
-
-## inbox comment
-
-```markdown
-📥 流入内容を整理した。
-
-流入元: ... (URL)
-要約: ...
-影響: ...
-次に確認すること: ...
-```
-
-## triaged comment
-
-```markdown
-🔎 トリアージした。
-
-判断根拠:
-
-- ...
-
-未確定事項: なし / ...
-readyへ進めない理由: なし / ...
-```
-
-readyへ進められる場合は、ready commentを使う。未確定事項がない場合は `なし` と書く。
-
-## ready comment
-
-明白な場合は省略してよい。判断が揺れやすいIssue、重要Issue、blocker解消直後のIssueでは残す。
-
-```markdown
-🟢 ready状態になった。
-
-確認済み:
-
-- 受け入れ条件が判定可能
-- 非スコープが明確
-- 確認手順がある
-- 作業開始を止めるblockerがない
-
-補足: なし / ...
-```
-
-## in-progress comment
-
-```markdown
-🚧 作業中の補足。
-
-担当者、agent情報、branch、実作業開始日はProject fieldに記録済み。
-
-作業前確認:
-
-- blockerを再確認済み
-- linked branchを確認済み
-
-メモ: なし / ...
-```
-
-## in-review comment
-
-通常は書かない。PR本文に概要、関連Issue、スコープ、振る舞い、テストケース、確認手順、リスク、レビュー観点を書き、`Closes #...` / `Fixes #...` / `Resolves #...` による自動追跡に任せる。
-
-PR本文やGitHub metadataで分かる内容をcommentへ重複させない。reviewerへの一時的な補足、CIの特殊事情、外部判断待ち、通常と違う確認依頼がある場合だけ書く。
-
-```markdown
-👀 特筆事項があるため、in-review commentを残す。
-
-PR本文やGitHub metadataでは分からないこと: ...
-一時的な注意点: ...
-次に見るもの: PR checks / review thread / 外部URL
-```
-
-## blocked comment
-
-`解除できる人` はproject/repository内のGitHub collaboratorならGitHub mentionを書く。upstream maintainerなどproject/repository外のGitHub accountはmentionせず、GitHub profile URLまたは該当Issue/PR URLで書く。GitHub accountがない場合はSlack/TeamsのプロフィールURL、または氏名を書く。
-
-外部依存は必ずURL付きで書く。Issue/PR、CI run、log、Figma frame、Slack/Teams thread、外部trackerなど、後から同じ対象を開ける参照にする。
-
-```markdown
-⛔ ブロックに変更した。
-
-理由: ...
-解除できる人: @repo-collaborator / GitHub profile URL / Slack profile URL / Teams profile URL / 氏名
-依存: #... / 外部依存URL
-次の確認タイミング: ...
-```
-
-## Unblocked / resume comment
-
-```markdown
-🔓 ブロックが解消した。
-
-解消内容: ...
-戻す状態: ...
-再確認したこと: ...
-```
-
-## done comment
-
-```markdown
-✅ 完了確認。
-
-確認済み:
-
-- PRがmainへmerge済み
-- linked Issueがclose済み
-- required checksが通過済み
-- 実終了日はProject fieldに記録済み
-
-残follow-up: なし / #...
-```
-
-## canceled comment
-
-```markdown
-🛑 canceledにします。
-
-理由: duplicated / obsolete / out of scope / invalid / replaced
-根拠: ...
-代替または関連Issue: なし / #...
-```
-
-# Lifecycle comment examples
-
-## inbox
-
-```markdown
-📥 流入内容を整理した。
-
-流入元: 問い合わせフォームから、検索結果がなぜ一致したか分からないという報告があった。 (https://example.com/form/post/123)
-要約: 検索結果カードに動画全体の情報だけが出ており、一致したシーンの説明やセリフが見えない。
-影響: 検索結果を見ても、目的の場面かどうか判断しづらい。
-次に確認すること: 一致シーンの説明、タグ、セリフ抜粋をAPIから取得できるか確認する。
-```
-
-## triaged
-
-```markdown
-🔎 トリアージした。
-
-判断根拠:
-
-- 1つのカード表示改善として分離できる。
-- 検索rankingやプレイヤーの挙動は変更しなくてよい。
-
-未確定事項: 一致シーンの説明がない既存データのfallback表示を決める必要がある。
-readyへ進めない理由: fallback表示が未決定。
-```
-
-## ready
-
-```markdown
-🟢 ready状態になった。
-
-確認済み:
-
-- 受け入れ条件が判定可能
-- 非スコープが明確
-- 確認手順がある
-- 作業開始を止めるblockerがない
-
-補足: fallbackは「未取得」と表示する方針に決定済み。
-```
-
-## in-progress
-
-```markdown
-🚧 作業中の補足。
-
-作業中に悩んだこと、メモ、ログなどをタスクに合わせて必要に応じて残す。
-```
-
-## in-review
-
-```markdown
-👀 特筆事項がないため、in-review commentは省略する。
-
-基本的には書かない。PRやGitHub metadataで分かる内容をcommentへ重複させない。
-```
-
-## blocked
-
-```markdown
-⛔ ブロックに変更した。
-
-理由: fixtureに一致シーンの説明がないケースが不足しており、fallback表示確認ができない。
-解除できる人: @fixture-owner
-依存: fixture追加PR https://github.com/example/search-ui/pull/219
-次の確認タイミング: fixture追加PRのcheck完了後。
-```
-
-## Unblocked / resume
-
-```markdown
-🔓 ブロックが解消した。
-
-解消内容: fixtureに一致シーン説明なしのケースが追加された。
-戻す状態: review再開。
-再確認したこと: fallback表示の確認手順をPR本文に反映済み。
-```
-
-## blocked: upstream PR待ち
-
-```markdown
-⛔ ブロックに変更した。
-
-理由: 依存ライブラリの不具合修正がupstreamでreview中で、mergeされるまでこちらの実装を確定できない。
-解除できる人: upstream maintainer https://github.com/upstream-maintainer
-
-依存:
-
-- upstream修正PR: https://github.com/example/video-search-sdk/pull/482
-- Issue: https://github.com/example/video-search-ui/issues/123
-
-次の確認タイミング: upstream PRのreview更新後、または翌営業日。
-```
-
-## Unblocked / resume: upstream PR merge
-
-```markdown
-🔓 ブロックが解消した。
-
-解消内容: upstream修正PRがmergeされ、依存ライブラリ側の修正方針が確定した。
-戻す状態: 作業再開。
-再確認したこと:
-
-- こちらの実装方針がupstreamの修正内容と矛盾していない。
-- 依存バージョン更新の要否をPR本文の確認手順に反映済み。
-```
-
-## blocked: Figma確定待ち
-
-```markdown
-⛔ ブロックに変更した。
-
-理由: 検索結果カードの密度とfallback表示の見た目がFigma上で未確定のため、UI実装を確定できない。
-解除できる人: Figma owner: https://teams.microsoft.com/l/person/48:notes/00000000-0000-0000-0000-000000000000
-依存: Figma design: https://www.figma.com/design/AbCdEfGhIj/Search-Results?node-id=12-34
-次の確認タイミング: Figmaの該当frameが確定した後。
-```
-
-## Unblocked / resume: Figma確定
-
-```markdown
-🔓 ブロックが解消した。
-
-解消内容: Figma上で検索結果カードの密度、fallback表示、長い商品名の折り返し方針が確定した。
-戻す状態: 作業再開。
-再確認したこと:
-
-- Issue本文の受け入れ条件を確定デザインに合わせて更新済み。
-- 古い表示方針はdetailsに移して、現在の確認手順と混ざらないようにした。
-```
+- 作業権未取得のIssueは、Priority変更、容量不足、変更競合、依存変更、見積超過を理由に実行Waveから外してよい。Statusは条件を満たす限り `ready` のままにする。
+- 見送り理由、再評価条件、元のWave、次の候補Waveを記録し、同じ安定順序で再配置する。
+- 作業権取得済みIssueは投入見送りだけで所有権を失わない。agentが停止している場合は、引き継ぎ、解放、または証跡付き強制回収を完了してから再投入する。
+- 無効判定を経過時間だけで自動化しない。

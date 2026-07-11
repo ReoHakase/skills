@@ -173,6 +173,31 @@
     ]
   },
   {
+    "name": "Effort",
+    "type": "NUMBER"
+  },
+  {
+    "name": "Estimate Confidence",
+    "type": "SINGLE_SELECT",
+    "options": [
+      {
+        "name": "ec0-low",
+        "color": "RED",
+        "description": "未知要素が多く、再見積りの可能性が高い。"
+      },
+      {
+        "name": "ec1-medium",
+        "color": "YELLOW",
+        "description": "作業境界は明確だが、一部に未知要素がある。"
+      },
+      {
+        "name": "ec2-high",
+        "color": "GREEN",
+        "description": "類似実績、変更範囲、確認手順が揃っている。"
+      }
+    ]
+  },
+  {
     "name": "Complexity",
     "type": "SINGLE_SELECT",
     "options": [
@@ -278,6 +303,10 @@
   },
   {
     "name": "Agent Model",
+    "type": "TEXT"
+  },
+  {
+    "name": "Agent Run",
     "type": "TEXT"
   },
   {

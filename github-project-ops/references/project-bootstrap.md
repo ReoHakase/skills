@@ -171,12 +171,17 @@ Issue本文にはProject項目の割り当て、sub-issue一覧、依存関係se
 - Milestone titleの重複を作らない。
 - Issueが参照するMilestone titleは `MILESTONES` 内に置く。
 - epic IssueのStatusを `ready` にしない。
-- `blocked_by` がある初期WBS Issueを `ready` にしない。
+- 未解決の `blocked_by` がある初期WBS Issueを `ready` にしない。blockerが型別done済みならreadyを許可する。
+- 再利用するdone blockerは、既存IssueがclosedでProject Statusもdoneであることをread-onlyの事前確認で照合する。PR merge、spikeの結論、外部操作の証跡など、成果種別固有のdone条件も人間またはagentが確認する。
+- 依存関係とsub-issue階層の自己参照、重複、循環を作らない。canceled blockerを完了扱いにしない。
+- epicのEffort、Estimate Confidence、Agent Tierは空欄にする。その他の実行対象Issueには正の有限Effort、Estimate Confidence、判定式どおりのAgent Tierを設定する。
+- 初期Agent Runは空欄にする。`r3-dangerous` にはReviewer Ownerを設定する。
 - Issue本文には `変更ファイル` と `参照ドキュメント` を含める。参照commitはbranch名ではなく実SHAにする。
 - Forecast Start / Forecast EndはISO日付にする。
+- Forecast Start / Forecast Endは `WORKING_WEEKDAYS` と `HOLIDAYS` で定義した稼働日に置く。
 - 直列依存では、後続IssueのForecast Startをすべての `blocked_by` 先のForecast Endより後の日付にする。
 
-これは初期WBS投入前の局所検証であり、運用中のProject Statusを `blocked by` / `blocking` から自動同期するためのルールではない。upstream PR、Figma design、権限、CI障害、設計判断待ちなどでblockedになるIssueもあるため、Status更新はGitHub上の関係とblocked commentを確認して行う。
+これは初期WBS投入前の局所検証であり、運用中のProject Statusを `blocked by` / `blocking` から自動同期するためのルールではない。upstream PR、Figma design、権限、担当外のCI基盤障害、設計判断待ちなどでblockedになるIssueもあるため、Status更新はGitHub上の関係とblockedコメントを確認して行う。
 
 ```bash
 gh issue create \

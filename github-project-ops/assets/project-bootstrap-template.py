@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import subprocess
 import sys
 from collections.abc import Callable, Sequence
@@ -26,6 +27,8 @@ OWNER = "@me"
 REPO = "OWNER/REPO"
 PROJECT_NUMBER = "1"
 PROJECT_ID = "PVT_REPLACE_ME"
+WORKING_WEEKDAYS = {0, 1, 2, 3, 4}  # 月曜日=0
+HOLIDAYS: set[str] = set()
 # テンプレートだけを一時パスへコピーする場合は、project-fields.jsonも同じディレクトリへ置くか、
 # この値を絶対パスへ置き換える。
 PROJECT_FIELDS_PATH = Path(__file__).resolve().with_name("project-fields.json")
@@ -34,9 +37,11 @@ PROJECT_FIELDS_PATH = Path(__file__).resolve().with_name("project-fields.json")
 OPTION_COLORS = ["GRAY", "BLUE", "GREEN", "YELLOW", "ORANGE", "RED", "PINK", "PURPLE"]
 VALID_OPTION_COLORS = set(OPTION_COLORS)
 OptionSpec = str | dict[str, str]
-FieldKind = Literal["single", "text", "date"]
+FieldKind = Literal["single", "text", "date", "number"]
+FieldValue = str | float
 
 PLACEHOLDER_VALUES = {"OWNER/REPO", "PVT_REPLACE_ME"}
+ESTIMATE_CONFIDENCE_OPTIONS = {"ec0-low", "ec1-medium", "ec2-high"}
 EXPECTED_DUPLICATE_MARKERS = {
     "sub-issue": (
         "already a sub-issue",
@@ -76,6 +81,9 @@ class Issue:
     status: str
     forecast_start: str
     forecast_end: str
+    effort: float | None = None
+    estimate_confidence: str = ""
+    agent_run: str = ""
     source: str = "docs"
     reviewer_owner: str = ""
     milestone: str = ""
@@ -108,10 +116,10 @@ ISSUES: list[Issue] = [
         size="s0-tiny",
         complexity="c1-simple",
         risk="r1-safe",
-        agent_tier="agent-standard",
+        agent_tier="",
         status="triaged",
-        forecast_start="2026-06-20",
-        forecast_end="2026-06-27",
+        forecast_start="2026-06-22",
+        forecast_end="2026-06-30",
         milestone="First Release",
     ),
     Issue(
@@ -125,8 +133,10 @@ ISSUES: list[Issue] = [
         risk="r1-safe",
         agent_tier="agent-standard",
         status="ready",
-        forecast_start="2026-06-20",
-        forecast_end="2026-06-23",
+        forecast_start="2026-06-22",
+        forecast_end="2026-06-24",
+        effort=3.0,
+        estimate_confidence="ec1-medium",
         milestone="First Release",
         parent="親Issueの例",
     ),
@@ -141,8 +151,10 @@ ISSUES: list[Issue] = [
         risk="r1-safe",
         agent_tier="agent-standard",
         status="blocked",
-        forecast_start="2026-06-24",
-        forecast_end="2026-06-27",
+        forecast_start="2026-06-25",
+        forecast_end="2026-06-29",
+        effort=2.0,
+        estimate_confidence="ec2-high",
         milestone="First Release",
         parent="親Issueの例",
         blocked_by=["子Issueの例"],
@@ -470,6 +482,10 @@ def validate_configuration() -> None:
         raise SystemExit(f"PROJECT_NUMBERは数字で指定してください: {PROJECT_NUMBER}")
     if not OWNER.strip():
         raise SystemExit("OWNERをProject owner loginまたは@meで指定してください")
+    if not WORKING_WEEKDAYS or not WORKING_WEEKDAYS <= set(range(7)):
+        raise SystemExit(f"WORKING_WEEKDAYSは0..6の非空集合にしてください: {WORKING_WEEKDAYS}")
+    for holiday in HOLIDAYS:
+        parse_iso_date("HOLIDAYS", holiday)
 
 
 def discover_target() -> dict[str, Any]:
@@ -581,6 +597,40 @@ def hydrate_explicit_issues(issues: dict[str, Issue], existing: list[dict[str, A
         issue.node_id = match["id"]
 
 
+def validate_reused_done_blockers(
+    issues: dict[str, Issue],
+    existing: list[dict[str, Any]],
+    project_items: dict[str, Any],
+) -> None:
+    existing_by_number = {int(item["number"]): item for item in existing}
+    items_by_url = project_item_records_by_url(project_items)
+    for issue in issues.values():
+        if issue.status != "ready":
+            continue
+        for blocker_title in issue.blocked_by:
+            blocker = issues[blocker_title]
+            if blocker.status != "done":
+                continue
+            if blocker.number is None:
+                raise SystemExit(
+                    f"done blockerは確認済みの既存Issue numberを指定してください: {blocker.title}"
+                )
+            existing_issue = existing_by_number.get(blocker.number)
+            if not existing_issue:
+                raise SystemExit(
+                    f"done blockerの既存Issueが見つかりません: {blocker.title} #{blocker.number}"
+                )
+            project_item = items_by_url.get(existing_issue["url"])
+            if (
+                str(existing_issue.get("state", "")).upper() != "CLOSED"
+                or str((project_item or {}).get("status", "")).lower() != "done"
+            ):
+                raise SystemExit(
+                    "done blockerのIssue closeとProject Statusを確認できません: "
+                    f"{blocker.title} #{blocker.number}"
+                )
+
+
 def index_issues(issue_specs: list[Issue]) -> dict[str, Issue]:
     issues: dict[str, Issue] = {}
     duplicates: list[str] = []
@@ -618,12 +668,21 @@ def forecast_range(issue: Issue) -> tuple[date, date]:
         raise SystemExit(f"Forecast Start / Forecast Endが未設定です: {issue.title}")
     start = parse_forecast_date(issue, "Forecast Start", issue.forecast_start)
     end = parse_forecast_date(issue, "Forecast End", issue.forecast_end)
+    ensure_working_date(issue, "Forecast Start", start)
+    ensure_working_date(issue, "Forecast End", end)
     if start > end:
         raise SystemExit(
             f"Forecast StartがForecast Endより後です: "
             f"{issue.title} ({issue.forecast_start} > {issue.forecast_end})"
         )
     return start, end
+
+
+def ensure_working_date(issue: Issue, field_name: str, value: date) -> None:
+    if value.weekday() not in WORKING_WEEKDAYS or value.isoformat() in HOLIDAYS:
+        raise SystemExit(
+            f"{issue.title} の {field_name} は稼働日にしてください: {value.isoformat()}"
+        )
 
 
 def prompt_required_milestone_due_on(
@@ -679,11 +738,32 @@ def ensure_issue_plan(
     if missing_refs:
         raise SystemExit(f"Issue relationの参照先が見つかりません: {missing_refs}")
 
+    validate_issue_graph(issues)
+    validate_issue_estimates(issues)
+
     for issue in issues.values():
         if issue.type == "epic" and issue.status == "ready":
             raise SystemExit(f"epic Issueはreadyにしません: {issue.title}")
-        if issue.blocked_by and issue.status == "ready":
-            raise SystemExit(f"blocked_byがある初期WBS Issueはreadyにしません: {issue.title}")
+        unresolved_blockers = [
+            blocker_title
+            for blocker_title in issue.blocked_by
+            if issues[blocker_title].status != "done"
+        ]
+        if unresolved_blockers and issue.status == "ready":
+            raise SystemExit(
+                "未解決のblocked_byがある初期WBS Issueはreadyにしません: "
+                f"{issue.title} {unresolved_blockers}"
+            )
+        canceled_blockers = [
+            blocker_title
+            for blocker_title in issue.blocked_by
+            if issues[blocker_title].status == "canceled"
+        ]
+        if canceled_blockers:
+            raise SystemExit(
+                "canceled blockerは完了扱いにしません。依存を置換、解除、または下流を"
+                f"canceledにして再トリアージしてください: {issue.title} {canceled_blockers}"
+            )
 
     forecasts = {issue.title: forecast_range(issue) for issue in issues.values()}
     for issue in issues.values():
@@ -696,6 +776,118 @@ def ensure_issue_plan(
                     f"{issue.title} starts {issue.forecast_start}, "
                     f"but blocker {blocker_title} ends {issues[blocker_title].forecast_end}"
                 )
+
+
+def find_cycle(graph: dict[str, list[str]]) -> list[str] | None:
+    """有向グラフの最初の循環を、始点を末尾にも含む経路として返す。"""
+
+    state: dict[str, Literal["visiting", "visited"]] = {}
+    path: list[str] = []
+
+    def visit(node: str) -> list[str] | None:
+        state[node] = "visiting"
+        path.append(node)
+        for adjacent in graph[node]:
+            if state.get(adjacent) == "visiting":
+                cycle_start = path.index(adjacent)
+                return [*path[cycle_start:], adjacent]
+            if state.get(adjacent) != "visited":
+                cycle = visit(adjacent)
+                if cycle:
+                    return cycle
+        path.pop()
+        state[node] = "visited"
+        return None
+
+    for node in graph:
+        if node not in state:
+            cycle = visit(node)
+            if cycle:
+                return cycle
+    return None
+
+
+def validate_issue_graph(issues: dict[str, Issue]) -> None:
+    """parentとblocked_byの局所不整合および循環を副作用なしで検証する。"""
+
+    parent_graph: dict[str, list[str]] = {}
+    dependency_graph: dict[str, list[str]] = {}
+    for issue in issues.values():
+        if issue.parent == issue.title:
+            raise SystemExit(f"parentの自己参照は許可しません: {issue.title}")
+        if issue.title in issue.blocked_by:
+            raise SystemExit(f"blocked_byの自己参照は許可しません: {issue.title}")
+        if len(issue.blocked_by) != len(set(issue.blocked_by)):
+            raise SystemExit(f"blocked_byが重複しています: {issue.title} {issue.blocked_by}")
+        parent_graph[issue.title] = [issue.parent] if issue.parent else []
+        dependency_graph[issue.title] = list(issue.blocked_by)
+
+    parent_cycle = find_cycle(parent_graph)
+    if parent_cycle:
+        raise SystemExit(f"parentの循環を検出しました: {' -> '.join(parent_cycle)}")
+    dependency_cycle = find_cycle(dependency_graph)
+    if dependency_cycle:
+        raise SystemExit(f"blocked_byの循環を検出しました: {' -> '.join(dependency_cycle)}")
+
+
+def positive_effort(value: object, *, issue_title: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise SystemExit(f"Effortは正の有限数で指定してください: {issue_title} ({value!r})")
+    normalized = float(value)
+    if not math.isfinite(normalized) or normalized <= 0:
+        raise SystemExit(f"Effortは正の有限数で指定してください: {issue_title} ({value!r})")
+    return normalized
+
+
+def validate_issue_estimates(issues: dict[str, Issue]) -> None:
+    for issue in issues.values():
+        if issue.agent_run:
+            raise SystemExit(f"初期Agent Runは空欄にしてください: {issue.title}")
+        if issue.type == "epic":
+            if issue.effort is not None or issue.estimate_confidence or issue.agent_tier:
+                raise SystemExit(
+                    "epicのEffort、Estimate Confidence、Agent Tierは空欄にしてください: "
+                    f"{issue.title}"
+                )
+            continue
+        if issue.effort is None:
+            raise SystemExit(f"非epic IssueのEffortは必須です: {issue.title}")
+        positive_effort(issue.effort, issue_title=issue.title)
+        if issue.estimate_confidence not in ESTIMATE_CONFIDENCE_OPTIONS:
+            raise SystemExit(
+                "非epic IssueのEstimate Confidenceは必須です: "
+                f"{issue.title} ({issue.estimate_confidence!r})"
+            )
+        validate_agent_tier(issue)
+
+
+def option_number(value: str, prefix: str, *, issue_title: str) -> int:
+    if len(value) < 2 or value[0] != prefix or not value[1].isdigit():
+        raise SystemExit(f"Project option形式が不正です: {issue_title} ({value})")
+    return int(value[1])
+
+
+def expected_agent_tier(issue: Issue) -> str:
+    size = option_number(issue.size, "s", issue_title=issue.title)
+    complexity = option_number(issue.complexity, "c", issue_title=issue.title)
+    risk = option_number(issue.risk, "r", issue_title=issue.title)
+    if size == 3 or max(complexity, risk) == 3:
+        return "agent-frontier"
+    if size == 2 or max(complexity, risk) == 2:
+        return "agent-standard"
+    return "agent-fast"
+
+
+def validate_agent_tier(issue: Issue) -> None:
+    expected = expected_agent_tier(issue)
+    if issue.agent_tier != expected:
+        raise SystemExit(
+            f"Agent Tierが判定式と一致しません: {issue.title} ({issue.agent_tier} != {expected})"
+        )
+    if issue.size == "s3-large" and issue.status == "ready":
+        raise SystemExit(f"s3-largeは分割または例外承認前にreadyにしません: {issue.title}")
+    if issue.risk == "r3-dangerous" and not issue.reviewer_owner:
+        raise SystemExit(f"r3-dangerousはReviewer Owner必須です: {issue.title}")
 
 
 def list_milestones() -> dict[str, dict[str, Any]]:
@@ -824,15 +1016,36 @@ def link_issue_relations(issues: dict[str, Issue]) -> None:
 
 
 def project_items_by_url(data: dict[str, Any]) -> dict[str, str]:
+    return {url: item["id"] for url, item in project_item_records_by_url(data).items()}
+
+
+def project_item_records_by_url(data: dict[str, Any]) -> dict[str, dict[str, Any]]:
     items = data.get("items", [])
     total_count = data.get("totalCount")
     if not isinstance(total_count, int) or total_count > len(items):
         raise SystemExit(f"Project item一覧を全件取得できません: {len(items)} / {total_count}")
     return {
-        item["content"]["url"]: item["id"]
+        item["content"]["url"]: item
         for item in items
         if item.get("content") and item["content"].get("url")
     }
+
+
+def list_project_items() -> dict[str, Any]:
+    return gh_json(
+        [
+            "gh",
+            "project",
+            "item-list",
+            PROJECT_NUMBER,
+            "--owner",
+            OWNER,
+            "--format",
+            "json",
+            "--limit",
+            "1000",
+        ]
+    )
 
 
 def add_project_items(issues: dict[str, Issue]) -> None:
@@ -850,20 +1063,7 @@ def add_project_items(issues: dict[str, Issue]) -> None:
             issue.item_id = item["id"]
 
     if any(issue.item_id is None for issue in issues.values()):
-        data = gh_json(
-            [
-                "gh",
-                "project",
-                "item-list",
-                PROJECT_NUMBER,
-                "--owner",
-                OWNER,
-                "--format",
-                "json",
-                "--limit",
-                "1000",
-            ]
-        )
+        data = list_project_items()
         by_url = project_items_by_url(data)
         for issue in issues.values():
             issue.item_id = issue.item_id or by_url.get(issue.url or "")
@@ -884,32 +1084,47 @@ def field_lookup(
     return field_ids, option_ids
 
 
-def field_values(issue: Issue) -> list[tuple[str, FieldKind, str]]:
+def field_values(issue: Issue) -> list[tuple[str, FieldKind, FieldValue | None]]:
     return [
         ("Status", "single", issue.status),
         ("Type", "single", issue.type),
         ("Priority", "single", issue.priority),
         ("Size", "single", issue.size),
+        ("Effort", "number", issue.effort),
+        ("Estimate Confidence", "single", issue.estimate_confidence),
         ("Complexity", "single", issue.complexity),
         ("Risk", "single", issue.risk),
         ("Agent Tier", "single", issue.agent_tier),
         ("Source", "single", issue.source),
         ("Scope", "text", issue.scope),
         ("Reviewer Owner", "text", issue.reviewer_owner),
+        ("Agent Run", "text", issue.agent_run),
         ("Forecast Start", "date", issue.forecast_start),
         ("Forecast End", "date", issue.forecast_end),
     ]
 
 
 def value_literal(
-    kind: FieldKind, value: str, field_name: str, option_ids: dict[tuple[str, str], str]
+    kind: FieldKind,
+    value: FieldValue,
+    field_name: str,
+    option_ids: dict[tuple[str, str], str],
 ) -> str:
     if kind == "single":
+        if not isinstance(value, str):
+            raise ValueError(f"single-select値は文字列で指定してください: {field_name}")
         return f"{{singleSelectOptionId:{gql_string(option_ids[(field_name, value)])}}}"
     if kind == "text":
+        if not isinstance(value, str):
+            raise ValueError(f"text値は文字列で指定してください: {field_name}")
         return f"{{text:{gql_string(value)}}}"
     if kind == "date":
+        if not isinstance(value, str):
+            raise ValueError(f"date値は文字列で指定してください: {field_name}")
         return f"{{date:{gql_string(value)}}}"
+    if kind == "number":
+        normalized = positive_effort(value, issue_title=field_name)
+        return f"{{number:{json.dumps(normalized, allow_nan=False)}}}"
     raise ValueError(kind)
 
 
@@ -918,7 +1133,7 @@ def set_project_fields(issues: dict[str, Issue], fields: dict[str, dict[str, Any
     for issue in issues.values():
         mutations = []
         for idx, (field_name, kind, value) in enumerate(field_values(issue)):
-            if not value:
+            if value is None or value == "":
                 continue
             mutations.append(
                 f"m{idx}:updateProjectV2ItemFieldValue(input:{{"
@@ -1102,20 +1317,7 @@ def verify_bootstrap(context: dict[str, Any]) -> dict[str, Any]:
                 f"blockedBy mismatch: #{issue.number} {actual_blockers} != {expected_blockers}"
             )
 
-    items = gh_json(
-        [
-            "gh",
-            "project",
-            "item-list",
-            PROJECT_NUMBER,
-            "--owner",
-            OWNER,
-            "--format",
-            "json",
-            "--limit",
-            "1000",
-        ]
-    )
+    items = list_project_items()
     item_urls = set(project_items_by_url(items))
     missing_items = [issue.url for issue in issues.values() if issue.url not in item_urls]
     errors = milestone_errors + issue_errors + relation_errors
@@ -1145,12 +1347,15 @@ def prepare_bootstrap() -> dict[str, Any]:
     existing_issues = list_issues()
     validate_issue_reuse(issues, existing_issues)
     hydrate_explicit_issues(issues, existing_issues)
+    project_items = list_project_items()
+    validate_reused_done_blockers(issues, existing_issues, project_items)
     return {
         "issues": issues,
         "milestones": milestones,
         "project_fields": project_fields,
         "current_fields": list_project_fields(),
         "existing_issues": existing_issues,
+        "project_items": project_items,
         "target": target,
     }
 

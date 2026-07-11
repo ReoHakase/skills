@@ -1,13 +1,27 @@
-# PR and merge
+# PRとマージ
 
-PR本文、in-review判断、merge commit、merge queue、auto-mergeを扱うときに読む。
+PR本文、`in-review` 判断、マージコミット、マージキュー、自動マージを扱うときに読む。
+
+# PR状態とIssue Status
+
+| PRの状態                                             | Issue Status  | 操作                                                   |
+| ---------------------------------------------------- | ------------- | ------------------------------------------------------ |
+| Draft PR                                             | `in-progress` | 実装、自己確認、PR本文の更新を続ける                   |
+| レビュー可能状態で通常のレビューまたはCI待ち         | `in-review`   | レビュアーと最新コミットSHAの検査を監視する            |
+| 対応が必要な変更要求                                 | `in-progress` | 指摘へ対応し、再確認後にレビュー可能状態へ戻す         |
+| 修正可能なCI失敗またはマージ競合                     | `in-progress` | 修正または競合解消を行う                               |
+| 当該担当では解除できない外部判断、権限、上流障害待ち | `blocked`     | 阻害要因、解除者、依存URL、再確認条件をIssueへ記録する |
+| マージ済み                                           | `done`候補    | Issue Type別の完了条件を確認してから `done` にする     |
+
+PRを作成しただけでは `in-review` にしない。Draft解除とレビュー依頼を境界にする。通常の待ち時間を `blocked` として扱わない。
 
 # 目次
 
+- PR状態とIssue Status
 - PR本文運用
 - PR本文テンプレート
 - PR本文例
-- in-review comment方針
+- `in-review` コメント方針
 - Merge policy
 - gh CLI / MCP操作
 
@@ -187,7 +201,7 @@ Closes #123
 
 通常はcommentを書かない。PR本文に概要、関連Issue、スコープ、振る舞い、テストケース、確認手順、リスク、レビュー観点を書き、`Closes #...` / `Fixes #...` / `Resolves #...` による自動追跡に任せる。
 
-PR本文やGitHub metadataで分かる内容をcommentへ重複させない。reviewerへの一時的な補足、CIの特殊事情、外部判断待ち、通常と違う確認依頼がある場合だけ、`issue-lifecycle.md` のin-review commentを使う。
+PR本文やGitHubメタデータで分かる内容をコメントへ重複させない。レビュアーへの一時的な補足、CIの特殊事情、外部判断待ち、通常と違う確認依頼がある場合だけ、`lifecycle-comments.md` のレビュー中コメントを使う。
 
 # Merge policy
 

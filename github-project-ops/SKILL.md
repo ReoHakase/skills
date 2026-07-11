@@ -32,16 +32,17 @@ Project field JSONは `assets/project-fields.json` を正本にし、一括作�
 
 必要なreferenceだけを読む。
 
-| Task                                                                                                 | Read                                  |
-| ---------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| Project fields、Milestone、期限変更、Forecast運用、no-label、date fields、views、copyable assets     | `references/project-setup.md`         |
-| Project作成、Milestone作成、bulk WBS setup、Project item field一括設定、GraphQL fallback、template   | `references/project-bootstrap.md`     |
-| WBS分解、Issue粒度、Issue本文テンプレート、epic/feature/bug起票、sub-issue、dependency、直列Forecast | `references/issue-authoring.md`       |
-| Status遷移、epic status、ready/blocked判断、lifecycle comment template、状態別例                     | `references/issue-lifecycle.md`       |
-| Priority / Size / Complexity / Risk / Agent Tier判定                                                 | `references/triage-and-agent-tier.md` |
-| PR本文テンプレート、振る舞い、テストケース、in-review comment方針、マージキュー、自動マージ          | `references/pr-and-merge.md`          |
-| Project/Milestone解除、Project item削除、repo側copyable assets削除、破壊的削除の確認                 | `references/uninstall.md`             |
-| skill本文、references、assetsの経験的検証                                                            | `references/empirical-validation.md`  |
+| Task                                                                                               | Read                                  |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Project fields、Effort、容量/WIP、Milestone、Forecast、date fields、views、copyable assets         | `references/project-setup.md`         |
+| Project作成、Milestone作成、bulk WBS setup、Project item field一括設定、GraphQL fallback、template | `references/project-bootstrap.md`     |
+| WBS分解、Issue粒度、Issue本文、sub-issue、依存DAG、変更競合グラフ                                  | `references/issue-authoring.md`       |
+| Status遷移、作業権取得、実行Wave N、epic状態集約、型別完了、`ready` / `blocked` 判断               | `references/issue-lifecycle.md`       |
+| ライフサイクルコメントを書き込むときだけ                                                           | `references/lifecycle-comments.md`    |
+| Priority / Size / Complexity / Risk / Effort / Confidence / Agent Tier / 再トリアージ              | `references/triage-and-agent-tier.md` |
+| PR本文テンプレート、振る舞い、テストケース、in-reviewコメント方針、マージキュー、自動マージ        | `references/pr-and-merge.md`          |
+| Project/Milestone解除、Project item削除、repo側copyable assets削除、破壊的削除の確認               | `references/uninstall.md`             |
+| skill本文、references、assetsの経験的検証                                                          | `references/empirical-validation.md`  |
 
 # 変更前に発見する値
 
@@ -55,8 +56,9 @@ Issue、PR、Project itemを変更する前に、GitHub上の実状態を読む�
 - Milestone title / number / due date
 - Issue number、PR number、Issue/PR URL
 - parent / sub-issue / blocked by / blocking
-- Status、Type、Scope、Priority、Size、Complexity、Risk、Agent Tier
-- Assignee、Reviewer Owner、Agent Harness、Agent Model、Branch
+- Status、Type、Scope、Priority、Size、Effort、Estimate Confidence、Complexity、Risk、Agent Tier
+- Assignee、Reviewer Owner、Agent Harness、Agent Model、Agent Run、Branch
+- 稼働カレンダー、実装/レビュー/重いCI・共有環境/マージ待ちのWIP上限と予備日
 
 不明な値は `<PROJECT_NUMBER>` のようなplaceholderとして明示し、実行前にGitHub MCP、`gh issue view`、`gh pr view`、`gh project item-list`、`gh api` のいずれかで確認する。Issue本文やPR本文の具体化に必要な受け入れ条件、非スコープ、確認手順が足りない場合は、推測で確定せず、draftとして分けるか追加確認する。
 
@@ -82,6 +84,45 @@ GitHub MCPは対話的な確認、探索、状況整理、自然言語での操�
 - 自動マージ投入
 
 gh CLIの高水準コマンドで足りない場合だけ、`gh api` または `gh api graphql` を使う。生のcurl POSTは使わない。
+
+# エージェント運用フロー
+
+```mermaid
+flowchart TD
+    docsMd[["docs/*.md"]]
+
+    subgraph agentStates["Agent状態"]
+        projectBootstrap["Project初期化中"]
+        issuePlanning["Issue設計中"]
+        readyOrdering["Ready順整理中"]
+        parallelImplementation["並列実装中"]
+        pullRequestDrafting["PR作成中"]
+        reviewHandling["Review対応中"]
+        projectSync["Project反映中"]
+        milestoneReview["Milestone確認中"]
+    end
+
+    projectBootstrap -->|"初期Issue群を作る"| issuePlanning
+    issuePlanning -->|"sub-issue・blocked by・Forecastを整える"| readyOrdering
+    readyOrdering -->|"依存DAG・WIP上限・作業権を確認"| parallelImplementation
+    parallelImplementation -->|"1 Issue = 1 branch = 1 PR"| pullRequestDrafting
+    pullRequestDrafting -->|"ReviewとCIへ出す"| reviewHandling
+    reviewHandling -->|"merge・blocked・requested changesを確認"| projectSync
+    projectSync -->|"Issue・Project・Forecastを更新"| issuePlanning
+    projectSync -->|"Milestone条件を満たす"| milestoneReview
+
+    docsMd -->|"仕様・設計の入力"| issuePlanning
+    issuePlanning -->|"不足仕様を追加"| docsMd
+    parallelImplementation -->|"実装で判明した差分を変更"| docsMd
+    reviewHandling -->|"Review指摘を変更"| docsMd
+    projectSync -->|"運用決定を追加・変更"| docsMd
+```
+
+初回一括作成は導入時だけに使う。既存Projectの運用ではIssue設計中から始める。運用中の変更は一括作成ひな形の再実行で吸収せず、GitHub上の実状態を読んでIssue、Project、Milestoneを個別に更新する。
+
+`docs/*.md` は固定の前提ではなく、Issue設計中、並列実装中、Review対応中、Project反映中に追加・変更する対象である。
+
+プロジェクト項目更新では状態、Effort、Estimate Confidence、予定開始日、予定終了日、実開始日、実終了日、ブランチ、エージェント実行環境、モデル、Agent Run、レビュー責任者を扱う。これらの管理情報を課題本文やプルリクエスト本文へ複製しない。
 
 # Issue / PR invariants
 
@@ -113,11 +154,11 @@ Issue titleとブランチ名を一致させる必要はない。
 
 # Project metadata policy
 
-このskillではGitHub labelを使わない。Type、Source、Status、Priority、Size、Complexity、Risk、Agent TierはProject fieldをSSoTにする。
+このskillではGitHub labelを使わない。Type、Source、Status、Priority、Size、Effort、Estimate Confidence、Complexity、Risk、Agent TierはProject fieldをSSoTにする。
 
-Project fieldにあるmetadataはIssue本文、PR本文、作業開始コメントへ書かない。sub-issue、blocked by / blockingもGitHub metadataをSSoTにし、Issue本文にsub-issue一覧や依存関係sectionとして重複させない。Issue本文には検証可能な最新情報だけを書く。変更予定、注意点、未確定メモのような一時情報はコメントへ残す。
+Project fieldにあるメタデータはIssue本文、PR本文へ書かない。sub-issue、blocked by / blockingもGitHubメタデータをSSoTにし、Issue本文にsub-issue一覧や依存関係sectionとして重複させない。Issue本文には検証可能な最新情報だけを書く。作業権取得コメントだけは競合解決と監査のため、外部情報を含まない実行IDをProject fieldと重複してよい。非公開タスクURLは書かない。
 
-Issue時点では具体的なモデル名まで確定させない。backlog/triaged/readyではAgent Tierだけでよい。作業開始時にAgent HarnessとAgent ModelをProject fieldへ記録する。
+Issue時点では具体的なモデル名まで確定させず、Agent Tierを設定する。作業権取得成功時にAgent Harness、Agent Model、Agent RunをProject fieldへ記録する。
 
 # Milestone policy
 
@@ -143,37 +184,61 @@ TypeはConventional Commitsのtype集合に `epic` と `spike` を足す。
 - `revert`: 既存変更のrevert。
 - `spike`: 実装前調査、設計検証、技術検証。成果物と次Issueを作る。
 
-# Issue lifecycle
+# Issueのライフサイクル
 
 `ready` は「仕様が確定している」ではなく「今すぐ作業開始できる」という意味で使う。未解決の `blocked by` が作業開始を止めるIssueは `ready` にしない。
 
 `blocking` は「このIssueが後続Issueの前提である」という関係であり、`ready` と両立する。`blocked by` は「このIssueが前段Issueを待っている」というIssue間関係であり、未解決なら `blocked` にする。
 
-Statusは `blocked by` / `blocking` から自動同期しない。`blocked` にはupstream PR、Figma design、権限、CI障害、設計判断待ちなど、GitHub Issue dependencyでは表せない阻害要因も含む。Issue dependencyは構造化されたIssue間依存、Statusはかんばん上の運用状態として扱う。
+Statusは `blocked by` / `blocking` から自動同期しない。`blocked` にはupstream PR、Figma design、権限、担当外のCI基盤障害、設計判断待ちなど、GitHub Issue間の依存関係では表せない阻害要因も含む。Issue間の依存関係は構造、Statusはかんばん上の運用状態として扱う。
 
 epic issueは原則ブランチを持たないため、`ready` にしない。epicのStatusは子Issue群の進行状態を要約するroll-upとして扱う。
 
 標準Status:
 
-```text
-inbox -> triaged -> ready -> in-progress -> in-review -> done
-          triaged -> blocked -> ready
-                     ready -> blocked -> ready
-                        in-progress -> blocked -> in-progress
-                        in-review -> blocked -> in-review
-inbox/triaged/ready/in-progress/in-review -> canceled
+```mermaid
+stateDiagram-v2
+    state "in-progress" as InProgress
+    state "in-review" as InReview
+
+    [*] --> inbox
+    inbox --> triaged: triage
+    triaged --> ready: 作業開始条件が揃う
+    triaged --> blocked: 前段Issue・外部依存待ち
+    ready --> InProgress: 作業開始
+    ready --> blocked: blocker判明
+    InProgress --> InReview: PRをレビュー可能にする
+    InProgress --> done: PRなし成果の完了確認
+    InProgress --> blocked: 外部依存・権限・基盤障害
+    InReview --> done: merge queue経由でmainへmerge
+    InReview --> InProgress: requested changes・修正可能なCI失敗
+    InReview --> blocked: 外部判断・CI基盤障害
+
+    blocked --> ready: 未着手blocker解消
+    blocked --> InProgress: 作業再開
+    blocked --> InReview: PR review再開
+
+    inbox --> canceled: 起票不要
+    triaged --> canceled: やらない判断
+    ready --> canceled: 方針変更
+    InProgress --> canceled: 実装中止
+    InReview --> canceled: PR close
+    done --> [*]
+    canceled --> [*]
 ```
 
 `needs-info` と `ready-to-merge` は使わない。更新負荷が高く、agent運用で状態が細かくなりすぎるため。
 
 作業開始時の必須操作:
 
-1. `blocked by` を確認する。未解決の阻害要因がある場合は作業を開始せず、Statusをblockedにする。
-2. Issueをin-progressにする。
-3. Assigneeを必ず設定する。
-4. agent自律作業でも、開発環境の持ち主またはレビュー責任者の人間をAssigneeにする。
-5. Agent Tier、Agent Harness、Agent ModelをProject fieldへ記録する。
-6. linked branchを作る。
+1. `blocked by`、外部blocker、open PR、Branch、Agent Run、Assigneeを再取得する。
+2. 実装WIPと下流のreview/CI/merge WIPに空きがあることを確認する。
+3. 作業権取得コメントを作り、GitHub server timestampで最古の有効コメントだけを勝者にする。
+4. 勝者だけがAgent Run、Agent Harness、Agent Model、Assigneeを設定し、再取得して実行IDを確認する。
+5. Issueをin-progressにしてActual Startを設定する。
+6. 実行ID確認後、リポジトリ差分を作るIssueだけlinked branchと独立worktreeを作る。
+
+作業権取得、引き継ぎ、無効判定、実行Wave N、型別完了の詳細は `references/issue-lifecycle.md` を読む。コメントを書き込む時だけ `references/lifecycle-comments.md` を追加で読む。
 
 # Merge policy
 

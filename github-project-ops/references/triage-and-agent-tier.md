@@ -65,7 +65,7 @@ Sizeは変更量・レビュー量・PRの大きさ。難しさではない。
 
 ## s0-tiny
 
-極小。数分〜30分程度。差分は小さく、レビューも即時。
+極小。差分とレビュー観点が少ない。
 
 目安:
 
@@ -183,64 +183,77 @@ Riskは壊した場合の影響度。
 - 人間review ownerを必ず明示する。
 - frontier agentまたは人間主導を使う。
 
+# Effort
+
+Effortは正のNumberで記録する理想作業時間である。Projectごとに単位を固定し、標準は `ideal-hours` とする。実装、直接確認、テスト、docs更新、通常見込むreview修正を含める。CI待ち、外部判断待ち、review待ち、merge queue待ちは含めない。
+
+- ブランチ作成型Issue、spike、リポジトリ差分なしIssueには、`ready` へ進める前にEffortを設定する。
+- epicのEffortは空欄にする。集計は実行対象の末端Issueだけで行い、親子で二重計上しない。
+- Effortは経過時間の約束ではない。Forecastは依存関係、稼働カレンダー、有限WIP、レビュー/CI/マージの予備日を加えて計算する。
+- `0`、負数、NaN、Infinityは無効である。
+
+# Estimate Confidence
+
+Estimate ConfidenceはEffortの根拠がどの程度揃っているかを表す。
+
+| 値           | 判定                                                                      |
+| ------------ | ------------------------------------------------------------------------- |
+| `ec0-low`    | 未知要素が多く、再見積りの可能性が高い。作業境界も揺れるならspikeへ分ける |
+| `ec1-medium` | 作業境界は明確だが、一部に未知要素がある                                  |
+| `ec2-high`   | 類似実績、変更範囲、確認手順が揃っている                                  |
+
+epicでは空欄にする。末端IssueではEffortと同時に設定する。Estimate Confidenceの変更は再トリアージを起こす。
+
 # Agent Tier
 
 Agent Tierは必要な推論・検証・慎重さの層。具体モデル名ではない。
 
-## agent-fast
-
-適用条件:
-
-- Complexityがc0-noneまたはc1-simple。
-- Riskがr0-noneまたはr1-safe。
-- Sizeがs0-tinyまたはs1-small。
-- 非スコープが単純。
-
-向く作業:
-
-- docs修正。
-- 小さなfix。
-- 単純なtest追加。
-- 既存patternの反復。
-
-## agent-standard
-
-適用条件:
-
-- Complexityがc2-moderate以下。
-- Riskがr2-moderate以下。
-- Sizeがs1-smallまたはs2-medium。
-- 通常のfeature/fix/refactor。
-
-向く作業:
-
-- 一般的な機能実装。
-- 小〜中規模UI/API/DB変更。
-- テスト追加を含むPR。
-
-## agent-frontier
-
-適用条件:
-
-- Complexityがc3-complex、またはRiskがr3-dangerous。
-- 設計判断、セキュリティ、migration、concurrency、merge queue、CI基盤に関係する。
-- 誤実装の手戻りが大きい。
-
-向く作業:
-
-- architecture設計。
-- spikeからfeatureへの分解。
-- 高リスクmigration。
-- 複雑な障害調査。
+実行対象の末端Issueにだけ設定し、epicは空欄にする。
 
 # 自動判定式
 
-形容詞は読みやすさのために付ける。自動判定やsortでは、`c2-moderate` の `2` のように数値prefixだけを比較する。
+形容詞は読みやすさのために付ける。自動判定では、`c2-moderate` の `2` のように数値prefixだけを比較し、上から最初に成立した規則を使う。
 
 ```text
-max(Complexity.number, Risk.number) <= 1 かつ Size.number <= 1 -> agent-fast
-max(Complexity.number, Risk.number) == 2 または Size.number == 2 -> agent-standard
-max(Complexity.number, Risk.number) == 3 または Size.number == 3 -> agent-frontier候補
+Size == s3-large
+  -> 原則としてIssueを分割する
+  -> 例外承認して続行する場合だけagent-frontier
+
+max(Complexity.number, Risk.number) == 3
+  -> agent-frontier
+
+max(Complexity.number, Risk.number) == 2 または Size == s2-medium
+  -> agent-standard
+
+それ以外
+  -> agent-fast
 ```
 
-ただし、Sizeだけがs3-largeでComplexity/Riskが低い場合は、frontier agentへ投げるよりIssue分割を優先する。
+Agent Tierだけを手動で上書きしない。より強い段階が必要なら、根拠となるComplexityまたはRiskを先に更新する。`r3-dangerous` はAgent Tierに関係なく人間のReviewer Ownerを必須にする。
+
+`s3-large` を分割せず続行する例外は、人間Reviewer Ownerが理由をコメントへ記録した場合だけ認める。bootstrapでは例外承認を確認できないため、`s3-large` を `ready` にする計画を拒否する。
+
+| Tier             | 代表的な作業                                                    |
+| ---------------- | --------------------------------------------------------------- |
+| `agent-fast`     | ドキュメント、小さな修正、単純なテスト、既存パターンの反復      |
+| `agent-standard` | 通常の機能追加・修正・リファクタリング、小〜中規模UI/API/DB変更 |
+| `agent-frontier` | 設計、セキュリティ、移行、並行処理、複雑な障害調査              |
+
+# 再トリアージ
+
+次の変更があればPriorityだけを据え置いて作業を続けず、Size、Complexity、Risk、Effort、Estimate Confidence、Agent Tier、Forecast、依存関係を再判定する。
+
+- 受け入れ条件、非スコープ、変更ファイル、参照contractが実質的に変わった。
+- dependencyを追加、削除、置換した。blockerがcanceledになった。
+- security、data、migration、権限、外部操作のリスクが判明した。
+- EffortまたはEstimate Confidenceを変更した。
+- Size、Complexity、Riskの数値境界を越えた。
+- ForecastがMilestone期限または容量制約を超えた。
+- 作業権が引き継がれた、実行終了を確認した、Issueがreopenされた。
+- PR差分がIssue本文の変更ファイルまたは受け入れ条件から大きく外れた。
+
+状態は次のように戻す。
+
+- `ready` 以前は `triaged` へ戻す。
+- `in-progress` / `in-review` は自動マージを止める。リポジトリ内で修正可能なら `in-progress`、外部判断待ちなら `blocked` にする。
+- `done` / `canceled` をreopenする場合は、以前のActual Start / Actual Endを再開コメントへ残して両fieldをclearし、`triaged` にする。Agent Runは新しく作業権を取得するまで空欄にする。

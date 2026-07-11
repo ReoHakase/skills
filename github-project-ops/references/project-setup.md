@@ -1,11 +1,13 @@
 # Project setup
 
-Project fields、no-label policy、date fields、views、copyable assetsを扱うときに読む。
+Project fields、工数、容量、no-label policy、date fields、Forecast、views、copyable assetsを扱うときに読む。
 
 # 目次
 
 - Copyable assets
 - Project fields
+- 工数と見積り
+- 容量とWIP上限
 - GitHub labels
 - Milestones
 - Date fields
@@ -35,29 +37,76 @@ Single select optionはlower-kebabにする。GitHub Projectsのfilter query、`
 
 `assets/project-fields.json` のsingle select `options` は、標準では `name`、`color`、`description` を持つobject形式にする。Project fieldの値として使うのは `name` だけで、色と説明文は `references/project-bootstrap.md` のGraphQL手順または `assets/project-bootstrap-template.py` で反映する。
 
-| Field          | Type          | Values                                                                              |
-| -------------- | ------------- | ----------------------------------------------------------------------------------- |
-| Status         | Single select | inbox, triaged, ready, in-progress, in-review, blocked, done, canceled              |
-| Type           | Single select | epic, feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, spike |
-| Scope          | Text          | ui, api, db, infraなど。repoごとに自由定義                                          |
-| Priority       | Single select | p0-optional, p1-normal, p2-high, p3-critical                                        |
-| Size           | Single select | s0-tiny, s1-small, s2-medium, s3-large                                              |
-| Complexity     | Single select | c0-none, c1-simple, c2-moderate, c3-complex                                         |
-| Risk           | Single select | r0-none, r1-safe, r2-moderate, r3-dangerous                                         |
-| Agent Tier     | Single select | agent-fast, agent-standard, agent-frontier                                          |
-| Agent Harness  | Single select | codex, claude-code, cursor, human, other                                            |
-| Agent Model    | Text          | GPT 5.5 (xhigh), Opus 4.8 (medium), Composer 2.5など。作業開始時に記録              |
-| Reviewer Owner | Text          | agent実行環境の持ち主、またはレビュー責任者のGitHub login                           |
-| Branch         | Text          | 123/feat-ui-example                                                                 |
-| Source         | Single select | human, agent, debug-log, chat, inquiry, ci, dependency, security, docs              |
-| Forecast Start | Date          | 計画開始日。WBS/ロードマップで使う                                                  |
-| Forecast End   | Date          | 計画終了目標日。WBS/ロードマップで使う                                              |
-| Actual Start   | Date          | 実作業開始日                                                                        |
-| Actual End     | Date          | 実終了日                                                                            |
+| Field               | Type          | Values                                                                              |
+| ------------------- | ------------- | ----------------------------------------------------------------------------------- |
+| Status              | Single select | inbox, triaged, ready, in-progress, in-review, blocked, done, canceled              |
+| Type                | Single select | epic, feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, spike |
+| Scope               | Text          | ui, api, db, infraなど。repoごとに自由定義                                          |
+| Priority            | Single select | p0-optional, p1-normal, p2-high, p3-critical                                        |
+| Size                | Single select | s0-tiny, s1-small, s2-medium, s3-large                                              |
+| Effort              | Number        | 正の理想作業時間。標準単位はideal-hours                                             |
+| Estimate Confidence | Single select | ec0-low, ec1-medium, ec2-high                                                       |
+| Complexity          | Single select | c0-none, c1-simple, c2-moderate, c3-complex                                         |
+| Risk                | Single select | r0-none, r1-safe, r2-moderate, r3-dangerous                                         |
+| Agent Tier          | Single select | agent-fast, agent-standard, agent-frontier                                          |
+| Agent Harness       | Single select | codex, claude-code, cursor, human, other                                            |
+| Agent Model         | Text          | GPT 5.5 (xhigh), Opus 4.8 (medium), Composer 2.5など。作業開始時に記録              |
+| Agent Run           | Text          | 公開可能なタスクURL、または外部情報を含まない実行ID                                 |
+| Reviewer Owner      | Text          | agent実行環境の持ち主、またはレビュー責任者のGitHub login                           |
+| Branch              | Text          | 123/feat-ui-example                                                                 |
+| Source              | Single select | human, agent, debug-log, chat, inquiry, ci, dependency, security, docs              |
+| Forecast Start      | Date          | 計画開始日。WBS/ロードマップで使う                                                  |
+| Forecast End        | Date          | 計画終了目標日。WBS/ロードマップで使う                                              |
+| Actual Start        | Date          | 実作業開始日                                                                        |
+| Actual End          | Date          | 実終了日                                                                            |
 
-Issue時点では具体的なモデル名まで確定させない。backlog/triaged/readyではAgent Tierだけでよい。作業開始時にAgent HarnessとAgent ModelをProject fieldへ記録する。
+Issue時点では具体的なモデル名まで確定させず、Agent Tierを設定する。作業権取得成功時にAgent Harness、Agent Model、Agent RunをProject fieldへ記録する。
 
 Issue/PRタイトルにTypeやScopeを入れない。TypeとScopeはProject fieldで見る。
+
+# 工数と見積り
+
+EffortはProject全体で単位を固定した理想作業時間で、標準は `ideal-hours` とする。実装、直接確認、テスト、docs更新、通常見込むreview修正を含める。CI待ち、外部待ち、review待ち、merge待ちは含めない。
+
+- ブランチ作成型Issue、spike、リポジトリ差分なしIssueは、`ready` へ進める前に正のEffortとEstimate Confidenceを持つ。
+- 運用中に流入した `inbox` / `triaged` Issueは見積欄が空でもよいが、bootstrapへ渡す初期WBSの非epic Issueは事前検証のため両方を必須にする。
+- epicのEffortとEstimate Confidenceは空欄にする。末端Issueだけを合計し、親子で二重計上しない。
+- Sizeは差分量とreview量のordinal値である。Sizeを数値へ変換して合計しない。
+- `ec0-low` で未知要素が作業境界まで揺らす場合は、readyにせずspikeへ分ける。
+
+Estimate Confidenceの正本は次である。
+
+- `ec0-low`: 未知要素が多く、再見積りの可能性が高い。
+- `ec1-medium`: 境界は明確だが、一部未知要素がある。
+- `ec2-high`: 類似実績、変更範囲、確認手順が揃っている。
+
+# 容量とWIP上限
+
+repo側の `.github/project/views.md` に、少なくとも次をProject運用設定として置く。
+
+```text
+タイムゾーン: UTC
+稼働曜日: 月-金
+休日: なし
+Effort単位: ideal-hours
+実装1枠・1稼働日あたりの有効Effort: 4
+Agent枠上限: 1
+作業環境枠上限: 1
+レビューWIP上限: 1
+重いCI・共有環境WIP上限: 1
+マージ待ちWIP上限: 1
+レビュー予備日: 1稼働日
+重いCI予備日: 1稼働日
+マージ予備日: 1稼働日
+```
+
+実装WIPは `min(Agent枠上限, 作業環境枠上限)` で導出する。未設定の枠/WIP上限は各1として安全側に扱う。稼働カレンダー、有効Effort、予備日が未設定なら上記標準値を使い、採用値を計画出力に明記する。
+
+- 1 Issueは各段階で1枠を消費する。Effortは作業量、WIPは同時処理数であり混同しない。
+- 作業権取得済みIssueにはagentごとに独立worktreeを割り当てる。
+- agentまたは作業環境枠が埋まっていれば新しい作業権を取得しない。レビュー、重いCI/共有環境、マージ待ちが上限なら、その下流へ新規投入しない。
+- Draft PRとリポジトリ内で修正可能なレビュー/CI対応は実装枠、レビュー依頼後はレビュー枠、重いCIや共有fixture使用中はその専用枠、merge queue待ちはマージ枠を消費する。
+- 枠が空いた、Issueがマージ/canceled/blockedになった、Effortや依存関係が変わった時に次の実行Waveを再計算する。
 
 # Milestones
 
@@ -76,7 +125,7 @@ Milestoneはrelease/checkpointと締切目標を表す。先にMilestoneとdue d
 - `評価完了`: 評価指標、結果、再現手順が揃った状態。
 - `論文投稿準備完了`: 論文、補足資料、artifact、チェックリストが投稿可能な状態。
 - `ポスター完成`: 掲示・発表に使えるポスターが完成した状態。
-- `投稿完了`: venue、review、archive、release先への投稿が完了した状態。
+- `投稿完了`: 投稿先への提出、査読用情報、保存先、公開先の準備が完了した状態。
 - `一般公開`: docs、demo、artifact、release noteを含めて公開できる状態。
 
 期限未定でも使えるMilestone候補:
@@ -132,7 +181,7 @@ gh issue list \
 
 このskillではGitHub labelを使わない。
 
-Type、Source、Status、Priority、Size、Complexity、Risk、Agent TierはProject fieldをSSoTにする。GitHub labelへは複製しない。
+Type、Source、Status、Priority、Size、Effort、Estimate Confidence、Complexity、Risk、Agent TierはProject fieldをSSoTにする。GitHub labelへは複製しない。
 
 分類、状態、起票元、優先度、見積もり、agent割り当てはすべてProject fieldで表す。新しいGitHub labelは定義しない。
 
@@ -157,15 +206,17 @@ PR作成日、マージ日、Issue/PR close日はGitHub metadataをSSoTにする
 
 Forecast Start / Forecast Endは計画上の作業期間であり、実績ではない。
 
+日付はProject運用設定のタイムゾーンで解釈し、StartとEndを含む稼働日とする。休日は作業日数へ数えない。Date fieldは時刻を持たないため、直列Issueの同日引き継ぎは行わず、後続は次の稼働日以降に開始する。
+
 - 期限付きMilestoneでは、Milestone due dateを先に決めてからIssue/WBSのForecastを組む。
 - epicのForecastは子Issue群を包む期間にする。epicと子IssueのForecastが重なるのは正常である。
-- branchable Issue同士が直列依存する場合、後続IssueのForecast Startは、すべての `blocked by` 先のForecast Endより後の日付にする。
+- ブランチ作成型Issue同士が直列依存する場合、後続IssueのForecast Startは、すべての `blocked by` 先のForecast Endより後の日付にする。
 - GitHub ProjectsのDate fieldは時刻を持たないため、同日引き継ぎを前提にして直列IssueのForecastを同じ日に重ねない。必要ならIssueをさらに分けるか、前段のForecast Endを短くする。
-- blocked by / blockingがない子Issue同士は並列化できるため、Forecastを重ねてよい。
+- 依存関係がなくても、変更ファイル競合または実装/レビュー/CI/マージの容量競合があるIssueは同じ期間へ詰め込まない。
 
 # Forecast変更
 
-Forecast変更では、先にMilestone due date、Issue dependency、sub-issue構造を読む。Issue本文のmetadata行ではなく、Project fieldだけを更新する。
+Forecast変更では、先にMilestone due date、Issue間の依存関係、sub-issue構造、変更競合グラフ、Effort、Estimate Confidence、稼働カレンダー、各WIP上限を読む。Issue本文のメタデータ行ではなく、Project fieldだけを更新する。
 
 ```bash
 gh project field-list PROJECT_NUMBER --owner OWNER --format json --limit 100
@@ -191,7 +242,18 @@ mutation {
 }'
 ```
 
-期限変更で全Issueを機械的に同じ幅でずらさない。直列依存するbranchable Issueは重ならないようにし、並列化できるIssueはForecastを重ねてよい。epicのForecastは子Issue群を包む期間に直す。
+Forecastは次の順で組む。
+
+1. 依存関係DAGとsub-issue階層の循環を拒否する。
+2. canceled blockerを完了扱いせず、transitive downstreamを再トリアージする。
+3. `ceil(Effort / 実装1枠・1稼働日あたりの有効Effort)` を実装作業日の初期値にする。
+4. 依存関係、変更競合、実装WIPを満たすよう末端Issueを稼働日へ配置する。
+5. レビュー、重いCI/共有環境、マージ待ちのWIPと予備日を加える。
+6. epicのForecastを必要な末端Issue全体を包む期間へ集約する。epic Effortは合計しない。
+
+Milestone実現可能性の確認では、必要な末端IssueがMilestone due dateまでに型別doneへ到達できるかを見る。超過する場合は日付だけを圧縮せず、scope削減、期限変更、依存関係の解消、容量追加の選択肢と影響を出す。選択が決まるまで計画を実現可能と報告しない。
+
+期限変更で全Issueを機械的に同じ幅でずらさない。依存関係、競合、容量が許すIssueだけForecastを重ねる。epicのForecastは子Issue群を包む期間に直す。
 
 # View説明の置き場所
 
@@ -242,9 +304,12 @@ Visible fields:
 - Scope
 - Priority
 - Size
+- Effort
+- Estimate Confidence
 - Complexity
 - Risk
 - Agent Tier
+- Agent Run
 - Assignee
 - Reviewer Owner
 - Branch
@@ -252,10 +317,12 @@ Visible fields:
 
 運用ルール:
 
-- readyに置くのは、受け入れ条件、非スコープ、確認手順、未解決blockerなしを確認済みのbranchable Issueだけにする。仕様確定済みでも前段Issue待ちならblockedにする。
+- readyに置くのは、受け入れ条件、非スコープ、確認手順、未解決blockerなしを確認済みの実行対象末端Issueだけにする。仕様確定済みでも前段Issue待ちならblockedにする。
 - `blocking` はこのIssueが後続Issueの前提であるという意味なのでreadyと両立する。`blocked by` が未解決ならreadyと両立しない。
-- Statusは `blocked by` / `blocking` から自動同期しない。upstream PR、Figma design、権限、CI障害、設計判断待ちなどでblockedになるIssueもあるため、かんばんではStatusとblocked commentを一緒に読む。
+- Statusは `blocked by` / `blocking` から自動同期しない。upstream PR、Figma design、権限、担当外のCI基盤障害、設計判断待ちなどでblockedになるIssueもあるため、かんばんではStatusとblockedコメントを一緒に読む。
 - in-progressへ進める前にblocked byを再確認する。未解決の阻害要因がある場合は作業開始しない。
+- in-progressへ進める前に実装WIPと作業権取得結果を確認する。勝者のAgent Runだけを設定し、リポジトリ差分を作る場合は独立worktreeを作る。
+- レビュー、重いCI/共有環境、マージ待ちの下流WIPが上限なら、新しいready Issueの作業権を取得せず、上流への投入を抑える。
 - in-reviewではPR本文のclosing keyword、振る舞い、テストケース、確認手順、リスク、レビュー観点、required checksを見る。
 - blockedではコメントに理由、解除者、依存Issue/PR/log、次の確認タイミングがあるか確認する。
 - `c3-complex` または `r3-dangerous` を含む作業は人間のレビュー責任者を明確にする。
@@ -294,6 +361,8 @@ Visible fields:
 - Type
 - Scope
 - Priority
+- Effort
+- Estimate Confidence
 - Risk
 - Agent Tier
 - Forecast Start
@@ -311,8 +380,8 @@ Visible fields:
 - WBS番号は作らない。構造はepic/sub-issue、順序はblocked by / blockingで表す。
 - Statusは依存関係からの自動同期ではなく、運用状態として人間またはagentが確認して更新する。
 - epicのForecastは子Issue群を包む期間で、子Issueと重なってよい。
-- 直列依存するbranchable Issue同士ではForecastを重ねない。後続IssueのForecast Startは、すべての `blocked by` 先のForecast Endより後の日付にする。
-- 同じepic配下でもblocked by / blockingがない子Issue同士は並列化できるため、Forecastを重ねてよい。
+- 直列依存するブランチ作成型Issue同士ではForecastを重ねない。後続IssueのForecast Startは、すべての `blocked by` 先のForecast Endより後の日付にする。
+- 同じepic配下でも、依存関係、変更競合グラフ、実装/レビュー/CI/マージ容量が許す子IssueだけForecastを重ねてよい。
 - 実績はActual Start、Actual Endで見る。ロードマップ上の計画日と混ぜない。
 - 日付変更は計画の変更として扱い、Issue本文のmetadata行ではなくProject fieldだけを更新する。
 
@@ -388,6 +457,8 @@ Visible fields:
 - Type
 - Scope
 - Size
+- Effort
+- Estimate Confidence
 - Complexity
 - Risk
 - Agent Tier
@@ -396,7 +467,8 @@ Visible fields:
 
 運用ルール:
 
-- done count、Size合計、Scope別完了、Agent Tier別完了を週次で見る。
+- done件数、末端IssueのEffort合計、Size区分別件数、Scope別完了、Agent Tier別完了を週次で見る。epic Effortは集計しない。
+- Sizeは順序尺度なので合計しない。Estimate Confidence別にForecast超過率とサイクルタイムを観察する。Actual Start / Actual Endは待ち時間を含むため、実Effortとは扱わない。
 - Cycle timeはActual StartからActual Endまでを見る。
 - レビュー時間やマージ待ち時間が必要な場合は、GitHub PR metadataのcreatedAt、mergedAt、レビュー状態から読む。
 - 厳密な見積もり契約ではなく、throughputを観察してready投入量を調整するために使う。
