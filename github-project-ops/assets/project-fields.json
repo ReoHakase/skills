@@ -16,7 +16,7 @@
       {
         "name": "ready",
         "color": "GREEN",
-        "description": "受け入れ条件と確認手順があり、未解決のblocked byがなく、作業開始できる。"
+        "description": "Issue/PR側で開始可能と確認済み。"
       },
       {
         "name": "in-progress",
@@ -52,7 +52,7 @@
       {
         "name": "epic",
         "color": "PURPLE",
-        "description": "関連Issueを束ねる親Issue。原則ブランチを持たない。"
+        "description": "関連Issueの進捗を集約する親Issue。"
       },
       {
         "name": "feat",
@@ -168,7 +168,7 @@
       {
         "name": "s3-large",
         "color": "RED",
-        "description": "大きい変更。通常は分割を検討する。"
+        "description": "大きい変更。Issue/PR側へ分割候補として返す。"
       }
     ]
   },
@@ -219,7 +219,7 @@
       {
         "name": "c3-complex",
         "color": "RED",
-        "description": "複雑または不確実な作業。スパイクや高度なレビューを検討する。"
+        "description": "複雑または不確実な作業。Issue/PR側へ調査Issue候補として返す。"
       }
     ]
   },
@@ -271,50 +271,11 @@
     ]
   },
   {
-    "name": "Agent Harness",
-    "type": "SINGLE_SELECT",
-    "options": [
-      {
-        "name": "codex",
-        "color": "BLUE",
-        "description": "OpenAI CodexまたはCodex系エージェントでの作業。"
-      },
-      {
-        "name": "claude-code",
-        "color": "PURPLE",
-        "description": "Claude Codeでの作業。"
-      },
-      {
-        "name": "cursor",
-        "color": "GREEN",
-        "description": "Cursorエージェントでの作業。"
-      },
-      {
-        "name": "human",
-        "color": "GRAY",
-        "description": "人間主導の作業。"
-      },
-      {
-        "name": "other",
-        "color": "YELLOW",
-        "description": "その他の実行環境。必要ならProjectフィールドやコメントで補足する。"
-      }
-    ]
-  },
-  {
-    "name": "Agent Model",
-    "type": "TEXT"
-  },
-  {
     "name": "Agent Run",
     "type": "TEXT"
   },
   {
     "name": "Reviewer Owner",
-    "type": "TEXT"
-  },
-  {
-    "name": "Branch",
     "type": "TEXT"
   },
   {

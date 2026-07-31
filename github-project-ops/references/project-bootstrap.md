@@ -4,18 +4,15 @@ Project、フィールド、既存IssueのProjectアイテム、項目値、ビ�
 
 # 境界
 
-Issueの分割、本文、Milestone、sub-issue、blocked by / blockingは`github-issue-pr-ops`で先に確定する。この資料は、番号、URL、node IDが確定したIssueをProjectへ割り当てる。
+Issueの分割、本文、Milestone、sub-issue、blocked by / blockingは`github-issue-pr-ops`で先に確定する。この資料は、番号、URL、node IDが確定したIssueをProjectへ割り当てる。これらは読取専用の前提であり、この資料の手順から作成・変更しない。
 
-初期構築の順序は次で固定する。
+このスキルで行う順序は次で固定する。
 
-1. Milestone
-2. Issue
-3. 親子・依存関係
-4. Project
-5. フィールド
-6. Projectアイテム
-7. 項目値
-8. ビュー
+1. Project
+2. フィールド
+3. Projectアイテム
+4. 項目値
+5. ビュー
 
 各段階で、探索、変更計画、確認、適用、再取得を完了してから次へ進む。複数段階を1つのスクリプトや`eval`へまとめない。
 
@@ -275,16 +272,16 @@ jq -e '
 
 計画値は`references/project-setup.md`と`references/triage-and-agent-tier.md`に照らして、次も確認する。
 
-- `ready`はIssue側の開始条件を再取得して満たす場合だけ設定する。
+- `ready`はIssue/PR側で開始可能と確定済みの場合だけ設定し、Project側で開始条件を再定義しない。
 - `epic`へ`ready`、`Effort`、`Estimate Confidence`、`Agent Tier`を設定しない。
 - 実行対象の末端Issueは、正の有限な`Effort`と`Estimate Confidence`を持つ。
-- 初期割当では`Agent Run`、`Agent Harness`、`Agent Model`、`Branch`、`Actual Start`、`Actual End`を設定しない。
+- 初期割当では`Agent Run`、`Actual Start`、`Actual End`を設定しない。
 - `Forecast Start`と`Forecast End`はISO日付で、稼働日、Issue依存、Milestone期限、容量に整合する。
 - `r3-dangerous`は`Reviewer Owner`を持つ。
 
 # 2. 対象と権限を発見する
 
-リポジトリ、Issue、PRの探索は利用可能ならGitHub MCPを優先する。Projectの操作に必要な能力がMCPにない場合は`gh project`を使う。再現可能な確認記録が必要な場合も`gh ... --json`を使う。
+対象リポジトリ、Issueの同一性、Project内のアイテム種別の探索は、利用可能ならGitHub MCPを優先する。Projectの操作に必要な能力がMCPにない場合は`gh project`を使う。再現可能な確認記録が必要な場合も`gh ... --json`を使う。
 
 ```bash
 gh auth status

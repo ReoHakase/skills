@@ -49,7 +49,7 @@ REST APIで設定:
 
 - `layout`: `board`
 - `filter`: `is:issue is:open status:inbox,triaged,ready,in-progress,in-review,blocked`
-- `visible_fields`: Typeの正本、Scopeの正本、Priority、Size、Effort、Estimate Confidence、Complexity、Risk、Agent Tier、Agent Run、Assignees、Reviewer Owner、Branch、Actual Start、Linked pull requests、Reviewers
+- `visible_fields`: Typeの正本、Scopeの正本、Priority、Size、Effort、Estimate Confidence、Complexity、Risk、Agent Tier、Agent Run、Assignees、Reviewer Owner、Actual Start、Linked pull requests、Reviewers
 
 UIで後設定:
 
@@ -58,10 +58,10 @@ UIで後設定:
 
 運用規則:
 
-- `ready` に置くのは、受け入れ条件、非スコープ、確認手順、未解決の阻害要因がないことを確認済みの実行対象末端Issueだけにする。
+- `ready` に置くのは、Issue/PR側で開始可能と判定済みの実行対象末端Issueだけにする。Project側で開始条件を再定義しない。
 - Issue間の依存関係はIssue自体で確認する。`blocked by` と `blocking` を表示フィールドやフィルターとして扱わない。
-- 実装WIPが上限なら新しい作業権を取得しない。レビュー、重いCI・共有環境、マージ待ちの下流WIPも確認する。
-- `in-review` では `Linked pull requests` と `Reviewers` からPRを開き、本文、レビュー、チェックを確認する。
+- 実装WIPまたは下流WIPが上限なら、新規投入不可としてIssue/PR側へ返す。Project側で作業権を取得しない。
+- `in-review` では `Linked pull requests` と `Reviewers` からPRを開き、レビュー、CI、マージ待ちのどの枠を使用中か分類する。
 - `done` と `canceled` は通常表示しない。
 
 # WBS/ロードマップ
@@ -87,7 +87,7 @@ UIで後設定:
 
 運用規則:
 
-- Milestoneの期日を先に決め、その期限目標からForecast StartとForecast Endを組む。
+- Issue/PR側で確定したMilestone期限を読み、その期限目標からForecast StartとForecast Endを組む。Project側から期限を変更しない。
 - 親IssueのForecastは子Issue群を包む期間とし、子Issueと重なってよい。
 - 直列依存する末端Issue同士ではForecastを重ねない。後続Issueはすべての前段IssueのForecast Endより後の稼働日に開始する。
 - Issue間の親子関係と依存関係はIssue自体で確認し、ビューの表示フィールドに擬似列を追加しない。
@@ -103,7 +103,7 @@ REST APIで設定:
 
 - `layout`: `table`
 - `filter`: `is:issue is:open status:in-review`
-- `visible_fields`: Typeの正本、Scopeの正本、Priority、Risk、Reviewer Owner、Branch、Linked pull requests、Reviewers
+- `visible_fields`: Typeの正本、Scopeの正本、Priority、Risk、Reviewer Owner、Linked pull requests、Reviewers
 
 UIで後設定:
 
@@ -112,8 +112,8 @@ UIで後設定:
 
 運用規則:
 
-- `Linked pull requests` から対象PRを開く。`Reviewers` は入口として使い、承認状況の最終判定はPR自体で行う。
-- レビュー承認、必須ステータスチェック、マージ可否、Draft状態、基点・作業ブランチは `gh pr view` で別に確認する。
+- `Linked pull requests` から対象PRを開く。`Reviewers` は、レビュー枠、CI枠、マージ待ち枠を分類する入口として使う。
+- レビュー状態、必須ステータスチェック、マージ状態、Draft状態は、容量分類に必要な読取値として `gh pr view` で確認する。
 
 ```bash
 gh pr view PR_NUMBER \
@@ -122,7 +122,7 @@ gh pr view PR_NUMBER \
 gh pr checks PR_NUMBER --repo OWNER/REPO --required
 ```
 
-- `statusCheckRollup` はチェック全体の把握に使い、必須ステータスチェックだけの合否は `gh pr checks --required` で判定する。必須ステータスチェックが実行中または失敗中なら候補から外す。マージ後は型別完了条件を満たしてからActual Endを記録する。
+- `statusCheckRollup` はチェック全体の把握に使い、必須ステータスチェックの実行中・失敗中は重いCI枠またはレビュー修正待ちとして数える。マージ可否やマージ方法はProject側で決めない。Issue/PR側の完了イベントが確定した後にActual Endを同期する。
 
 # Velocity
 

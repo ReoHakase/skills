@@ -1,6 +1,13 @@
-# トリアージとAgent Tier
+# Project項目の評価とAgent Tier
 
-この基準は、複数人・複数エージェントが迷わず同じ分類をできることを目的にする。
+Projectの`Priority`、`Size`、`Complexity`、`Risk`、`Effort`、
+`Estimate Confidence`、`Agent Tier`を評価するときに読む。
+
+この資料はProject項目と計画への影響だけを決める。Issue分割、`spike`起票、Issue本文の編集、
+作業権、branch、PR契約の変更が必要な場合は、対象のIssue番号、URL、node ID、判定根拠、
+推奨する変更を`github-issue-pr-ops`へ候補として返す。Project側から直接変更しない。
+評価結果は、導入時に選んだProjectフィールドまたは組織Issue Fieldの正本へ記録する。
+評価だけを理由に`Assignee`、`Agent Run`、branch、PRを変更しない。
 
 # Priority
 
@@ -61,7 +68,7 @@ p3-criticalは少数に保つ。常時p3-criticalが多い場合、計画か品�
 
 # Size
 
-Sizeは変更量・レビュー量・PRの大きさ。難しさではない。
+Sizeは変更量、レビュー量、PRの大きさを表すProject項目であり、難しさではない。
 
 ## s0-tiny
 
@@ -105,10 +112,11 @@ Sizeは変更量・レビュー量・PRの大きさ。難しさではない。
 - 12ファイル超。
 - 800行超。
 - 受け入れ条件が8個以上。
-- UI、DB、API、infraを同時に広く変える。
+- UI、DB、API、基盤を同時に広く変える。
 - レビューが重すぎる。
 
-`s3-large`をそのまま実装するのは例外である。先に契約を定めるIssue、`spike`、sub-issue分割を検討する。
+`s3-large`は分割候補である。Project側では`ready`への投入を保留し、分割、先に契約を
+確定するIssue、`spike`の候補と根拠を`github-issue-pr-ops`へ返す。分割や起票は行わない。
 
 # Complexity
 
@@ -135,8 +143,8 @@ Complexityは設計難度・未知性・推論量。
 中複雑度。
 
 - 複数設計案の比較が必要。
-- interfaceやデータ構造の整合を取る必要がある。
-- agentが誤解しやすい非スコープがある。
+- インターフェースやデータ構造の整合を取る必要がある。
+- エージェントが誤解しやすい非スコープがある。
 - 既存実装との互換性を見ながら進める。
 
 ## c3-complex
@@ -146,7 +154,10 @@ Complexityは設計難度・未知性・推論量。
 - 仕様自体に未確定要素がある。
 - アーキテクチャ、スキーマ、セキュリティ、並行処理、移行などの判断が必要。
 - 失敗した場合の手戻りが大きい。
-- 先にspikeを作るべき。
+- 先に`spike`で不確実性を減らす候補である。
+
+`c3-complex`を理由にProject側で`spike`を起票しない。必要な問い、制限時間、期待する証拠、
+後続判断を候補として`github-issue-pr-ops`へ返す。
 
 # Risk
 
@@ -173,22 +184,24 @@ Riskは壊した場合の影響度。
 
 - DB、API、認証、課金、CI、リリース、性能の一部に影響する。
 - 既存利用者や他PRと競合する可能性がある。
-- merge_group CIとレビューが重要。
+- 重いCIとレビューに必要な容量を実行Waveへ含める。
 
 ## r3-dangerous
 
 高リスク。
 
 - 既定ブランチ破壊、データ破壊、セキュリティ、不可逆な移行、大規模基盤、リリース停止に関係する。
-- 人間review ownerを必ず明示する。
-- frontier agentまたは人間主導を使う。
+- 人間の`Reviewer Owner`を必ず明示する。
+- `agent-frontier`または人間主導で扱う。
 
 # Effort
 
-Effortは正のNumberで記録する理想作業時間である。Projectごとに単位を固定し、標準は `ideal-hours` とする。実装、直接確認、テスト、文書更新、通常見込むレビュー修正を含める。CI待ち、外部判断待ち、レビュー待ち、マージ待ちは含めない。
+Effortは正の数値で記録する理想作業時間である。Projectごとに単位を固定し、標準は
+`ideal-hours`とする。実装、直接確認、テスト、文書更新、通常見込むレビュー修正を含める。
+CI待ち、外部判断待ち、レビュー待ち、マージ待ちは含めない。
 
-- ブランチ作成型Issue、spike、リポジトリ差分なしIssueには、`ready` へ進める前にEffortを設定する。
-- epicのEffortは空欄にする。集計は実行対象の末端Issueだけで行い、親子で二重計上しない。
+- 実行対象の末端Issueは、投入候補にする前にEffortを設定する。
+- `epic`のEffortは空欄にする。集計は実行対象の末端Issueだけで行い、親子で二重計上しない。
 - Effortは経過時間の約束ではない。Forecastは依存関係、稼働カレンダー、有限WIP、レビュー/CI/マージの予備日を加えて計算する。
 - `0`、負数、NaN、Infinityは無効である。
 
@@ -196,28 +209,30 @@ Effortは正のNumberで記録する理想作業時間である。Projectごと�
 
 Estimate ConfidenceはEffortの根拠がどの程度揃っているかを表す。
 
-| 値           | 判定                                                                      |
-| ------------ | ------------------------------------------------------------------------- |
-| `ec0-low`    | 未知要素が多く、再見積りの可能性が高い。作業境界も揺れるならspikeへ分ける |
-| `ec1-medium` | 作業境界は明確だが、一部に未知要素がある                                  |
-| `ec2-high`   | 類似実績、変更範囲、確認手順が揃っている                                  |
+| 値           | 判定                                                                              |
+| ------------ | --------------------------------------------------------------------------------- |
+| `ec0-low`    | 未知要素が多く、再見積りの可能性が高い。作業境界も揺れるなら`spike`候補として返す |
+| `ec1-medium` | 作業境界は明確だが、一部に未知要素がある                                          |
+| `ec2-high`   | 類似実績、変更範囲、確認手順が揃っている                                          |
 
-epicでは空欄にする。末端IssueではEffortと同時に設定する。Estimate Confidenceの変更は再トリアージを起こす。
+`epic`では空欄にする。末端IssueではEffortと同時に設定する。
+Estimate Confidenceを変更したらProject項目、`Forecast`、実行Waveを再評価する。
 
 # Agent Tier
 
 Agent Tierは必要な推論・検証・慎重さの層。具体モデル名ではない。
 
-実行対象の末端Issueにだけ設定し、epicは空欄にする。
+実行対象の末端Issueにだけ設定し、`epic`は空欄にする。
 
 # 自動判定式
 
-形容詞は読みやすさのために付ける。自動判定では、`c2-moderate` の `2` のように数値prefixだけを比較し、上から最初に成立した規則を使う。
+形容詞は読みやすさのために付ける。自動判定では、`c2-moderate`の`2`のように先頭の数値だけを
+比較し、上から最初に成立した規則を使う。
 
 ```text
 Size == s3-large
-  -> 原則としてIssueを分割する
-  -> 例外承認して続行する場合だけagent-frontier
+  -> 分割候補をgithub-issue-pr-opsへ返す
+  -> 例外承認がIssue/PR側で確認できた場合だけagent-frontier
 
 max(Complexity.number, Risk.number) == 3
   -> agent-frontier
@@ -229,9 +244,12 @@ max(Complexity.number, Risk.number) == 2 または Size == s2-medium
   -> agent-fast
 ```
 
-Agent Tierだけを手動で上書きしない。より強い段階が必要なら、根拠となるComplexityまたはRiskを先に更新する。`r3-dangerous` はAgent Tierに関係なく人間のReviewer Ownerを必須にする。
+Agent Tierだけを手動で上書きしない。より強い段階が必要なら、根拠となるComplexityまたはRiskを
+先に更新する。`r3-dangerous`はAgent Tierに関係なく人間の`Reviewer Owner`を必須にする。
 
-`s3-large` を分割せず続行する例外は、人間Reviewer Ownerが理由をコメントへ記録した場合だけ認める。bootstrapでは例外承認を確認できないため、`s3-large` を `ready` にする計画を拒否する。
+`s3-large`を分割せず続行する例外は、人間の`Reviewer Owner`による承認を
+`github-issue-pr-ops`が確認した場合だけ認める。Project側で承認コメントを定義または投稿しない。
+初期設定や実行Wave選定で承認を確認できなければ、`s3-large`を投入する計画を拒否する。
 
 | Tier             | 代表的な作業                                                    |
 | ---------------- | --------------------------------------------------------------- |
@@ -241,19 +259,26 @@ Agent Tierだけを手動で上書きしない。より強い段階が必要な�
 
 # 再トリアージ
 
-次の変更があればPriorityだけを据え置いて作業を続けず、Size、Complexity、Risk、Effort、Estimate Confidence、Agent Tier、Forecast、依存関係を再判定する。
+次の変更を読み取ったら、`Priority`だけを据え置いて計画を続けず、`Size`、`Complexity`、
+`Risk`、`Effort`、`Estimate Confidence`、`Agent Tier`、`Forecast`、実行Waveを再評価する。
 
-- 受け入れ条件、非スコープ、変更ファイル、参照contractが実質的に変わった。
-- dependencyを追加、削除、置換した。blockerがcanceledになった。
+- 受け入れ条件、非スコープ、変更予定ファイル、参照契約が実質的に変わった。
+- 依存関係が追加、削除、置換された。阻害Issueが`canceled`になった。
 - セキュリティ、データ、移行、権限、外部操作のリスクが判明した。
 - EffortまたはEstimate Confidenceを変更した。
 - Size、Complexity、Riskの数値境界を越えた。
 - ForecastがMilestone期限または容量制約を超えた。
-- 作業権が引き継がれた、実行終了を確認した、Issueがreopenされた。
+- 作業権の引き継ぎ、解放、強制回収、IssueのreopenがIssue/PR側で確定した。
 - PR差分がIssue本文の変更ファイルまたは受け入れ条件から大きく外れた。
 
-状態は次のように戻す。
+再評価ではProject項目と日程への影響を先に示す。Issue分割、`spike`、本文、依存関係、
+作業権、PR契約の変更が必要なら、次を`github-issue-pr-ops`へ候補として返す。
 
-- `ready` 以前は `triaged` へ戻す。
-- `in-progress` / `in-review` は進行中のマージ処理を止める。リポジトリ内で修正可能なら `in-progress`、外部判断待ちなら `blocked` にする。
-- `done` / `canceled` をreopenする場合は、以前のActual Start / Actual Endを再開コメントへ残して両fieldをclearし、`triaged` にする。Agent Runは新しく作業権を取得するまで空欄にする。
+- 対象のIssue番号、URL、node ID
+- 変更が必要な理由と根拠
+- 推奨する変更とProject項目、容量、`Forecast`への影響
+- 決定前に停止するProject更新
+
+Issue/PR側の確定前に契約や作業権を変更しない。確定イベントを受け取った後、
+`project-execution.md`に従って`Agent Run`と`Status`を同期し、Project項目、`Forecast`、
+実行Waveを再計算する。

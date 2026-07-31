@@ -1,6 +1,6 @@
 interface:
   display_name: "GitHub Project Ops"
-  short_description: "GitHub ProjectsでWBS・Milestone・Issue/PRライフサイクルを管理"
+  short_description: "GitHub Projectsの項目・工数・容量・日程を管理"
   icon_small: "./assets/github-project-ops-small.png"
   icon_large: "./assets/github-project-ops.png"
-  default_prompt: "$github-project-ops を使い、GitHub Projectsを正本とするWBS、Milestone、Issue/PR、依存関係、工数・WIP、作業権、マージ待ち、導入・解除を利用者の言語に合わせて設計・運用してください。日本語では技術用語以外を日本語で書いてください。"
+  default_prompt: "$github-project-ops を使い、GitHub Projectの項目、Status、工数、容量、Forecast、実行Wave、導入・監査・解除を設計・運用してください。Issue/PR側で確定した作業権はAgent RunとStatusへ同期し、日本語では技術用語以外を日本語で書いてください。"
