@@ -3,4 +3,4 @@ interface:
   short_description: "GitHub Projectsの項目・工数・容量・日程を管理"
   icon_small: "./assets/github-project-ops-small.png"
   icon_large: "./assets/github-project-ops.png"
-  default_prompt: "$github-project-ops を使い、GitHub Projectの項目、Status、工数、容量、Forecast、実行Wave、導入・監査・解除を設計・運用してください。Issue/PR側で確定した作業権はAgent RunとStatusへ同期し、日本語では技術用語以外を日本語で書いてください。"
+  default_prompt: "$github-project-ops を使い、GitHub Projectの項目、Status、工数、容量、Forecast、実行Wave、導入・監査・解除を設計・運用してください。Issue/PR側でAssignee、linked branch、open PRの整合を確認した着手情報だけをStatusへ同期し、現在の実行環境が公開可能な追跡値を提示した場合だけAgent Runへ記録してください。競合時は同期を停止し、日本語では技術用語以外を日本語で書いてください。"

@@ -1,4 +1,4 @@
 interface:
   display_name: "GitHub Issue / PR Ops"
-  short_description: "GitHub IssueとPRの分割・作業権・本文・マージを管理"
-  default_prompt: "$github-issue-pr-ops を使い、GitHub Projectsの有無に依存せず、Issue分割、本文、作業権、branch、PR、レビュー、マージの契約を設計・運用してください。日本語では技術用語以外を日本語で書いてください。"
+  short_description: "GitHub IssueとPRの分割・引き継ぎ・本文・マージを管理"
+  default_prompt: "$github-issue-pr-ops を使い、GitHub Projectsの有無に依存せず、Issue分割、本文、着手競合、引き継ぎ、branch、PR、レビュー、マージの契約を設計・運用してください。日本語では技術用語以外を日本語で書いてください。"

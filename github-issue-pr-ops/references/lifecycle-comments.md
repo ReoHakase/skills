@@ -1,51 +1,49 @@
 # ライフサイクルコメント
 
-Issueの流入から完了または中止まで、判断の履歴をコメントへ残すときに読む。Projectの有無にかかわらず使える。作業権だけでなく、トリアージ、開始条件、作業中の判断、レビュー、阻害要因、再開、引き継ぎ、完了、中止を扱う。
+Issueの流入から完了または中止まで、判断の履歴をコメントへ残すときに読む。Projectの有無にかかわらず、トリアージ、着手条件、作業中の判断、レビュー、阻害要因、再開、引き継ぎ、中断、完了、中止を扱う。
 
 # 方針
 
 - 現在の作業契約はIssue本文、関係と担当はGitHubメタデータ、実装差分と確認結果はPRを正本にする。
 - コメントは、その時点の判断、理由、証拠、次の確認条件だけを書く。本文やメタデータの一覧を複製しない。
+- コメントを排他制御に使わない。固定マーカー、実行ID、投稿時刻、コメントIDによる担当決定は導入しない。
 - 具体的なエージェントモデル名、Projectの`Status`、Projectフィールド値は原則として書かない。
 - 外部依存はIssue、PR、CI実行、ログ、デザイン、チャットなど、後から確認できるURLで示す。
-- 冒頭の絵文字付き一文でイベントを示し、該当する項目だけを書く。
+- 冒頭の絵文字付き一文で判断の種類を示し、該当する項目だけを書く。
 - 秘密情報、認証情報、個人情報、非公開タスクURLは書かない。
-- 作業権の取得、引き継ぎ、解放、強制回収だけは固定マーカー付きの追記専用イベントにする。
 
-Projectを併用する場合、コメントから確定した事実を`github-project-ops`でProjectへ同期する。Project側の工数、容量、実行Wave、`Forecast`を、この資料で再決定しない。
+Projectを併用する場合、GitHub標準メタデータで確定した担当と進行状態を`github-project-ops`でProjectへ同期する。Project側の工数、容量、実行Wave、`Forecast`を、この資料で再決定しない。
 
-# 作業権イベントの共通規則
+# 担当と競合の共通規則
 
-作業権イベントの先頭へ、次のいずれかを1行で置く。
+作業開始、再開、引き継ぎの前に、Issueと関係に加えて次を再取得する。
 
-```text
-<!-- github-issue-pr-ops:event=claim;version=1;run=<ID> -->
-<!-- github-issue-pr-ops:event=release;version=1;run=<ID> -->
-<!-- github-issue-pr-ops:event=handoff;version=1;from=<OLD_ID>;to=<NEW_ID> -->
-<!-- github-issue-pr-ops:event=reclaim;version=1;from=<OLD_ID>;to=<NEW_ID> -->
-```
+- Assignee
+- linked branch
+- open PRと、そのhead branch、作成者、Draft状態
 
-これらのコメントは編集・削除しない。訂正も新しいイベントとして追記する。本文の自然文だけからイベント種別を推測しない。
+IssueのAssigneeを現在の担当、linked branchとopen PRを進行中の実装の根拠として扱う。PRのAssigneeやレビュアーは担当決定に使わない。Issueコメントは判断の履歴であり、現在の担当を決めるメタデータではない。
 
-実行IDは実行ごとに一意で、外部情報を含まない次の形式にする。
+次のいずれかに該当する場合は競合として扱う。
 
-```text
-<実行環境>:<一意なID>
-```
+- 意図する担当とは別のAssigneeがいる。
+- Assigneeがいない一方で、linked branchまたはopen PRがある。
+- Assignee、linked branch、open PRが異なる担当や実装を示している。
+- 複数の担当候補、branch、open PRのうち、どれを継続するか決まっていない。
+- 必要なメタデータを権限不足や取得失敗で確認できない。
 
-有効な所有者は、REST APIで全ページを取得し、`created_at`の昇順、同時刻なら数値`id`の昇順にイベントを適用して決める。
+競合時は担当を自動決定しない。Assigneeの変更、branchやPRの作成・更新、Project項目の同期を止め、リポジトリ規約で決定権を持つ人間へ、担当、既存branchとPRの扱い、未push差分の扱いを確認する。コメントの先着順、投稿時刻、コメントID、エージェント間の多数決を判断材料にしない。
 
-- 所有者がいない区間では、最初の`claim`だけが所有者になる。後続の`claim`は敗者である。
-- 現所有者自身の`release`だけが所有を終了する。
-- 現所有者または明示された責任者が確認した`handoff`だけが所有者を`to`へ変える。
-- 停止証拠と確認者を本文に持つ`reclaim`だけが所有者を`to`へ変える。
-- 未知の版、欠落ページ、矛盾、編集・削除の疑いがある場合は、所有者を推測せず停止する。
+人間の明示決定後は、次の順序で引き継ぐ。
 
-```bash
-gh api --paginate \
-  -H "X-GitHub-Api-Version: 2026-03-10" \
-  repos/OWNER/REPO/issues/ISSUE_NUMBER/comments
-```
+1. 旧担当が変更を止める。
+2. 決定者、旧担当、新担当、既存branchとPRの扱い、未push差分の扱いを通常のIssueコメントへ記録する。
+3. 新担当がAssignee、linked branch、open PRを再取得する。
+4. 決定どおりにAssigneeを更新し、再取得して反映を確認する。
+5. 既存branchとPRを引き継ぐか、重複がないことを確認して新しく作る。
+6. 旧担当が未push差分を保存して既存`worktree`の利用を止めた後、新担当が既存branch用の独立した`worktree`を用意する。同じローカル環境でbranchが既存`worktree`に結び付いている場合は、強制解除せず扱いを確認する。
+
+更新や再取得に失敗した場合は残りを止め、確認できた状態と未実行の操作を報告する。自動で担当を差し替えたり、既存branchやPRを閉じたり削除したりしない。
 
 # テンプレート
 
@@ -76,7 +74,7 @@ gh api --paginate \
 
 ## 着手条件の確認
 
-判断が揺れやすいIssue、重要Issue、阻害要因の解消直後だけ残す。
+判断が揺れやすいIssue、重要Issue、阻害要因の解消直後だけ残す。通常の着手では、GitHubメタデータの更新だけで足りる場合にコメントを増やさない。
 
 ```markdown
 🟢 着手条件を確認した。
@@ -85,7 +83,7 @@ gh api --paginate \
 
 - 受け入れ条件、非スコープ、確認手順
 - 未解決の前段Issueと作業外の阻害要因がない
-- 作業権、Assignee、紐づくbranch、open PRが競合しない
+- Assignee、linked branch、open PRに競合がない
 - 参照ドキュメントが現在も有効である
 
 補足: なし / ...
@@ -103,37 +101,6 @@ gh api --paginate \
 - 次に確認すること: ...
 ```
 
-## 作業権の取得
-
-Issue、関係、Assignee、紐づくbranch、open PRを再取得した後、branchを作る前に投稿する。
-
-```markdown
-<!-- github-issue-pr-ops:event=claim;version=1;run=<実行環境>:<一意なID> -->
-
-🔐 作業権を取得する。
-
-- 実行ID: `<実行環境>:<一意なID>`
-- 対象: #123
-- 開始前確認: 未解決の前段なし / 既存branchなし / open PRなし
-- 予定する変更: `src/**/*.ts`、`tests/**/*.test.ts`
-- Assignee: 更新予定 / 更新できない理由 ...
-```
-
-投稿後に規約イベントを全件再取得する。勝者だけがAssigneeを更新し、再取得後にbranchと独立した`worktree`を作る。
-
-競合に負けた実行役:
-
-```markdown
-↩️ 作業権の競合により開始しない。
-
-- 自分の実行ID: `...`
-- 勝者の実行ID: `...`
-- 判定根拠: 最古のGitHubサーバー時刻 / 同時刻の数値コメントID
-- ローカル変更: なし / 扱い ...
-```
-
-敗者はAssignee、branch、PR、Project項目を変更しない。Assigneeの更新成功だけでは取得成功にしない。割り当て可能なGitHub利用者がない場合は、リポジトリ規約が許すときだけコメントを正本として続行し、理由を書く。
-
 ## 作業中
 
 経過時間だけの報告は残さない。判断、契約への影響、次の操作があるときだけ書く。
@@ -141,7 +108,8 @@ Issue、関係、Assignee、紐づくbranch、open PRを再取得した後、bra
 ```markdown
 🚧 作業上の補足を記録する。
 
-- 実行ID: `<実行環境>:<一意なID>`
+- 担当: @...
+- branch / PR: ... / #...
 - 進捗または判断: ...
 - 受け入れ条件への影響: なし / ...
 - 新しい阻害要因: なし / ...
@@ -167,7 +135,8 @@ Issue、関係、Assignee、紐づくbranch、open PRを再取得した後、bra
 ```markdown
 ⛔ 作業外の阻害要因のため停止する。
 
-- 実行ID: `<実行環境>:<一意なID>`
+- 担当: @...
+- branch / PR: ... / #...
 - 理由: ...
 - 解除できる人または条件: @共同作業者 / プロフィールURL / 観測条件
 - 依存: #... / URL
@@ -182,24 +151,39 @@ Issue、関係、Assignee、紐づくbranch、open PRを再取得した後、bra
 
 - 解消内容: ...
 - 再確認したこと: ...
-- 作業権: 新規取得が必要 / 現在の実行IDを再取得済み
+- Assignee、linked branch、open PR: 競合なし / 人間の決定を確認済み / 要確認 ...
 - Project項目への影響: Projectなし / なし / 同期が必要 ...
 - 次の操作: ...
 ```
 
-## 引き継ぎ
+## 着手競合による停止
 
-旧担当が先に変更を止めて投稿する。
+競合を検出した事実と、必要な人間の判断だけを書く。担当候補の優先順位や勝者をコメントで決めない。
 
 ```markdown
-<!-- github-issue-pr-ops:event=handoff;version=1;from=<旧ID>;to=<新ID> -->
+⚠️ 着手競合を確認したため変更を止める。
 
+- Assignee: なし / @...
+- linked branch: なし / ...
+- open PR: なし / #...
+- 競合している事実: ...
+- 変更を止めた範囲: Assignee / branch / PR / Project項目
+- 人間に決めてほしいこと: 担当 / branchとPRの扱い / 未push差分の扱い
+```
+
+## 引き継ぎ
+
+人間が担当と既存作業の扱いを明示した後、旧担当が先に変更を止めて投稿する。
+
+```markdown
 🤝 作業を引き継ぐ。
 
-- 旧実行ID: `<旧ID>`
-- 新実行ID: `<新ID>`
+- 決定者: @...
+- 決定の記録: ...（GitHub上のURL）
+- 旧担当: @...
+- 新担当: @...
 - 理由: ...
-- 引き継ぐbranch / PR: #... / URL
+- 引き継ぐbranch / PR: ... / #...
 - 完了済み: ...
 - 未完了: ...
 - 確認状態: ...
@@ -207,45 +191,28 @@ Issue、関係、Assignee、紐づくbranch、open PRを再取得した後、bra
 - 新担当の再取得: 未確認 / 確認済み
 ```
 
-新担当がコメント、Assignee、branch、PRを再取得して新しい所有者を確認するまで、双方とも追加変更を始めない。
+新担当がAssignee、linked branch、open PRを再取得し、決定どおりのAssignee更新を確認するまで、双方とも追加変更を始めない。旧担当が応答しない場合も、経過時間だけで担当を差し替えず、決定権を持つ人間の明示判断を必要とする。
 
-## 解放
+## 担当の解放または中断
+
+現在の担当が変更を止め、branch、PR、未push差分の扱いを確定してから使う。
 
 ```markdown
-<!-- github-issue-pr-ops:event=release;version=1;run=<実行環境>:<一意なID> -->
+🔓 担当を外して作業を中断する。
 
-🔓 作業権を解放する。
-
-- 実行ID: `<実行環境>:<一意なID>`
+- 現在の担当: @...
 - 理由: ...
 - branch / PRの扱い: 維持 / 閉じる / 削除候補 ...
 - 未push差分: なし / 保存場所と扱い ...
 - 再投入条件: ...
+- Assigneeの更新: 未実施 / 解除済み
 ```
 
-投稿後にAssigneeを外す。Projectを併用している場合は、その後に`Agent Run`と`Status`を同期する。
-
-## 強制回収
-
-一定時間が経過しただけでは回収しない。旧担当の停止、branch、PR、未push差分を確認できる場合だけ使う。
-
-```markdown
-<!-- github-issue-pr-ops:event=reclaim;version=1;from=<旧ID>;to=<新ID> -->
-
-♻️ 停止した作業権を回収する。
-
-- 旧実行ID: `<旧ID>`
-- 新実行ID: `<新ID>`
-- 停止を確認した証拠: branch / PR / 実行環境のURL
-- 確認者: @共同作業者 / プロフィールURL
-- 回収理由: ...
-- 未push差分: なし / 不明 / 保存場所と扱い ...
-- 再開前に確認すること: ...
-```
+コメント後にAssigneeを外し、再取得して反映を確認する。Projectを併用している場合は、その後に`Agent Run`と`Status`を同期する。更新できない場合は、コメントだけを根拠に担当不在とみなさない。
 
 ## Project併用時の投入見送り
 
-投入Waveや容量の判断は`github-project-ops`で行う。Issueコメントが必要な場合だけ次を使う。作業権を取得済みなら、投入見送りではなく引き継ぎまたは解放を使う。
+投入Waveや容量の判断は`github-project-ops`で行う。Issueコメントが必要な場合だけ次を使う。すでにAssignee、linked branch、open PRがある場合は、投入見送りだけで担当を外さず、引き継ぎまたは中断の手順を使う。
 
 ```markdown
 📤 今回の投入を見送る。
@@ -276,7 +243,7 @@ Issue、関係、Assignee、紐づくbranch、open PRを再取得した後、bra
 - 理由: 重複 / 不要化 / 対象外 / 無効 / 置換済み
 - 根拠: ...
 - 代替または関連Issue: なし / #...
-- Issue関係と作業権の整理: 完了 / 要対応 ...
+- Issue関係、Assignee、linked branch、PRの整理: 完了 / 要対応 ...
 - Project項目への影響: Projectなし / なし / 同期が必要 ...
 ```
 
@@ -287,46 +254,35 @@ Issue、関係、Assignee、紐づくbranch、open PRを再取得した後、bra
 
 - 再開元: 完了 / 中止
 - 再開理由と新しい証拠: ...
-- 再確認するもの: 受け入れ条件 / Issue関係 / 見積り / 作業権
+- 再確認するもの: 受け入れ条件 / Issue関係 / 見積り / Assignee / linked branch / open PR
 - 以前の成果物への影響: ...
 - Project項目への影響: Projectなし / なし / 同期が必要 ...
 ```
 
 # 記入例
 
-## 作業権の競合
-
-最初の実行役:
+## 二重着手を検出した場合
 
 ```markdown
-<!-- github-issue-pr-ops:event=claim;version=1;run=codex:run-01 -->
+⚠️ 着手競合を確認したため変更を止める。
 
-🔐 作業権を取得する。
-
-- 実行ID: `codex:run-01`
-- 対象: #42
-- 開始前確認: 未解決の前段なし / 既存branchなし / open PRなし
-- 予定する変更: `src/auth/**/*.ts`、`tests/auth/**/*.test.ts`
-- Assignee: 更新予定
+- Assignee: @alice
+- linked branch: `42/fix-auth-session`
+- open PR: #219
+- 競合している事実: @bobから同じIssueへの着手依頼があるが、既存作業を継続するか引き継ぐか決まっていない。
+- 変更を止めた範囲: Assignee / branch / PR / Project項目
+- 人間に決めてほしいこと: 担当、#219を継続するか、未push差分の扱い
 ```
 
-後から取得しようとした実行役:
-
-```markdown
-↩️ 作業権の競合により開始しない。
-
-- 自分の実行ID: `codex:run-02`
-- 勝者の実行ID: `codex:run-01`
-- 判定根拠: 勝者コメントのGitHubサーバー時刻が古い
-- ローカル変更: なし
-```
+この状態では、コメントの投稿順にかかわらず@aliceと@bobのどちらも自動で選ばない。
 
 ## 上流PRによる停止
 
 ```markdown
 ⛔ 作業外の阻害要因のため停止する。
 
-- 実行ID: `codex:run-10`
+- 担当: @alice
+- branch / PR: `42/fix-auth-session` / #219
 - 理由: 依存ライブラリの公開APIが上流レビューで変わる可能性があり、実装を確定できない。
 - 解除できる人または条件: https://github.com/upstream-maintainer
 - 依存: https://github.com/example/video-sdk/pull/482
@@ -339,7 +295,8 @@ Issue、関係、Assignee、紐づくbranch、open PRを再取得した後、bra
 ```markdown
 🚧 作業上の補足を記録する。
 
-- 実行ID: `codex:run-10`
+- 担当: @alice
+- branch / PR: `42/fix-auth-session` / #219
 - 進捗または判断: 修正要求へ対応するため実装を再開した。
 - 受け入れ条件への影響: なし
 - 新しい阻害要因: なし
@@ -351,14 +308,14 @@ Issue、関係、Assignee、紐づくbranch、open PRを再取得した後、bra
 ## 引き継ぎ
 
 ```markdown
-<!-- github-issue-pr-ops:event=handoff;version=1;from=codex:run-10;to=codex:run-11 -->
-
 🤝 作業を引き継ぐ。
 
-- 旧実行ID: `codex:run-10`
-- 新実行ID: `codex:run-11`
-- 理由: 作業環境の所有者が交代するため。
-- 引き継ぐbranch / PR: #219
+- 決定者: @maintainer
+- 決定の記録: https://github.com/example/repo/issues/42#issuecomment-1234
+- 旧担当: @alice
+- 新担当: @bob
+- 理由: 作業環境の担当が交代するため。
+- 引き継ぐbranch / PR: `42/fix-auth-session` / #219
 - 完了済み: 代替表示と単体テスト
 - 未完了: 視覚確認とレビュー指摘1件
 - 確認状態: 単体テスト成功、E2E未実施

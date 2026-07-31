@@ -7,7 +7,7 @@ body:
       value: |
         期待動作、実際の動作、再現手順、証拠、影響範囲、受け入れ条件、確認手順を書く。
         Issue本文は常体で書く。秘密情報、認証情報、個人情報は履歴にも残さない。
-        Milestone、依存、Assignee、branch、PR、構造化フィールドは本文へ重複させない。
+        Milestone、依存、Assignee、linked branch、PR、構造化フィールドは本文へ重複させない。
 
   - type: textarea
     id: overview

@@ -4,7 +4,7 @@ Projectの`Priority`、`Size`、`Complexity`、`Risk`、`Effort`、
 `Estimate Confidence`、`Agent Tier`を評価するときに読む。
 
 この資料はProject項目と計画への影響だけを決める。Issue分割、`spike`起票、Issue本文の編集、
-作業権、branch、PR契約の変更が必要な場合は、対象のIssue番号、URL、node ID、判定根拠、
+`Assignee`、branch、PR契約の変更が必要な場合は、対象のIssue番号、URL、node ID、判定根拠、
 推奨する変更を`github-issue-pr-ops`へ候補として返す。Project側から直接変更しない。
 評価結果は、導入時に選んだProjectフィールドまたは組織Issue Fieldの正本へ記録する。
 評価だけを理由に`Assignee`、`Agent Run`、branch、PRを変更しない。
@@ -268,17 +268,17 @@ Agent Tierだけを手動で上書きしない。より強い段階が必要な�
 - EffortまたはEstimate Confidenceを変更した。
 - Size、Complexity、Riskの数値境界を越えた。
 - ForecastがMilestone期限または容量制約を超えた。
-- 作業権の引き継ぎ、解放、強制回収、IssueのreopenがIssue/PR側で確定した。
+- `Assignee`、linked branch、open PR、着手または担当変更、IssueのreopenがIssue/PR側で確定した。
 - PR差分がIssue本文の変更ファイルまたは受け入れ条件から大きく外れた。
 
 再評価ではProject項目と日程への影響を先に示す。Issue分割、`spike`、本文、依存関係、
-作業権、PR契約の変更が必要なら、次を`github-issue-pr-ops`へ候補として返す。
+`Assignee`、branch、PR契約の変更が必要なら、次を`github-issue-pr-ops`へ候補として返す。
 
 - 対象のIssue番号、URL、node ID
 - 変更が必要な理由と根拠
 - 推奨する変更とProject項目、容量、`Forecast`への影響
 - 決定前に停止するProject更新
 
-Issue/PR側の確定前に契約や作業権を変更しない。確定イベントを受け取った後、
+Issue/PR側の確定前に契約、`Assignee`、branch、PRを変更しない。整合を確認済みの着手情報を受け取った後、
 `project-execution.md`に従って`Agent Run`と`Status`を同期し、Project項目、`Forecast`、
 実行Waveを再計算する。

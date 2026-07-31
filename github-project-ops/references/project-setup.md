@@ -13,12 +13,14 @@ IssueやPRの作り方ではなく、GitHub Projectsへ保存する管理情報�
 
 - Issue本文、受け入れ条件、確認手順、sub-issue、`blocked by` / `blocking`
 - Milestoneの作成、期限変更、Issueへの割り当て
-- 作業権の取得、勝者判定、引き継ぎ、解放
+- `Assignee`の決定、linked branchの作成・選択、open PRの関連付け、着手競合の解消
 - branch、worktree、PR本文、レビュー契約、CI契約、マージ契約
 - Issue Forms、PRテンプレート、CIワークフロー
 
-Projectの`Status`や`Agent Run`を、作業権の根拠にしない。
-`github-issue-pr-ops`で作業権が確定した後、その結果だけをProjectへ同期する。
+Projectの`Status`や`Agent Run`を、担当者や作業中branchの正本にしない。
+`github-issue-pr-ops`で`Assignee`、linked branch、open PRの整合を確認した後、
+確定済みの着手情報を`Status`へ派生同期する。`Agent Run`は、現在の実行環境が公開可能な
+一意のIDまたはタスクURLを提示した場合だけ記録する任意の追跡値とする。
 
 # コピー用アセット
 
@@ -78,25 +80,25 @@ gh api orgs/ORG/issue-fields
 フィールド名はTitle Case、単一選択肢はlower-kebab形式とする。色と説明文を含む定義は
 `assets/project-fields.json`を正本にする。
 
-| フィールド          | 型       | 値または用途                                                                        |
-| ------------------- | -------- | ----------------------------------------------------------------------------------- |
-| Status              | 単一選択 | inbox, triaged, ready, in-progress, in-review, blocked, done, canceled              |
-| Type                | 単一選択 | epic, feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, spike |
-| Scope               | テキスト | ui, api, db, infraなど。リポジトリごとに定義                                        |
-| Priority            | 単一選択 | p0-optional, p1-normal, p2-high, p3-critical                                        |
-| Size                | 単一選択 | s0-tiny, s1-small, s2-medium, s3-large                                              |
-| Effort              | 数値     | 正の理想作業時間。標準単位はideal-hours                                             |
-| Estimate Confidence | 単一選択 | ec0-low, ec1-medium, ec2-high                                                       |
-| Complexity          | 単一選択 | c0-none, c1-simple, c2-moderate, c3-complex                                         |
-| Risk                | 単一選択 | r0-none, r1-safe, r2-moderate, r3-dangerous                                         |
-| Agent Tier          | 単一選択 | agent-fast, agent-standard, agent-frontier                                          |
-| Agent Run           | テキスト | 公開可能なタスクURLまたは外部情報を含まない実行ID                                   |
-| Reviewer Owner      | テキスト | レビュー責任者のGitHubログイン名                                                    |
-| Source              | 単一選択 | human, agent, debug-log, chat, inquiry, ci, dependency, security, docs              |
-| Forecast Start      | 日付     | 計画開始日                                                                          |
-| Forecast End        | 日付     | 計画終了目標日                                                                      |
-| Actual Start        | 日付     | 確定した作業開始日                                                                  |
-| Actual End          | 日付     | 確定した終了日                                                                      |
+| フィールド          | 型       | 値または用途                                                                                |
+| ------------------- | -------- | ------------------------------------------------------------------------------------------- |
+| Status              | 単一選択 | inbox, triaged, ready, in-progress, in-review, blocked, done, canceled                      |
+| Type                | 単一選択 | epic, feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, spike         |
+| Scope               | テキスト | ui, api, db, infraなど。リポジトリごとに定義                                                |
+| Priority            | 単一選択 | p0-optional, p1-normal, p2-high, p3-critical                                                |
+| Size                | 単一選択 | s0-tiny, s1-small, s2-medium, s3-large                                                      |
+| Effort              | 数値     | 正の理想作業時間。標準単位はideal-hours                                                     |
+| Estimate Confidence | 単一選択 | ec0-low, ec1-medium, ec2-high                                                               |
+| Complexity          | 単一選択 | c0-none, c1-simple, c2-moderate, c3-complex                                                 |
+| Risk                | 単一選択 | r0-none, r1-safe, r2-moderate, r3-dangerous                                                 |
+| Agent Tier          | 単一選択 | agent-fast, agent-standard, agent-frontier                                                  |
+| Agent Run           | テキスト | 現在の実行環境が明示した公開可能なタスクURLまたは外部情報を含まない一意のID。未提示なら空欄 |
+| Reviewer Owner      | テキスト | レビュー責任者のGitHubログイン名                                                            |
+| Source              | 単一選択 | human, agent, debug-log, chat, inquiry, ci, dependency, security, docs                      |
+| Forecast Start      | 日付     | 計画開始日                                                                                  |
+| Forecast End        | 日付     | 計画終了目標日                                                                              |
+| Actual Start        | 日付     | 確定した作業開始日                                                                          |
+| Actual End          | 日付     | 確定した終了日                                                                              |
 
 Status、Type、工数、優先度などをGitHubラベルへ複製しない。このスキルは新しいラベルを
 定義せず、既存ラベルも自動削除しない。
@@ -106,14 +108,18 @@ Status、Type、工数、優先度などをGitHubラベルへ複製しない。�
 作業開始前にProjectの容量を判定し、その結果をIssue/PR側へ返す。
 
 1. Projectの実装枠、作業環境枠、下流WIP、依存関係を読む。
-2. 容量がなければ`投入不可`、埋まっている枠、再確認条件を返す。Project側では作業権を取得せず、
+2. 容量がなければ`投入不可`、埋まっている枠、再確認条件を返す。Project側では着手を確定せず、
    `Agent Run`や`Status: in-progress`も設定しない。
-3. 容量があれば`投入可能`を返す。作業権の取得と競合解決は`github-issue-pr-ops`へ任せる。
-4. Issue/PR側で作業権が確定したことを再取得してから、確定した`Agent Run`と
-   `Status: in-progress`だけを同期する。
+3. 容量があれば`投入可能`を返す。`Assignee`、linked branch、open PRの整合確認と競合解消は
+   `github-issue-pr-ops`へ任せる。
+4. Issue/PR側で整合した着手情報が確定したことを再取得してから`Status: in-progress`を同期する。
+   現在の実行環境が追跡値を明示した場合だけ`Agent Run`も同期し、未提示なら空欄のままにする。
 
-Projectの値が先に書かれていても作業権取得済みとはみなさない。確定結果を取得できない、
-取得者と実行IDが一致しない、または容量判定後に枠が埋まった場合は同期を止めて再判定する。
+Projectの値が先に書かれていても着手済みとはみなさない。確定済み着手情報を取得できない、
+現在の`Assignee`、linked branch、open PRが確定内容と一致しない、候補を一意に特定できない、
+提示された`Agent Run`が既存値と衝突する、または容量判定後に枠が埋まった場合は同期を止める。
+確認済みの担当変更では新しい追跡値へ更新できるが、それ以外はProject側で候補や値を選ばず、
+差異を`github-issue-pr-ops`へ返して整合確認からやり直す。
 
 `Status`のその後の変更も、Issue、sub-issue、依存関係、PRの確定状態を読み取った後に行う。
 ProjectビューやProjectフィールドだけから、レビュー完了、CI成功、マージ完了を推測しない。
@@ -157,8 +163,7 @@ Agent枠上限: 1
 マージ予備日: 1稼働日
 ```
 
-実装WIPは`min(Agent枠上限, 作業環境枠上限)`で導出する。未設定の枠とWIP上限は1、
-未設定の稼働カレンダー、有効Effort、予備日は上記の標準値を使い、採用値を計画出力に明記する。
+実装WIPは`min(Agent枠上限, 作業環境枠上限)`で導出する。設定と関連項目を読めて、値が存在しないことを確認できた場合に限り、未設定の枠とWIP上限は1、未設定の稼働カレンダー、有効Effort、予備日は上記の標準値を使い、採用値を計画出力に明記する。権限不足、取得失敗、対象不明で未設定か確認できない場合は初期値で補わず停止する。
 
 - 1 Issueは各段階で1枠を消費する。Effortと同時処理数を混同しない。
 - 実装中は実装枠、レビュー依頼後はレビュー枠、重いCIや共有試験環境の使用中は専用枠、

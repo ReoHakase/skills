@@ -7,7 +7,7 @@ body:
       value: |
         時間枠、停止条件、証拠、判断、後続Issueの要否を明確にする。
         Issue本文は常体で書く。調査だけで本番機能を完成させない。
-        Milestone、依存、Assignee、branch、PR、構造化フィールドは本文へ重複させない。
+        Milestone、依存、Assignee、linked branch、PR、構造化フィールドは本文へ重複させない。
 
   - type: textarea
     id: overview

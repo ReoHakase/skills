@@ -1,43 +1,43 @@
 [
   {
     "query": "GitHub Projectsを使っていないリポジトリで、仕様書からFirst Release用のIssueを親子と依存関係に分け、Milestoneへ割り当てて",
-    "should_trigger": false
+    "should_trigger": true
   },
   {
     "query": "セッション期限切れ後に再認証しても401になる不具合を、受け入れ条件、対象外、確認手順、変更予定ファイルを含むIssue本文にして",
-    "should_trigger": false
+    "should_trigger": true
   },
   {
     "query": "Projectを導入せず、Issue FormsとPRテンプレートをチームの開発手順に合わせて設計して",
-    "should_trigger": false
+    "should_trigger": true
   },
   {
     "query": "複数の自動実行役が同じIssueへ着手する。Projectフィールドなしで、Assignee、linked branch、open PRを使った競合停止と、人間の決定後の引き継ぎ規約を作って",
-    "should_trigger": false
+    "should_trigger": true
   },
   {
     "query": "Issue #41からbranch、worktree、Draft PR、レビュー可能化、マージまでの対応関係とPR本文を整えて",
-    "should_trigger": false
+    "should_trigger": true
   },
   {
     "query": "本文が確定済みのIssue群を既存GitHub Projectへ追加し、Status、Effort、Estimate Confidenceと4つのビューを整備して",
-    "should_trigger": true
+    "should_trigger": false
   },
   {
     "query": "GitHub Projectの実装枠2、レビュー枠1、重いCI枠1から、既存Issueの次の実行WaveとForecastを組み直して",
-    "should_trigger": true
+    "should_trigger": false
   },
   {
     "query": "組織Issue FieldとProjectフィールドが重複しているので、フィールドごとの正本を監査して",
-    "should_trigger": true
+    "should_trigger": false
   },
   {
     "query": "`acme/release-tool`へ非公開Projectを作成・紐付けし、フィールドとビューを安全に設定する計画を出して",
-    "should_trigger": true
+    "should_trigger": false
   },
   {
     "query": "IssueやMilestoneは残したまま、GitHub Projectのアイテム、フィールド、ビュー、紐付けだけを復元可能な手順で解除して",
-    "should_trigger": true
+    "should_trigger": false
   },
   {
     "query": "仕様書をIssueへ分割し、そのIssue群をGitHub Projectへ追加して、工数、容量、Forecast、4ビューまで計画して",

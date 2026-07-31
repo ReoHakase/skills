@@ -7,7 +7,7 @@ body:
       value: |
         1つのbranchと1つのPRで完了できる作業に使う。
         Issue本文は常体で書く。丁寧体は使わない。
-        Milestone、親子関係、依存、Assignee、branch、PR、構造化フィールドは本文へ重複させない。
+        Milestone、親子関係、依存、Assignee、linked branch、PR、構造化フィールドは本文へ重複させない。
 
   - type: textarea
     id: overview

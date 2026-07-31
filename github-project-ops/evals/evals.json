@@ -3,44 +3,48 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "evals/fixtures/docs/spec.mdを対象リポジトリのdocs/spec.mdとして、新規リポジトリに18件程度のWBSを作りたい。GitHub Project、First Release Milestone、親子関係、依存関係、4つの標準ビューまで計画して。まだGitHubへは書き込まず、実行前に確認すべき値と変更計画を出して。",
-      "expected_output": "書き込みなしの計画。仕様から分割した末端Issueとepic、Milestone期限から組んだForecast、Effortと容量、正本選択、タイトル・公開範囲を含む新規Project作成確認、本適用の確認、ビューの自動・手動検証までを示す。",
-      "files": ["evals/fixtures/docs/spec.md"],
+      "prompt": "既存のIssue #101から#112を使い、新しいGitHub Projectを初期整備したい。Projectの所有者はacme、対象リポジトリはacme/widget、Project名はWidget Delivery、公開範囲はprivate。フィールド、4つの標準ビュー、Projectアイテムへの割り当てを計画し、安全に適用・検証する手順を示して。Issue本文、Milestone、Issue Forms、PRテンプレート、CI設定は既に運用中なので変更しないで。",
+      "expected_output": "Project固有の変更だけを、発見、計画、段階別の確認、適用、再取得による検証へ分けた手順。GitHub MCP、gh、jqを使い、既存Issueの番号・URL・node IDをProjectアイテムと結ぶ。Issue/PR側の資産は変更しない。",
+      "files": [
+        "assets/project-fields.json",
+        "assets/project-items.example.json",
+        "assets/project-views.json"
+      ],
       "assertions": [
-        "[critical] plan、apply、verifyの境界を守り、新規Projectはタイトル・公開範囲入り確認文字列の機械照合後だけ作成する",
-        "[critical] リポジトリ所有者、Project所有者・公開範囲、既定ブランチ、組織Issue Type/Fieldの能力を事前確認する",
-        "epicと1PRで閉じられる末端Issueに分け、sub-issueとblocked byを役割どおりに使う",
-        "Milestone期限を先に決め、正のEffort、Estimate Confidence、WIP上限を使ってForecastを組む",
-        "project-fields.jsonとproject-views.jsonを正本とし、4ビューの自動検証と画面上の手動確認を含める",
-        "日本語の説明へ不要な英単語を混ぜず、GitHubの正式名称と状態値だけを必要に応じて残す"
+        "[critical] Issue本文、Milestone、親子・依存関係、Issue Forms、PRテンプレート、CI設定を作成・変更・削除しない",
+        "[critical] Pythonスクリプトを使わず、探索はGitHub MCPを優先し、通常の変更はgh project、高水準コマンドにない操作だけgh apiまたはgh api graphqlを使う",
+        "[critical] Project、フィールド、アイテム、値、ビューを段階ごとに確認し、各段階の変更後にGitHubから全ページを再取得して照合する",
+        "Project所有者、リポジトリ、同名Project、公開範囲、権限、対象Issueの番号・URL・node IDを変更前に確認する",
+        "project-fields.json、project-items.example.json、project-views.jsonをjq -eで検証し、可変なIssueタイトルを結合キーにしない",
+        "途中失敗時は自動ロールバックせず、取得済みIDと完了段階を記録して再計画する"
       ]
     },
     {
       "id": 2,
-      "prompt": "readyの末端Issueが6件ある。エージェント枠3、worktree枠2、レビューWIP 1、重いCI WIP 1、マージ待ち1。A→C、B→Dの依存があり、AとBは同じ設定ファイルを触る。レビュー中のEが1件ある。次の実行Waveと各IssueのStatus、どこで新規投入を止めるかを決めて。",
-      "expected_output": "依存関係、変更競合、実装枠、下流WIPを同時に満たす実行Wave。作業権取得前後の操作、待機理由、再計算条件を区別して示す。",
+      "prompt": "Project #7の次の実行Waveを決めたい。実装枠2、worktree枠2、レビューWIP 1、重いCI WIP 1、マージ待ちWIP 1。レビュー中が1件、重いCI実行中が1件ある。Issue #31はAssigneeがagent-a、linked branchが31/feat-search、open状態のDraft PR #201のhead branchも31/feat-searchで着手情報が整合し、現在の実行環境は公開可能な追跡値run-31を提示している。Issue #32はAssigneeがagent-bだが、linked branchとopen PRが2組あり着手対象を一意に特定できない。Milestone期限は2026-09-30。Effort、依存関係、変更競合からForecastを更新し、整合を確認できる着手情報だけをProjectへ同期して。",
+      "expected_output": "下流容量が埋まっている間は新規投入を停止し、解放条件を示す。Issue #31はAgent RunとStatusへ派生同期し、Issue #32はProject側で採用候補を決めず同期を停止して差異を返す。Milestone期限を入力として容量と依存関係からForecastを更新する。",
       "files": [],
       "assertions": [
-        "[critical] 実装WIPをmin(エージェント枠, worktree枠)=2とし、依存と変更競合を満たす範囲だけ投入する",
-        "[critical] レビューWIPが埋まっている間は下流への追加投入を抑え、単なる待ちをblockedにしない",
-        "作業権取得コメント、GitHubサーバー時刻、Agent Run再取得で勝者を一意にする",
-        "EffortとWIPを混同せず、枠解放・依存解消・見積変更時のWave再計算を示す",
-        "Draft PRはin-progress、レビュー可能後はin-reviewという境界を守る",
-        "設定済みのマージ経路に依存しない『マージ待ち』として容量を扱う"
+        "[critical] レビューWIPと重いCI WIPが満杯のため新規Issueの投入を停止し、容量解放後にだけ実行Waveを再計算する",
+        "[critical] Issue #31はAssignee、linked branch、open PRの整合を再取得して確認した後、現在の実行環境が提示したrun-31だけをAgent Runへ記録し、Statusをin-progressへ同期する",
+        "[critical] Issue #32は複数候補の差異を示して同期を停止し、Project側で採用候補を決めない。Assignee、branch、PR、Issue本文を作成・変更せず、Project固有フィールド以外へ同期範囲を広げない",
+        "Milestone期限はIssue/PR側の値を読み取り専用の入力とし、変更しない",
+        "Effort、依存関係、変更競合、実装・worktree・レビュー・CI・マージ待ち容量からForecastとWaveを求める",
+        "単なる容量待ちをblockedへ変えず、容量解放、依存解消、見積り変更を再計算条件として示す"
       ]
     },
     {
       "id": 3,
-      "prompt": "既存の組織Projectを一括整備したい。既定ブランチはtrunk。Projectは公開で、同名のScope組織Issue Fieldはorganization_members_only。Projectには別組織Issue、PR、Draft Issueも入っている。組織planは権限不足で読めない。この状態でbootstrapをapplyしてよいか判定し、可能なら計画を出して。",
-      "expected_output": "書き込み前に複数の不整合を列挙して停止する判定。正本、公開範囲、アイテム種別、マージ資格を推測で補わず、解消手順と再計画条件を示す。",
+      "prompt": "既存の組織Project #9を整備したい。Projectは公開だが、同名のScope組織Issue Fieldはorganization_members_only。Projectには対象リポジトリ外のIssue、PR、Draft Issueが混在する。組織のIssue TypeとIssue Fieldを読む権限がなく、Projectフィールドを更新できるかも確認できない。容量情報も欠けている。この状態でProject項目値とForecastを一括更新してよいか判定して。",
+      "expected_output": "権限、公開範囲、正本、アイテム種別、容量が確定しないため書き込み前に停止する判定。値を推測せず、問題の解消方法と、再発見・再計画から始める条件を示す。Issue/PR側の資産は変更しない。",
       "files": [],
       "assertions": [
-        "[critical] 権限不足、公開Projectで不可視のIssue Field、別所有者アイテム、PR、Draft Issueを停止要因としてapply前に停止する",
-        "[critical] 組織plan不明時の推奨マージ方式をundeterminedとし、保護ブランチへ推測で切り替えない",
-        "StatusはProjectフィールド固定、Typeは組織Issue Type一式またはProject Type、その他はフィールド単位という境界を守る",
-        "trunkを既定ブランチとして扱い、mainをハードコードしない",
-        "既存データを自動削除・上書きせず、Project分割や公開範囲修正など人間が選ぶ解消策を示す",
-        "問題解消後もplanから再開し、確認文字列とverifyを要求する"
+        "[critical] 組織Issue Type・Issue Fieldの読み取り権限、Project更新権限、公開範囲の不一致、混在アイテム、容量不足をすべて停止要因として変更前に停止する",
+        "[critical] 不足値を推測せず、権限取得、正本決定、対象Project分離または対象アイテム限定、容量確定後に発見と計画からやり直す",
+        "[critical] Issue本文、Milestone、親子・依存関係、Issue Forms、PRテンプレート、CI設定を変更せず、混在アイテムを自動削除しない",
+        "StatusはProjectフィールドを正本とし、組織Issue Type・Issue Fieldとの正本分担をフィールド単位で確認する",
+        "Forecast更新には正のEffort、Estimate Confidence、依存関係、WIP上限、レビュー・CI・マージ待ち容量が必要だと示す",
+        "条件解消後も段階別の確認文字列とGitHubからの再取得による検証を要求する"
       ]
     }
   ]

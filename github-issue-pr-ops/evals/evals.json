@@ -1,0 +1,47 @@
+{
+  "skill_name": "github-issue-pr-ops",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Projectを使わない`acme/session-api`で、セッション期限切れ後に再認証しても401が続く不具合を単一Issueとして設計して。期待動作は再認証後に元の操作を1回だけ再試行して成功すること、実際の動作は期限切れトークンを再利用して401を返すこと。再現は`bun test tests/session/refresh.test.ts`で確認でき、変更候補は`src/session/refresh.ts`と`tests/session/refresh.test.ts`。既定ブランチは`main`、規範資料はコミット`9f3a8cd`の`docs/auth.md` 42〜68行にある。GitHubへは書き込まず、Issueタイトルと本文案を作って。",
+      "expected_output": "Projectに依存しない単一の不具合Issue案。第三者が実装開始と完了を判断できる本文を作り、状態やGitHubメタデータを本文へ重複させない。",
+      "files": [],
+      "assertions": [
+        "[critical] 概要、背景、非スコープ、変更ファイル、参照ドキュメント、受け入れ条件、確認手順に加え、期待動作、実際の動作、再現手順、ログ・証拠、影響範囲を本文へ明示する",
+        "[critical] 単一Issueとして閉じる範囲を保ち、タイトルへTypeやScopeの機械的な接頭辞を付けない",
+        "変更候補をglobまたは具体的なパスで示し、受け入れ条件と確認手順を第三者が判定できる形にする",
+        "参照ドキュメントを指定コミットと行番号へ固定し、既定ブランチとの差分確認URLも示す",
+        "Projectフィールド、Milestone、Assignee、linked branch、PR、依存関係一覧、状態履歴をIssue本文へ複製しない",
+        "日本語の説明へ不要な英単語を混ぜず、秘密情報を含む証拠や未確定な実装メモを本文へ入れない"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "`evals/fixtures/docs/spec.md`を対象リポジトリの`docs/spec.md`として、Projectを使わずにFirst Release用のIssueへ分割して。大項目、1つのPRで閉じる末端Issue、sub-issue、blocked by、Milestoneを含む書き込み前の計画を作り、各Issueの本文で必要になる項目も示して。まだGitHubへは書き込まない。",
+      "expected_output": "仕様を実装可能なIssueへ分けた計画。成果の階層と実行順序を区別し、First Release Milestone、安定した一時キー、段階的な適用と再取得までを示す。",
+      "files": ["evals/fixtures/docs/spec.md"],
+      "assertions": [
+        "[critical] 大きな成果を大項目と1つのPRで閉じられる末端Issueへ分け、各末端Issueに独立した成果、変更境界、受け入れ条件、非スコープ、確認手順を持たせる",
+        "[critical] sub-issueを成果の階層、blocked byを開始不能な順序依存として使い分け、自己参照、重複、複数の親、循環を作らない",
+        "First Release MilestoneをIssue作成前に同名・状態・期限まで確認し、仕様の期限2026-10-30を反映する",
+        "一時キーで計画を結び、作成後は可変なタイトルではなくIssue番号またはURLで親子・依存を設定する",
+        "対象リポジトリ、件数、Milestone、一時キーを含む確認後だけ、Milestone、Issue、関係の順に適用し、各段階で再取得する",
+        "ProjectのStatus、Effort、Forecast、容量を持ち込まず、途中失敗時は残りを止めて作成済み番号と未実行項目を報告し、自動削除しない"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Projectを使わないリポジトリのIssue #42で二重着手が起きた。現在のAssigneeは`@alice`、linked branchは`42/fix-auth-session`、そのbranchのopen Draft PRは#219で、`@alice`が作成している。`@bob`にも同じIssueへの着手依頼が届いたが、権限を持つ人間は担当や既存作業の扱いをまだ決めていない。今すぐ行う判断と、人間が`@bob`への引き継ぎを明示した後の手順を、GitHubへ書き込まずに示して。既存branchは`trunk`から作成済みで、変更範囲は`src/auth/**/*.ts`と`tests/auth/**/*.test.ts`。引き継ぎ後に使うDraft PR本文、レビュー可能化からマージまでの契約も含めて。",
+      "expected_output": "Assignee、linked branch、open PRの競合を根拠に変更を停止し、人間の明示決定を待つ手順。決定後は通常コメントとGitHub標準メタデータで既存作業を引き継ぎ、Issue #42を正確に1件だけ閉じるPR本文と、最新状態に基づくレビュー・マージ契約を示す。",
+      "files": [],
+      "assertions": [
+        "[critical] Issue、Assignee、linked branch、open PRを再取得し、`@alice`と既存PR #219がある状態では`@bob`を自動選択せず変更を停止する",
+        "[critical] 人間が担当、既存branchとPR、未push差分の扱いを明示するまで、Assignee、branch、PR、Project項目を変更せず、コメント時刻やコメントIDで担当を決めない",
+        "人間の決定後は旧担当が停止し、決定者、旧担当、新担当、既存作業の扱いを通常コメントへ記録してから、再取得、Assignee更新、再確認の順で引き継ぐ",
+        "既存の`42/fix-auth-session`とPR #219を重複作成せず、1 Issue、1 branch、1 PRの対応を保つ",
+        "PR本文に概要、関連Issue、スコープ、Issueとの差異、振る舞い、確認結果、展開と切り戻し、リスク、レビュー案内を含め、`Closes #42`などでIssueを正確に1件だけ閉じる",
+        "Draft解除前後を区別し、最新head SHA、レビュー判断、必須チェック、マージ可能性、rulesetまたはブランチ保護を再取得して、設定済みのマージ経路だけを使い、保護を`--admin`で迂回しない"
+      ]
+    }
+  ]
+}

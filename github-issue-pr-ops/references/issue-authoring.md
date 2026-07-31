@@ -44,7 +44,7 @@ Issue本文には、現在信頼できる作業契約だけを書く。状態変
 Issue本文へ書かないもの:
 
 - sub-issue一覧、blocked by / blocking一覧
-- Milestone、Assignee、branch、PR
+- Milestone、Assignee、linked branch、PR
 - Projectフィールドや組織Issue Fieldの値
 - 認証情報、個人情報、公開できないログ
 - 未確定な実装メモやチャットの全文

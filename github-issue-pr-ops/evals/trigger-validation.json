@@ -1,19 +1,19 @@
 [
   {
     "query": "Projectを使わない小規模リポジトリで、画像削除失敗を1件のIssueへ起票できる本文にして",
-    "should_trigger": false
+    "should_trigger": true
   },
   {
     "query": "Issue #73のAssigneeを別エージェントへ引き継ぎ、人間の明示決定後に既存のlinked branchとopen PRを安全に継続する手順を決めて",
-    "should_trigger": false
+    "should_trigger": true
   },
   {
     "query": "既存ProjectのStatus選択肢とボード・ロードマップ表示がずれているので監査して",
-    "should_trigger": true
+    "should_trigger": false
   },
   {
     "query": "Project上の12件についてEffort、WIP上限、Milestone期限からForecastだけを再計算して",
-    "should_trigger": true
+    "should_trigger": false
   },
   {
     "query": "Issue FormsのPriority欄とProjectのPriorityが重複している。Issue起票とProject登録の両方を直して",
