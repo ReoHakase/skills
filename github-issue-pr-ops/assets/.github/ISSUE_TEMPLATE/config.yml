@@ -1,0 +1,5 @@
+# このファイルを .github/ISSUE_TEMPLATE/config.yml へコピーする。
+# 新しい作業が構造化されたフォームから始まるように、空のIssueを無効にする。
+blank_issues_enabled: false
+
+# サポート窓口やセキュリティ窓口が実在する場合だけcontact_linksを追加する。

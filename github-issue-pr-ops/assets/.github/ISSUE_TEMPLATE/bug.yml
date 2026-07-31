@@ -1,0 +1,150 @@
+# このファイルを .github/ISSUE_TEMPLATE/bug.yml へコピーする。
+name: 不具合報告
+description: 期待動作と異なる、再現可能な不具合を報告する。
+body:
+  - type: markdown
+    attributes:
+      value: |
+        期待動作、実際の動作、再現手順、証拠、影響範囲、受け入れ条件、確認手順を書く。
+        Issue本文は常体で書く。秘密情報、認証情報、個人情報は履歴にも残さない。
+        Milestone、依存、Assignee、branch、PR、構造化フィールドは本文へ重複させない。
+
+  - type: textarea
+    id: overview
+    attributes:
+      label: 概要
+      description: 発生している不具合を1〜3文で要約する。
+      placeholder: 分割動画の境界時刻が前のパートとして解決されることがある。
+    validations:
+      required: true
+
+  - type: textarea
+    id: background
+    attributes:
+      label: 背景
+      description: 発覚した経緯と、なぜ修正が必要かを書く。
+      placeholder: 検索結果からプレイヤーへ移動したときに別の場面が開かれた。
+    validations:
+      required: true
+
+  - type: textarea
+    id: non-scope
+    attributes:
+      label: 非スコープ
+      description: 関連するが、このIssueでは意図的に修正しないことを書く。
+      placeholder: |
+        - このIssueでは扱わないことを書く。
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待動作
+      description: 正しい動作を第三者が確認できる形で書く。
+      placeholder: 境界時刻は次のパートの先頭として解決される。
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 実際の動作
+      description: 実際に起きる動作、頻度、観測条件を書く。
+      placeholder: 同じ時刻が前のパートの末尾として扱われることがある。
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 再現手順
+      description: 第三者が同じ状態を再現できる手順を書く。
+      placeholder: |
+        1. 対象画面を開く。
+        2. 操作を実行する。
+        3. 実際の動作を確認する。
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: 環境
+      description: 再現性に影響するOS、ブラウザ、実行環境、コミットなどを書く。未確認なら理由付きで「不明」と書く。
+      placeholder: |
+        - OS:
+        - ブラウザ / 端末:
+        - 実行環境:
+        - コミット / バージョン:
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: ログ・証拠
+      description: 必要最小限のログを書く。秘密情報、認証情報、個人情報を削除し、ない場合は「なし」と書く。
+      placeholder: |
+        秘密情報を除いたログ抜粋を書く。
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: 影響範囲
+      description: 影響する利用者、機能、データ、運用、頻度を書く。
+      placeholder: |
+        - 影響する利用者:
+        - 影響する機能 / データ:
+        - 発生頻度:
+    validations:
+      required: true
+
+  - type: textarea
+    id: changed-files
+    attributes:
+      label: 変更ファイル
+      description: 分かる場合は変更予定のファイルをglobで書く。受付時点で未確定なら理由を書く。
+      placeholder: |
+        - `src/**/*.ts`
+        - `tests/**/*.test.ts`
+        - 未確定（原因箇所を調査してから着手前に更新する）
+    validations:
+      required: true
+
+  - type: textarea
+    id: reference-documents
+    attributes:
+      label: 参照ドキュメント
+      description: 規範資料がある場合はコミットSHAと行番号に固定する。存在しない場合は理由付きで「なし」と書く。
+      placeholder: |
+        https://github.com/OWNER/REPO/blob/<COMMIT_SHA>/docs/spec.md#L10-L40
+        更新確認: https://github.com/OWNER/REPO/compare/<COMMIT_SHA>...<DEFAULT_BRANCH>
+        または: なし（期待動作を規定する既存資料がないため）
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: 修正の受け入れ条件
+      description: 不具合が直ったと判断できる条件を書く。
+      placeholder: |
+        - [ ] 不具合の再現手順で期待動作になる。
+        - [ ] 関連する既存動作が変わっていない。
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: 確認手順
+      description: 修正後に実行する自動テストまたは手動確認を書く。
+      placeholder: |
+        - [ ] 自動テストを実行する。
+        - [ ] 再現手順を手動確認する。
+    validations:
+      required: true

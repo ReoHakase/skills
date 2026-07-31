@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "repository": "OWNER/REPO",
+  "issues": [
+    {
+      "key": "search-epic",
+      "number": null,
+      "url": null,
+      "node_id": null,
+      "title": "検索機能の土台を作る",
+      "kind": "epic",
+      "body_file": "issues/search-epic.md",
+      "milestone": "First Release",
+      "parent_key": null,
+      "blocked_by_keys": []
+    },
+    {
+      "key": "search-contract",
+      "number": null,
+      "url": null,
+      "node_id": null,
+      "title": "検索レスポンスのデータ契約を定義する",
+      "kind": "feat",
+      "body_file": "issues/search-contract.md",
+      "milestone": "First Release",
+      "parent_key": "search-epic",
+      "blocked_by_keys": []
+    },
+    {
+      "key": "search-ui",
+      "number": null,
+      "url": null,
+      "node_id": null,
+      "title": "検索結果カードに一致場面を表示する",
+      "kind": "feat",
+      "body_file": "issues/search-ui.md",
+      "milestone": "First Release",
+      "parent_key": "search-epic",
+      "blocked_by_keys": ["search-contract"]
+    }
+  ]
+}

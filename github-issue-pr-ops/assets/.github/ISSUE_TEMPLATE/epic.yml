@@ -1,0 +1,61 @@
+# このファイルを .github/ISSUE_TEMPLATE/epic.yml へコピーする。
+name: 大項目Issue
+description: 複数の末端Issueを、利用者に届く1つの成果としてまとめる。
+body:
+  - type: markdown
+    attributes:
+      value: |
+        大項目は原則branchとPRを持たない。子Issue一覧はsub-issueで管理し、本文へ複製しない。
+        本文には成果の境界と完了判定を残す。
+
+  - type: textarea
+    id: purpose
+    attributes:
+      label: 目的
+      description: 子Issue群を完了して利用者や運用へ届ける成果を書く。
+      placeholder: 検索結果から一致した場面と理由を確認できるようにする。
+    validations:
+      required: true
+
+  - type: textarea
+    id: outcome-boundary
+    attributes:
+      label: 成果の境界
+      description: 含む成果と、意図的に含めない成果を書く。
+      placeholder: |
+        含むもの:
+        - 検索結果カードの表示
+
+        含めないもの:
+        - 検索順位の最適化
+    validations:
+      required: true
+
+  - type: textarea
+    id: decomposition
+    attributes:
+      label: 分割方針
+      description: どの境界で末端Issueへ分けるかを書く。Issue番号一覧は書かない。
+      placeholder: 契約、API、画面を独立して確認できる末端Issueへ分ける。
+    validations:
+      required: true
+
+  - type: textarea
+    id: completion
+    attributes:
+      label: 完了条件
+      description: 必須の子Issueと大項目固有の確認を満たしたと判断できる条件を書く。
+      placeholder: |
+        - [ ] 必須の末端Issueが完了している。
+        - [ ] 主要な利用経路を確認できる。
+    validations:
+      required: true
+
+  - type: textarea
+    id: aggregation
+    attributes:
+      label: 状態集約の根拠
+      description: 子Issueのどの事実を使って進行と完了を判断するかを書く。
+      placeholder: 必須の子Issueが閉じ、ブランチ作成型IssueのPRがマージ済みであることを確認する。
+    validations:
+      required: true
