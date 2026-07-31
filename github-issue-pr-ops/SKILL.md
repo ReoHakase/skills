@@ -41,12 +41,12 @@ Projectや組織Issue Fieldが存在する場合も、その値をIssue本文や
 
 必要な資料だけを読む。
 
-| 対象                                         | 読むファイル                             |
-| -------------------------------------------- | ---------------------------------------- |
-| 仕様からの分割、Issue粒度、本文、Issue Forms | `references/issue-authoring.md`          |
-| sub-issue、依存関係、Milestone、一括起票計画 | `references/relations-and-milestones.md` |
-| 作業権取得、競合、引き継ぎ、解放、阻害要因   | `references/work-claim.md`               |
-| PR本文、Draft、レビュー、CI、マージ          | `references/pr-and-merge.md`             |
+| 対象                                                     | 読むファイル                             |
+| -------------------------------------------------------- | ---------------------------------------- |
+| 仕様からの分割、Issue粒度、本文、Issue Forms             | `references/issue-authoring.md`          |
+| sub-issue、依存関係、Milestone、一括起票計画             | `references/relations-and-milestones.md` |
+| ライフサイクルコメント、作業権、引き継ぎ、解放、阻害要因 | `references/lifecycle-comments.md`       |
+| PR本文、Draft、レビュー、CI、マージ                      | `references/pr-and-merge.md`             |
 
 # 変更前に確認する値
 
