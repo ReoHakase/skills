@@ -1,7 +1,7 @@
 ---
 name: github-project-ops
 description: GitHub Projectsを作業管理の正本として、WBS、Milestone、sub-issueとblocked by、工数・WIP・作業権、Issue/PR本文の規約、Project導入・監査・解除、マージ待ちを横断して設計・運用するときに使う。複数Issueの計画、並列実行、容量管理、初期構築、既存Projectの運用監査、Issue駆動のチーム規約を含む依頼では、スキル名が明示されなくても使う。単一Issueの閲覧・通常起票・本文編集、単一PRの本文編集・レビュー対応、CI失敗修正、ProjectやMilestoneの単発コマンド、一般的なGit/GitHub操作だけには使わない。出力は利用者の言語に合わせ、日本語では技術用語以外を日本語で書く。
-compatibility: GitHub.com、git、jq、Python 3.10+、Project権限とIssue書き込み権限で認証済みの現行gh CLIを想定する。組織Issue Type、組織Issue Field、マージキューは確認済みの機能だけを使う。不在・非対応ならProjectフィールドや保護ブランチを候補にし、権限不足、定義衝突、不可視、確認不能なら停止する。
+compatibility: GitHub.com、git、jq、Project権限とIssue書き込み権限で認証済みの現行gh CLIを想定する。組織Issue Type、組織Issue Field、マージキューは確認済みの機能だけを使う。不在・非対応ならProjectフィールドや保護ブランチを候補にし、権限不足、定義衝突、不可視、確認不能なら停止する。
 ---
 
 # 目的
@@ -25,11 +25,11 @@ SSoTはGitHub上のProject、Issue、PRである。
 - 既定ブランチへの統合は、利用可能ならマージキュー、利用不可なら必須ステータスチェック付き保護ブランチで表す。
 
 `assets/` は、対象リポジトリへコピーして使う設定・サンプルデータ、または対象リポジトリに合わせて編集して使うテンプレートを置く。Issue Forms、PRテンプレート、`merge_group` 対応CI、Projectビュー説明、Projectフィールド・ビューJSON、初期Issue一覧JSON、一括作成用テンプレートはここに置く。
-Projectフィールドは `assets/project-fields.json`、ビューの作成可能な設定は `assets/project-views.json` を正本にし、一括作成テンプレートは両方のJSONを読む。
+Projectフィールドは `assets/project-fields.json`、ビューの作成可能な設定は `assets/project-views.json` を正本にする。作成済みIssueとProject項目値を結ぶ割当計画例は `assets/project-items.example.json` に置く。
 
 `references/` は、エージェントが必要に応じて読む手順、判断基準、テンプレート、記入済み例を置く。テンプレートと例は用途ごとの参照資料内で隣接させる。
 
-このスキルは汎用の一括実行シェルスクリプトを配らない。GitHubの実操作は、GitHub MCPで実状態を確認してから `gh` / `gh api` の明示コマンドで行う。大量WBS起票では `assets/project-bootstrap-template.py` を対象リポジトリ向けに編集して使う。
+このスキルはGitHubを変更する配布スクリプトを持たない。探索と状況整理はGitHub MCPを優先し、通常の変更は `gh`、高水準コマンドにない操作だけ `gh api` または `gh api graphql` で行う。大量設定も段階ごとの明示コマンドで適用し、直後に再取得する。
 
 # 参照先の選び方
 
@@ -38,7 +38,8 @@ Projectフィールドは `assets/project-fields.json`、ビューの作成可�
 | 対象                                                                                    | 読むファイル                          |
 | --------------------------------------------------------------------------------------- | ------------------------------------- |
 | Projectフィールド、工数、容量/WIP、Milestone、Forecast、日付、ビュー、コピー用アセット  | `references/project-setup.md`         |
-| Project・Milestone・WBSの初期一括作成、値設定、GraphQL代替、検証                        | `references/project-bootstrap.md`     |
+| Project初期構築、既存Issueの割当、値設定、ビュー、全件検証                              | `references/project-bootstrap.md`     |
+| Project紐付け、フィールド、項目値、ビューのページング読取と選択肢更新                   | `references/project-api-queries.md`   |
 | WBS分解、Issue粒度、Issue本文、sub-issue、依存DAG、変更競合                             | `references/issue-authoring.md`       |
 | Status遷移、作業権、実行Wave、`epic`集約、型別完了、`ready` / `blocked`                 | `references/issue-lifecycle.md`       |
 | ライフサイクルコメントを実際に書き込むときだけ                                          | `references/lifecycle-comments.md`    |
@@ -125,7 +126,7 @@ flowchart TD
     projectSync -->|"運用決定を追加・変更"| docsMd
 ```
 
-初回一括作成は導入時だけに使う。既存Projectの運用ではIssue設計中から始める。運用中の変更は一括作成ひな形の再実行で吸収せず、GitHub上の実状態を読んでIssue、Project、Milestoneを個別に更新する。
+初回一括設定は導入時だけに使う。既存Projectの運用ではIssue設計中から始める。運用中の変更は以前の計画をそのまま再適用せず、GitHub上の実状態を読んでIssue、Project、Milestoneを個別に更新する。
 
 `docs/*.md` は固定の前提ではなく、Issue設計中、並列実装中、レビュー対応中、Project反映中に追加・変更する対象である。
 

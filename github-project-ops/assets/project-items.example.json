@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "repository": "OWNER/REPO",
+  "project": {
+    "owner": "OWNER",
+    "number": null,
+    "id": null,
+    "title": "開発ロードマップ",
+    "visibility": "PRIVATE"
+  },
+  "field_sources": {
+    "Status": { "kind": "project_field", "field_id": null },
+    "Type": { "kind": "project_field", "field_id": null },
+    "Scope": { "kind": "project_field", "field_id": null },
+    "Priority": { "kind": "project_field", "field_id": null },
+    "Size": { "kind": "project_field", "field_id": null },
+    "Effort": { "kind": "project_field", "field_id": null },
+    "Estimate Confidence": { "kind": "project_field", "field_id": null },
+    "Complexity": { "kind": "project_field", "field_id": null },
+    "Risk": { "kind": "project_field", "field_id": null },
+    "Agent Tier": { "kind": "project_field", "field_id": null },
+    "Agent Harness": { "kind": "project_field", "field_id": null },
+    "Agent Model": { "kind": "project_field", "field_id": null },
+    "Agent Run": { "kind": "project_field", "field_id": null },
+    "Reviewer Owner": { "kind": "project_field", "field_id": null },
+    "Branch": { "kind": "project_field", "field_id": null },
+    "Source": { "kind": "project_field", "field_id": null },
+    "Forecast Start": { "kind": "project_field", "field_id": null },
+    "Forecast End": { "kind": "project_field", "field_id": null },
+    "Actual Start": { "kind": "project_field", "field_id": null },
+    "Actual End": { "kind": "project_field", "field_id": null }
+  },
+  "items": [
+    {
+      "issue_key": "search-contract",
+      "issue_number": 123,
+      "issue_url": "https://github.com/OWNER/REPO/issues/123",
+      "issue_node_id": "I_ISSUE_NODE_ID",
+      "item_id": null,
+      "fields": {
+        "Status": "ready",
+        "Type": "feat",
+        "Scope": "search",
+        "Priority": "p2-high",
+        "Size": "s1-small",
+        "Effort": 3,
+        "Estimate Confidence": "ec1-medium",
+        "Complexity": "c1-simple",
+        "Risk": "r1-safe",
+        "Agent Tier": "agent-standard",
+        "Source": "docs",
+        "Forecast Start": "2026-08-03",
+        "Forecast End": "2026-08-03"
+      }
+    },
+    {
+      "issue_key": "search-ui",
+      "issue_number": 124,
+      "issue_url": "https://github.com/OWNER/REPO/issues/124",
+      "issue_node_id": "I_SECOND_ISSUE_NODE_ID",
+      "item_id": null,
+      "fields": {
+        "Status": "triaged",
+        "Type": "feat",
+        "Scope": "ui",
+        "Priority": "p1-normal",
+        "Size": "s2-medium",
+        "Effort": 5,
+        "Estimate Confidence": "ec1-medium",
+        "Complexity": "c2-moderate",
+        "Risk": "r1-safe",
+        "Agent Tier": "agent-standard",
+        "Source": "docs",
+        "Forecast Start": "2026-08-04",
+        "Forecast End": "2026-08-05"
+      }
+    }
+  ]
+}

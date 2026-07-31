@@ -26,7 +26,7 @@ Projectフィールド、工数、容量、ラベル不使用方針、日付フ�
 - `assets/.github/project/views.md`: GitHub Projectsビューの説明をリポジトリ側へ置く例。導入時は対象リポジトリの `.github/project/views.md` へコピーする。
 - `assets/project-fields.json`: 推奨Projectフィールドと単一選択肢の色・説明文の定義例。
 - `assets/project-views.json`: 標準ビューの名前、レイアウト、フィルターの機械可読な正本。
-- `assets/backlog.flat.json`: 初期backlog作成用のサンプルデータ。
+- `assets/project-items.example.json`: 作成済みIssueとProject項目値を結ぶ割当計画例。
 
 これらは実GitHub Projectやリポジトリ設定を自動移行するものではない。GitHub上の実状態を確認してから、必要な設定だけ手動またはgh CLIで反映する。
 
@@ -38,7 +38,7 @@ Projectフィールド、工数、容量、ラベル不使用方針、日付フ�
 
 - 組織所有リポジトリ: 対象リポジトリで利用できるIssue Typesと、所有組織のIssue Fieldsを読む。同じ意味と値域を持つフィールドがある場合はそれを正本とし、同義のProject独自フィールドを作らない。
 - 個人所有リポジトリ: 組織Issue Fieldsを使えないため、Project独自フィールドを正本とする。
-- 複数組織や個人所有のIssue、PR、Draft Issueが混在するProject: 組織Issue Fieldsは対象外アイテムで空になる。一括作成テンプレートは自動選択せず停止するため、対象組織のIssueだけを持つProjectへ分けてから再実行する。
+- 複数組織や個人所有のIssue、PR、Draft Issueが混在するProject: 組織Issue Fieldsは対象外アイテムで空になる。正本を自動選択せず停止し、対象組織のIssueだけを持つProjectへ分けてから計画を作り直す。
 - 公開またはinternal Project: `visibility: all` の組織Issue Fieldだけを使う。組織内限定フィールドはProjectに表示できないため、同義とみなさず停止する。
 
 検出には次の読み取りを使う。得られた名前、型、値域を `assets/project-fields.json` と比較し、同義である場合だけ切り替える。
@@ -62,7 +62,7 @@ gh api orgs/ORG/issue-fields
 
 単一選択肢の名前はlower-kebab形式にする。GitHub Projectsの絞り込み式、`gh` 出力後の `jq`、手作業の検索で、空白・大文字小文字・引用符の扱いを減らすためである。フィールド名は人間が読むためTitle Caseのままにする。
 
-`assets/project-fields.json` の単一選択肢 `options` は、標準では `name`、`color`、`description` を持つオブジェクト形式にする。フィールド値として使うのは `name` だけで、色と説明文は `references/project-bootstrap.md` のGraphQL手順または `assets/project-bootstrap-template.py` で反映する。
+`assets/project-fields.json` の単一選択肢 `options` は、標準では `name`、`color`、`description` を持つオブジェクト形式にする。フィールド値として使うのは `name` だけで、色と説明文は `references/project-api-queries.md` のGraphQL手順で反映する。
 
 | フィールド          | 型       | 値                                                                                  |
 | ------------------- | -------- | ----------------------------------------------------------------------------------- |
