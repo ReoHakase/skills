@@ -4,10 +4,15 @@ sub-issue、blocked by / blocking、Milestoneを設計・変更するとき、�
 
 # 関係の意味
 
-- sub-issueは成果の階層を表す。実行順序は表さない。
-- blocked byは、前段Issueが完了するまで開始できない順序依存を表す。
-- blockingは、このIssueが後続Issueの前提であることを表す。
-- 外部判断、権限、Figma、上流PRなどIssueではない阻害要因を、ダミーIssueで依存関係へ押し込まない。
+| 関係                  | 意味                                    | 正本                    |
+| --------------------- | --------------------------------------- | ----------------------- |
+| `epic` / sub-issue    | 成果の階層。実行順序は表さない          | GitHubのIssue関係       |
+| blocked by / blocking | 前段Issueが完了するまで着手できない依存 | GitHubのIssue依存関係   |
+| Stackのbase関係       | branch、レビュー、マージの直列順序      | GitHubのStackメタデータ |
+
+Stackの上段PRは、下段PRのマージ前でも実装、確認、レビューできる。Stackの隣接関係だけを理由にblocked byを追加しない。実際に前段Issueの完了まで着手できない場合は、Stackのbase関係とは別にblocked byを設定する。Stack固有の設計と操作は`stacked-prs.md`を参照する。
+
+外部判断、権限、Figma、上流PRなどIssueではない阻害要因を、ダミーIssueで依存関係へ押し込まない。
 
 作業開始可能性とIssue関係は自動同期しない。関係を変更した後、影響するIssueを再取得して開始可能性を再判定する。
 
@@ -19,6 +24,8 @@ sub-issue、blocked by / blocking、Milestoneを設計・変更するとき、�
 - 依存関係に自己参照、重複、循環がない。
 - 中止した前段Issueを自動的に完了扱いしない。
 - 変更競合だけを理由にblocked byを追加していない。
+- Stackの隣接関係を、着手不能という根拠なしにblocked byへ複製していない。
+- 1つのStackが複数の`epic`へまたがっていない。
 - 親Issueと前段Issueの番号・URLを、タイトル検索ではなく明示的に確定している。
 
 # Milestone

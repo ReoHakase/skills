@@ -1,6 +1,6 @@
 # PR、レビュー、マージ
 
-PR本文、Draft解除、レビュー状態、CI、マージ経路を扱うときに読む。
+PR本文、Draft解除、レビュー状態、CI、マージ経路を扱うときに読む。stacked PRの作成、同期、再構成は`stacked-prs.md`も参照する。
 
 # PRの段階
 
@@ -31,6 +31,14 @@ PR本文には次を含める。
 
 Projectフィールド、組織Issue Field、具体的なエージェントモデル名を本文へ複製しない。既存PRでは説明文を編集し、現在信頼できる情報へ更新する。
 
+Stack内のPRでは、`レビュー案内`に次を加える。
+
+- この段だけが担う責務
+- 下段から引き継ぐ前提
+- このPR単独で確認できる範囲
+
+Stack番号、Stack内の位置一覧、各PRのbaseは本文へ複製しない。GitHubのStackメタデータを正本として読む。
+
 自動クローズは次のいずれかを使う。
 
 ```text
@@ -39,7 +47,7 @@ Fixes #123
 Resolves #123
 ```
 
-単なる参照Issueは通常の`#123`として書き、複数Issueを一度に閉じない。`epic`やPRを成果物にしない調査へ機械的に適用しない。
+単なる参照Issueは通常の`#123`として書き、複数Issueを一度に閉じない。Stack内の各PRも対応する末端Issueだけを閉じる。`epic`やPRを成果物にしない調査へ機械的に適用しない。
 
 # 振る舞いと確認結果
 
@@ -51,7 +59,7 @@ Resolves #123
 
 単体、結合、E2Eを一律に必須にしない。変更に適用できる確認を選ぶ。
 
-# PR作成
+# 通常PRの作成
 
 既定ブランチと既存PRを確認する。
 
@@ -81,6 +89,19 @@ gh pr view PR_NUMBER \
   --json isDraft,headRefOid,reviewDecision,statusCheckRollup,mergeable,mergeStateStatus
 ```
 
+stacked PRは`gh stack submit`でDraft作成した後、各PRの本文をこのスキルのテンプレートで置き換え、個別にDraftを解除する。通常PRの`gh pr create`経路と混ぜない。具体的なコマンドと失敗時の停止条件は`stacked-prs.md`を参照する。
+
+# Stack下段の変更後
+
+下段branchを修正したら、上段を順番にrebaseしてpushする。影響した全PRについて、GitHub上のbaseとhead SHA、Draft状態、レビュー判断、必須チェックを再取得する。古いhead SHAへの承認や確認結果を、現在も有効とみなさない。
+
+```bash
+gh pr view PR_NUMBER \
+  --repo OWNER/REPO \
+  --json baseRefName,headRefOid,isDraft,reviewDecision,statusCheckRollup,mergeable,mergeStateStatus
+gh pr checks PR_NUMBER --repo OWNER/REPO --required
+```
+
 # マージ経路
 
 所有者種別や契約プランだけで方式を決めない。既定ブランチへ適用されるruleset、ブランチ保護、必須チェック、リポジトリのマージ設定、CI起動条件を読む。
@@ -89,6 +110,8 @@ gh pr view PR_NUMBER \
 - マージキューが使えない場合は、必須レビューと必須チェックを強制する保護ブランチ経路を使う。
 - どちらも確認または強制できない場合は、保護を迂回せず停止する。
 - `--admin`で保護を迂回しない。
+
+## 通常PR
 
 必須チェックと最新head SHAを確認する。
 
@@ -112,6 +135,10 @@ gh pr merge PR_NUMBER --repo OWNER/REPO --merge --match-head-commit HEAD_SHA
 ```
 
 標準はマージコミットとする。既存リポジトリが別方式を明示している場合は、その規約を優先する。
+
+## stacked PR
+
+Stackでは自動マージと`gh pr merge`を使わない。全PRのDraft状態、承認、必須チェック、head SHA、base関係、線形履歴を再取得し、最下段から連続して条件を満たす範囲だけを`gh stack merge`で処理する。マージキュー利用時は方式を指定せず、直接マージ時だけリポジトリ既定の方式を指定する。実行後の確認を含む詳細は`stacked-prs.md`に従う。
 
 # コピー用アセット
 

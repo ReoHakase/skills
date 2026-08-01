@@ -1,82 +1,102 @@
 [
   {
+    "id": "train-01",
     "query": "GitHub Projectsを使っていないリポジトリで、仕様書からFirst Release用のIssueを親子と依存関係に分け、Milestoneへ割り当てて",
     "should_trigger": false
   },
   {
+    "id": "train-02",
     "query": "セッション期限切れ後に再認証しても401になる不具合を、受け入れ条件、対象外、確認手順、変更予定ファイルを含むIssue本文にして",
     "should_trigger": false
   },
   {
+    "id": "train-03",
     "query": "Projectを導入せず、Issue FormsとPRテンプレートをチームの開発手順に合わせて設計して",
     "should_trigger": false
   },
   {
-    "query": "複数の自動実行役が同じIssueへ着手する。Projectフィールドなしで、Assignee、linked branch、open PRを使った競合停止と、人間の決定後の引き継ぎ規約を作って",
+    "id": "train-04",
+    "query": "Projectを使わないリポジトリで、別々のworktreeにある既存branchとDraft PR 3件を下段から`gh stack link`し、担当者間の直列引き継ぎと再確認手順を設計して",
     "should_trigger": false
   },
   {
-    "query": "Issue #41からbranch、worktree、Draft PR、レビュー可能化、マージまでの対応関係とPR本文を整えて",
+    "id": "train-05",
+    "query": "大機能を1つの大項目と3つの末端Issueへ分け、専用worktreeで`gh stack`を使ってDraft PR群を提出・同期・部分マージする運用を設計して",
     "should_trigger": false
   },
   {
+    "id": "train-06",
     "query": "本文が確定済みのIssue群を既存GitHub Projectへ追加し、Status、Effort、Estimate Confidenceと4つのビューを整備して",
     "should_trigger": true
   },
   {
+    "id": "train-07",
     "query": "GitHub Projectの実装枠2、レビュー枠1、重いCI枠1から、既存Issueの次の実行WaveとForecastを組み直して",
     "should_trigger": true
   },
   {
+    "id": "train-08",
     "query": "組織Issue FieldとProjectフィールドが重複しているので、フィールドごとの正本を監査して",
     "should_trigger": true
   },
   {
+    "id": "train-09",
     "query": "`acme/release-tool`へ非公開Projectを作成・紐付けし、フィールドとビューを安全に設定する計画を出して",
     "should_trigger": true
   },
   {
+    "id": "train-10",
     "query": "IssueやMilestoneは残したまま、GitHub Projectのアイテム、フィールド、ビュー、紐付けだけを復元可能な手順で解除して",
     "should_trigger": true
   },
   {
+    "id": "train-11",
     "query": "仕様書をIssueへ分割し、そのIssue群をGitHub Projectへ追加して、工数、容量、Forecast、4ビューまで計画して",
     "should_trigger": true
   },
   {
+    "id": "train-12",
     "query": "Issue FormsとPR本文にProjectフィールドの値が重複している。両方の運用規約を監査して正本を整理して",
     "should_trigger": true
   },
   {
+    "id": "train-13",
     "query": "IssueのAssignee、linked branch、open PRを正本にし、競合時は人間が担当を決め、その結果をProjectのAgent RunとStatusへ同期する運用を設計して",
     "should_trigger": true
   },
   {
+    "id": "train-14",
     "query": "親子Issueとblocked byを整理し、Milestone期限、ProjectのEffort、レビュー容量からロードマップを引き直して",
     "should_trigger": true
   },
   {
-    "query": "Issue本文、PR契約、着手競合と引き継ぎ、Projectフィールド、ビューを含むGitHub開発運用全体を設計し直して",
+    "id": "train-15",
+    "query": "大項目と末端Issueからstacked PRを設計し、そのIssue群をGitHub Projectへ登録してEffort、容量、Forecast、実行Waveまで割り当てて",
     "should_trigger": true
   },
   {
-    "query": "GitHub Issue #42の内容を3行で要約して",
+    "id": "train-16",
+    "query": "GitHub Issue #42の内容を3行で要約し、Assigneeを`@bob`へ変更するだけにして",
     "should_trigger": false
   },
   {
-    "query": "`merge_group`で落ちているGitHub Actionsを調べて修正して",
+    "id": "train-17",
+    "query": "通常のコードレビューとしてこのPRの危険な箇所だけを指摘し、その後`feature/a`を`main`へrebaseする一般的なGitコマンドを教えて",
     "should_trigger": false
   },
   {
-    "query": "このPR本文だけを日本語から英語へ翻訳して",
+    "id": "train-18",
+    "query": "`gh stack --help`に表示されるサブコマンドを説明して",
     "should_trigger": false
   },
   {
-    "query": "`gh project item-list`の結果をJSONで出すコマンドを1つ教えて",
+    "id": "train-19",
+    "query": "現在のPR Stackの状態を`gh stack view --json`で取得して一覧にして",
     "should_trigger": false
   },
   {
-    "query": "このPRを通常のコードレビューとして確認し、危険な箇所だけ指摘して",
+    "id": "train-20",
+    "query": "`gh stack submit --auto --remote origin`を実行するコマンドだけ教えて",
     "should_trigger": false
   }
 ]

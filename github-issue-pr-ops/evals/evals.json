@@ -42,6 +42,36 @@
         "PR本文に概要、関連Issue、スコープ、Issueとの差異、振る舞い、確認結果、展開と切り戻し、リスク、レビュー案内を含め、`Closes #42`などでIssueを正確に1件だけ閉じる",
         "Draft解除前後を区別し、最新head SHA、レビュー判断、必須チェック、マージ可能性、rulesetまたはブランチ保護を再取得して、設定済みのマージ経路だけを使い、保護を`--admin`で迂回しない"
       ]
+    },
+    {
+      "id": 4,
+      "prompt": "前提: GitHub.com上のProjectを使わない`acme/checkout`で、大項目Issue #100と末端Issue #101、#102、#103から3段のPR Stackを作る。#101は共有型、#102はその型を使うAPI、#103はそのAPIを使う画面を成果とし、まだbranchとPRはない。既定branchは`main`、remoteは`origin`、Git 2.50、`gh` 2.94.0、`gh-stack`拡張は導入済みで、1人の調整担当が専用worktreeを使う。\n\n依頼: 全段をDraftで提出した後に#101相当の下段を修正し、影響した段を再確認してから最下段と中段だけを部分マージする。各PR本文とレビュー可能化も含め、確認、作成、提出、修正、再確認、マージの順で具体的に示して。\n\n制約: GitHubへは書き込まない。",
+      "expected_output": "1つの大項目に属する3つの末端Issueを、専用worktree内で下段から直列のbranchとDraft PRへ対応させる計画。Stackの順序を成果階層や開始不能な依存と混同せず、非対話の`gh stack`操作、PR本文の置換、下段修正後の連鎖的な再確認、最下段から連続する2段だけの安全なマージまでを示す。",
+      "files": [],
+      "assertions": [
+        "[critical] 1つのStackを大項目Issue #100だけへ所属させ、#101〜#103をそれぞれ1 branch、1 PRへ対応させ、各PRは対応する末端Issueだけを閉じて大項目を閉じない",
+        "[critical] 成果の親子関係、開始不能を表すblocked by、Stackのbase順序を別々に扱い、Stackの隣接関係だけを理由にblocked byを追加しない",
+        "GitHub.com、Gitと`gh`の版、拡張、同一リポジトリ内branch、remoteを確認し、実行時の`gh stack ... --help`を優先するとともに、同じStackのbranchを別worktreeで開かない",
+        "`gh issue develop`で各linked branchを正しいremote baseから作り、直下branchをcommit・pushしてから対象を明示した`gh stack init`または`add`へ採用し、`gh stack view --json`で確認後に`gh stack submit --auto --remote origin`を`--open`なしで実行する",
+        "生成された各PR本文を既存テンプレートへ置き換え、レビュー案内にこの段の責務、下段から引き継ぐ前提、このPR単独の確認範囲を書き、各PRを個別にレビュー可能へする",
+        "下段修正後は上段を順にrebase・pushし、影響した全PRのhead SHA、レビュー判断、必須チェック、Draft状態、線形履歴を再取得する",
+        "自動マージを使わず、最下段から連続する2段だけを明示して`gh stack merge`し、マージキューでは方式指定を省き、直接マージでだけリポジトリ既定の方式を指定する。対象外上段の失敗は選択範囲での再現・契約違反・上段固有・帰属不能へ根拠付きで分類し、部分マージ後はGitHub側で変わった残段をローカル追跡と安全に同期する"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "前提: Projectを使わない`acme/checkout`で、大項目Issue #200の下に末端Issue #201、#202、#203があり、対応するbranchを別々のworktreeで担当している。Draft PR #501は`main <- 201/schema`、#502は`201/schema <- 202/api`、#503は`202/api <- 203/ui`で作成済みだが、まだGitHubのStackへlinkされていない。大項目のAssigneeは`@lead`、末端IssueのAssigneeは順に`@alice`、`@bob`、`@carol`。\n\n依頼: 調整担当が3件をlinkした後、`@alice`が下段を修正し、各担当へ順番に引き継ぐ手順を示して。Stack全体を別の調整担当へ引き継ぐ場合の記録も含める。\n\n異常時: 再取得時にPR #502のbaseが予告なく`main`へ変わっていた場合の停止と復旧判断を示す。GitHubへは書き込まず、複数worktree方式の計画として示す。",
+      "expected_output": "大項目のAssigneeを調整担当、末端IssueのAssigneeを各branch担当とし、既存PRを下段からremote上のStackへlinkする計画。下段変更を各担当へ直列に引き継ぎ、全段を再取得し、base構成差を検出した時点で自動変更を止める。日常の同期ではコメントを増やさず、Stack全体の引き継ぎと構成変更だけを履歴へ残す。",
+      "files": [],
+      "assertions": [
+        "[critical] Stackを大項目Issue #200だけへ所属させ、#201〜#203、各branch、PR #501〜#503の1対1対応と、大項目・末端IssueのAssigneeによる調整担当・branch担当の分担を保つ",
+        "[critical] 各PRのheadとbaseを再取得して直列順を確認し、調整担当が`gh stack link --base main`へ#501、#502、#503を下段から渡し、remote上のStack情報をMCPまたはStacks REST APIで再確認する",
+        "複数worktree方式で`.git/gh-stack`や別worktreeのローカル状態を正本にせず、下段修正後は`@alice`、`@bob`、`@carol`が担当branchを順番にrebase・pushしてから影響した全PRを再取得する",
+        "通常のlink、rebase、push、同期、レビュー待ちではコメントを増やさず、Stack全体の引き継ぎでは対象Stack、全PR、旧新調整担当、再開条件を、構成変更では変更前後の順序、理由、影響をコメントへ残す",
+        "PR #502のbase差を検出した時点で停止し、終了コードだけで成功扱いせず、人間が元の同一順序へ戻すと決めた場合だけ全PRを下段から再linkする。除外・並べ替えでは`gh stack modify`を自動実行せず、`unstack`からの再作成は変更前後と影響を示して明示同意を得た場合だけ行う",
+        "link、push、submitの途中失敗では全branchとPRの作成済み・未実行を再取得して報告し、自動削除、巻き戻し、通常PRへの切り替えを行わない",
+        "再開後も各PRのhead SHA、Draft状態、レビュー判断、必須チェック、baseを段ごとに取り直し、最下段から連続しない範囲をマージ対象にしない"
+      ]
     }
   ]
 }

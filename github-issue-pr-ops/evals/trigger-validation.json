@@ -1,33 +1,41 @@
 [
   {
+    "id": "validation-01",
     "query": "Projectを使わない小規模リポジトリで、画像削除失敗を1件のIssueへ起票できる本文にして",
     "should_trigger": true
   },
   {
-    "query": "Issue #73のAssigneeを別エージェントへ引き継ぎ、人間の明示決定後に既存のlinked branchとopen PRを安全に継続する手順を決めて",
+    "id": "validation-02",
+    "query": "Projectなしで、既存の大項目と3つの末端Issueから、1つの専用worktreeと`gh stack`でPR Stackを作成し、下段修正後の再確認と部分マージまで設計して",
     "should_trigger": true
   },
   {
+    "id": "validation-03",
     "query": "既存ProjectのStatus選択肢とボード・ロードマップ表示がずれているので監査して",
     "should_trigger": false
   },
   {
+    "id": "validation-04",
     "query": "Project上の12件についてEffort、WIP上限、Milestone期限からForecastだけを再計算して",
     "should_trigger": false
   },
   {
+    "id": "validation-05",
     "query": "Issue FormsのPriority欄とProjectのPriorityが重複している。Issue起票とProject登録の両方を直して",
     "should_trigger": true
   },
   {
-    "query": "新機能を末端Issueへ分割し、GitHub Projectの容量制約を使って実装順と日程を決めて",
+    "id": "validation-06",
+    "query": "新機能を大項目と末端Issueへ分割してstacked PRの順序を設計し、GitHub ProjectのEffort、WIP上限、Forecastへ割り当てて",
     "should_trigger": true
   },
   {
+    "id": "validation-07",
     "query": "マージキュー用の必須検査が失敗したのでCI設定を修正して",
     "should_trigger": false
   },
   {
+    "id": "validation-08",
     "query": "このPRの説明内容は変えず、自然な英語へ書き換えて",
     "should_trigger": false
   }
