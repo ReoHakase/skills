@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 7,
+  "project": {
+    "id": "project-eval",
+    "title": "OAuth demo",
+    "createdAt": "2026-09-05T00:00:00Z",
+    "updatedAt": "2026-09-05T00:00:00Z",
+    "primaryAssetId": "asset-1"
+  },
+  "assets": [
+    {
+      "id": "asset-1",
+      "kind": "video",
+      "label": "OAuth demo",
+      "originalPath": "/tmp/openscreen-eval/demo.mp4",
+      "durationSec": 8,
+      "cameraTrack": null
+    }
+  ],
+  "transcript": {
+    "assetId": "asset-1",
+    "language": "ja",
+    "segments": [
+      {
+        "id": "segment-1",
+        "kind": "speech",
+        "startSec": 1,
+        "endSec": 3,
+        "text": "Chat GPTを接続します",
+        "wordIds": ["word-1", "word-2", "word-3"]
+      }
+    ],
+    "words": [
+      {"id": "word-1", "segmentId": "segment-1", "startSec": 1, "endSec": 1.8, "text": "Chat GPT"},
+      {"id": "word-2", "segmentId": "segment-1", "startSec": 1.8, "endSec": 2.2, "text": "を"},
+      {"id": "word-3", "segmentId": "segment-1", "startSec": 2.2, "endSec": 3, "text": "接続します"}
+    ]
+  },
+  "transcripts": [
+    {
+      "assetId": "asset-1",
+      "language": "ja",
+      "segments": [
+        {
+          "id": "segment-1",
+          "kind": "speech",
+          "startSec": 1,
+          "endSec": 3,
+          "text": "Chat GPTを接続します",
+          "wordIds": ["word-1", "word-2", "word-3"]
+        }
+      ],
+      "words": [
+        {"id": "word-1", "segmentId": "segment-1", "startSec": 1, "endSec": 1.8, "text": "Chat GPT"},
+        {"id": "word-2", "segmentId": "segment-1", "startSec": 1.8, "endSec": 2.2, "text": "を"},
+        {"id": "word-3", "segmentId": "segment-1", "startSec": 2.2, "endSec": 3, "text": "接続します"}
+      ]
+    }
+  ],
+  "timeline": {
+    "clips": [
+      {
+        "id": "clip-1",
+        "assetId": "asset-1",
+        "sourceStartSec": 0,
+        "sourceEndSec": 8,
+        "timelineStartSec": 0,
+        "timelineEndSec": 8,
+        "wordRefs": [],
+        "origin": "user",
+        "reason": ""
+      }
+    ],
+    "gaps": [],
+    "trimRanges": [],
+    "muteRanges": [],
+    "speedRanges": [],
+    "captionRanges": []
+  },
+  "annotations": [],
+  "zoomRanges": [],
+  "audioTracks": [],
+  "legacyEditor": {"captions": {"enabled": true}}
+}

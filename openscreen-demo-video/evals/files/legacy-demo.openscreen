@@ -1,0 +1,38 @@
+{
+  "version": 2,
+  "media": {
+    "screenVideoPath": "/tmp/openscreen-eval/demo.mp4",
+    "cursorCaptureMode": "editable-overlay"
+  },
+  "editor": {
+    "trimRegions": [],
+    "zoomRegions": [],
+    "speedRegions": [],
+    "annotationRegions": [
+      {
+        "id": "annotation-1",
+        "startMs": 1000,
+        "endMs": 3000,
+        "type": "text",
+        "content": "Chat GPTを接続します",
+        "annotationSource": "auto-caption",
+        "position": {"x": 4, "y": 86},
+        "size": {"width": 92, "height": 12},
+        "style": {
+          "color": "#ffffff",
+          "backgroundColor": "rgba(255, 255, 255, 0)",
+          "fontSize": 24,
+          "fontFamily": "Inter",
+          "fontWeight": "normal",
+          "fontStyle": "normal",
+          "textDecoration": "none",
+          "textAlign": "center"
+        },
+        "zIndex": 1
+      }
+    ],
+    "exportFormat": "mp4",
+    "exportQuality": "good",
+    "aspectRatio": "16:9"
+  }
+}

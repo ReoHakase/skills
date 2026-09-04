@@ -1,0 +1,61 @@
+{
+  "skill_name": "openscreen-demo-video",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Computer Useで起動済みの『Acme Console — Demo』ウィンドウを操作しながら録画したい。OAuth接続を実演し、demo.openscreenを残して。録画時間は操作の完了に合わせたい。",
+      "expected_output": "sourcesをfileへ列挙して一意なwindow titleを確認し、長寿命record sessionのRecording started後だけComputer Useを開始し、stdin stopで正常停止してproject/media/cursor sidecarを検証・packする実行計画。",
+      "assertions": [
+        "録画前にopenscreen helpとsources -oを確認する",
+        "--windowの部分一致が一意であることを確認する",
+        "NDJSONのRecording started後にComputer Useを開始する",
+        "hard killではなく同じprocessのstdin stopまたはSIGINTで終了する",
+        "done.successと生成project/media/cursor sidecarを検証してpackする",
+        "秘密情報と通知を録画前に隠す"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "CLI録画で作ったversion 2のdemo.openscreenを仕上げて。冒頭0.7秒を切り、2〜5秒のOAuthボタンへzoom、左上に『OAuth Remote MCP経由のChatGPT連携』、左下に短い補足を出す。字幕の固有名詞を直して台本化し、TTSで元の声を置換してMP4を書き出して。",
+      "expected_output": "originalを保護したlegacy-v2 workflow。raw timeのedit plan、cut後の内蔵captions、ID付きVTT往復、cut-aware台本、TTS尺検証、audio-mode replaceによるMP4 export、全尺QAを行う。",
+      "files": ["evals/files/legacy-demo.openscreen"],
+      "assertions": [
+        "originalへ直接captionsやJSON writeを行わず作業copy/bundleを使う",
+        "cutを字幕生成より先に確定する",
+        "manual zoomとheading/note annotationを再現可能なedit planへ保存する",
+        "字幕はcaption IDを維持したVTTで修正しmanual annotationsを保持する",
+        "台本はtrim圧縮後timeを確認しpartial trimを解消する",
+        "TTS durationが動画尺を超えないことをffprobe等で確認する",
+        "--audio-mode replaceで書き出し、映像・音声・字幕・zoomをQAする"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "~/Library/Application Support/openscreen/projects/proj_123.openscreenをopenscreen captionsしてからexportして。字幕のChat GPTをChatGPTに修正し、cutとzoomもJSONで直してほしい。",
+      "expected_output": "最初にshapeを検査し、schemaVersion 7なら現行CLIのlegacy validatorとの互換性穴を認識する。CLI captions/exportやv7→v2推測変換を行わず、copy上のword-ID TSV修正と単一clip限定patch、GUI+Computer Use preview/exportへ分岐する。",
+      "files": ["evals/files/gui-v7.openscreen"],
+      "assertions": [
+        "pathをquoteしMarkdownのbackslashを実pathへ混ぜない",
+        "openscreen infoだけを信じずtop-level shapeをhelperで判定する",
+        "document-v7へlegacy CLI captions/exportを無条件実行しない",
+        "VTTをv7字幕の正本にせずword-ID TSVを使う",
+        "transcripts words、segment text、primary transcript mirrorを同期する",
+        "clip境界をまたぐJSON modifierを拒否またはGUIへ回す",
+        "公式でないv7→v2変換を推測で行わない"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "GUIで作ったschemaVersion 7のデモを、修正済み字幕とcutに合わせて台本化して。TTS音声に置き換え、元の人声が残らないMP4にして。",
+      "expected_output": "word修正済みdocument-v7のclipsとtrimRangesを反映した台本を作る。GUIでvisual-onlyのpicture masterを書き出し、TTS尺を検査して、元映像のaudio streamをmapせずTTSだけを付けた最終MP4を作る。",
+      "files": ["evals/files/gui-v7.openscreen"],
+      "assertions": [
+        "make-transcript-scriptでclipsとtrimRangesを反映した台本を作る",
+        "partial trimやclip source境界を推測で処理しない",
+        "GUI audio layerを原音replace扱いしない",
+        "picture masterにはvideo streamだけをmapしTTS audioだけを付ける",
+        "TTSと映像のdurationを確認し最終MP4を全尺QAする"
+      ]
+    }
+  ]
+}

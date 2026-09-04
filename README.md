@@ -34,6 +34,7 @@ agent-skills/
 | `conventional-commit`   | Git / Workflow | Conventional Commits と Gitmoji を前提に、staged changes を適切に分割して commit message を組み立てる |
 | `github-issue-pr-ops`   | GitHub / Ops   | Projectに依存せず、Issue分割、着手競合、PR、stacked PR、レビューからマージまでの契約を設計・運用する  |
 | `github-project-ops`    | GitHub / Ops   | GitHub Projectの項目、フィールド、ビュー、工数、容量、Forecast、実行Wave、導入・解除を設計・運用する  |
+| `openscreen-demo-video` | Video / Media  | OpenScreen CLIとComputer Useでデモ動画を録画し、字幕・cut・zoom・注釈・TTS・書き出しを扱う            |
 
 ## Install / Update
 
